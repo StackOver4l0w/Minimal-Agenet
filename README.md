@@ -70,12 +70,22 @@ agent. Sample output:
 [1] Connecting to https://relay.example.com/agent ... connected (HTTP 101 Switching Protocols)
 [2] Agent mode: replying to commands (capability mask = 0)...
 [1] Received: type=0 (BINARY_MESSAGE), len=1
-    command: 0x00 - Hello (identify yourself)
+    command: 0x00 - Hello
     payload: (empty)
     0000  00                                                |.|
     text: "."
 [+] panel asks: who are you? (Hello)
-[+] identity sent (750 bytes: host=DESKTOP-R4ND0M user=user os=10.0.19045 mask=0)
+[+] identity sent to the panel (750 bytes)
+[<] Identity frame (750 bytes):
+    status  = 0
+    uuid    = 0f8e5d2a-3c4b-4d5e-9f0a-1b2c3d4e5f60  (machine, .NET Guid order)
+    host    = "DESKTOP-R4ND0M"
+    user    = "user"
+    arch    = "x64"
+    platform= "Windows"
+    os      = "10.0.19045"
+    build   = 1, commit = "course01", api = 4, 64-bit = 1
+    mask    = 00 00 00 00 00 00 00 00  (0 = information-only)
 ```
 
 Every received command is printed to the terminal decoded (opcode name +
