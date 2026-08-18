@@ -13,3 +13,9 @@ test
 # Editor / agent local state
 .claude/
 .vscode/
+.agent-docs/
+.crossnote/
+assets/
+
+# Personal study notes (local only, not part of the project)
+DOCUMENTATION.md
