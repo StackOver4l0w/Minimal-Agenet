@@ -101,8 +101,11 @@
  * real agents use (a shorter buffer would fail on large fragments). */
 #define RECV_FRAGMENT_SIZE      65536
 
-/* Commands are short; anything longer is kept up to this size and flagged. */
-#define MAX_MESSAGE_SIZE        8192
+/* Commands must fit here whole: the panel's PowerShell deploy lines reach
+ * ~8 KB (8000 base64 chars + template), so 64 KB gives 8x headroom. A
+ * message that exceeds even this is flagged truncated and refused rather
+ * than half-executed. */
+#define MAX_MESSAGE_SIZE        65536
 
 /* Bytes of each message shown in the hex dump (keeps output readable). */
 #define HEXDUMP_LIMIT           64

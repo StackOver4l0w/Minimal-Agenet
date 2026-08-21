@@ -59,7 +59,8 @@ Features:
 ### relay_client
 
 ```
-relay_client.exe <URL>
+relay_client.exe <URL>          # quiet mode (default): one line per event
+relay_client.exe <URL> -v       # verbose: dump every command's raw bytes
 ```
 
 A **minimal agent with a remote shell** for the relay protocol. It connects,
@@ -83,43 +84,23 @@ A side effect of advertising Shell without FileSystem: the panel's file
 manager automatically switches to its PowerShell-over-shell backend, so a
 basic file browser works too without any file opcodes in the agent.
 
-Sample output:
+Sample output (quiet mode):
 
 ```
 [1] Connecting to https://relay.example.com/agent ... connected (HTTP 101 Switching Protocols)
 [2] Agent mode: replying to commands (capability mask = Shell)...
-[1] Received: type=0 (BINARY_MESSAGE), len=1
-    command: 0x00 - Hello
-    payload: (empty)
-[+] panel asks: who are you? (Hello)
 [+] identity sent to the panel (750 bytes)
-[<] Identity frame (750 bytes):
-    status  = 0
-    uuid    = 0f8e5d2a-3c4b-4d5e-9f0a-1b2c3d4e5f60  (machine, .NET Guid order)
-    host    = "DESKTOP-R4ND0M"
-    user    = "user"
-    arch    = "x64"
-    platform= "Windows"
-    os      = "10.0.19045"
-    build   = 1, commit = "course01", api = 4, 64-bit = 1
-    mask    = 02 00 00 00 00 00 00 00  (categories: Shell)
-[2] Received: type=0 (BINARY_MESSAGE), len=9
-    command: 0x0A - OpenShell
 [+] shell 0 opened (cmd.exe spawned) - id sent
-[3] Received: type=0 (BINARY_MESSAGE), len=15
-    command: 0x04 - WriteShell
-    payload: shell = 0, input = "echo hello"
 [+] write to shell 0 - status 0
-[4] Received: type=0 (BINARY_MESSAGE), len=9
-    command: 0x05 - ReadShell
-    payload: shell = 0
 [+] read shell 0 - 9 byte(s)
+[i] read shell 0 - idle
 ```
 
-Every received command is printed to the terminal decoded (opcode name +
-payload), so the exchange is fully readable. Note that WinHTTP does not expose
-raw RFC 6455 frame opcodes - the printed "type" is the WinHTTP buffer type
-(0 = binary message, 2 = UTF-8 message, 1/3 = fragments, 4 = close).
+With `-v` every received command is additionally dumped decoded (opcode name +
+payload + raw bytes), and the full identity frame is printed field by field.
+Note that WinHTTP does not expose raw RFC 6455 frame opcodes - the printed
+"type" is the WinHTTP buffer type (0 = binary message, 2 = UTF-8 message,
+1/3 = fragments, 4 = close).
 
 How the WebSocket upgrade works: an ordinary HTTPS GET request is created,
 `WINHTTP_OPTION_UPGRADE_TO_WEB_SOCKET` makes WinHTTP add the handshake headers,

