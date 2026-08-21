@@ -18,4 +18,7 @@ test
 assets/
 
 # Personal study notes (local only, not part of the project)
-DOCUMENTATION.md
+notes/
+
+# Local test harness (kept personal for now)
+shell_harness.py

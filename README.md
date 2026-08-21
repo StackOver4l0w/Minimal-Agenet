@@ -6,7 +6,7 @@ Two small Windows network programs in C, both built on the
 | Program | Source | What it does |
 |---|---|---|
 | `downloader.exe` | `main.c` | Downloads a file over HTTP(S) and saves it to disk, streaming the body in chunks. |
-| `relay_client.exe` | `relay_client.c` | Minimal information-only agent: connects to a relay URL over WebSocket, identifies itself to the operator panel (750-byte Hello frame) and answers unimplemented commands with status 1. |
+| `relay_client.exe` | `relay_client.c` | Minimal agent with a remote shell: connects to a relay URL over WebSocket, identifies itself to the operator panel (750-byte Hello frame), and runs panel commands inside a local `cmd.exe` (Shell category). |
 
 ## Requirements
 
@@ -18,8 +18,21 @@ Two small Windows network programs in C, both built on the
 
 ```sh
 gcc -O2 -s -Wall -Wextra -o downloader.exe main.c -lwinhttp
-gcc -O2 -s -Wall -Wextra -o relay_client.exe relay_client.c -lwinhttp -ladvapi32
+gcc -O2 -s -Wall -Wextra -o relay_client.exe relay_client.c \
+    transport.c shell.c report.c system_facts.c -lwinhttp -ladvapi32
 ```
+
+The agent is split into small modules, one topic per header:
+
+| File | Topic |
+|---|---|
+| `relay_client.c` | `main`: connect, dispatch commands, cleanup |
+| `protocol.h` | opcodes, statuses, identity frame, capability mask |
+| `wire.h` | tiny little-endian writers (header-only) |
+| `transport.h/.c` | the WebSocket pipe: `ws_send` / `ws_receive` |
+| `shell.h/.c` | the cmd.exe pool: spawn / read / write / teardown |
+| `report.h/.c` | human-facing output: errors, hex dumps, decoders |
+| `system_facts.h/.c` | machine UUID + hostname / user / OS facts |
 
 ## Usage
 
@@ -49,31 +62,35 @@ Features:
 relay_client.exe <URL>
 ```
 
-A **minimal information-only agent** for the relay protocol. It connects,
-upgrades the HTTP connection to WebSocket, and then implements the smallest
-agent contract the operator panel understands:
+A **minimal agent with a remote shell** for the relay protocol. It connects,
+upgrades the HTTP connection to WebSocket, and then serves the operator panel:
 
 - `0x00 Hello` -> replies with the full 750-byte identity frame: machine UUID
   (from the registry `MachineGuid`, .NET Guid byte order), hostname, logged-on
   user, architecture, platform, OS version, build metadata, API version 4, and
-  a **zero capability mask**;
+  a capability mask with **Shell (bit 1) set**;
+- `0x0A OpenShell` -> spawns a hidden `cmd.exe` (code page switched to UTF-8)
+  wired to two pipes, allocates a shell id from a 256-slot pool (v4 framing:
+  the agent owns shell identity), and returns the id;
+- `0x04 WriteShell` / `0x05 ReadShell` -> feed operator input to the shell's
+  stdin / drain buffered stdout back to the panel (reading never blocks; the
+  panel's adaptive 250..3000 ms polling drives the output flow);
+- `0x08 CloseShell` -> terminates the shell process and frees its slot;
 - `0x09 Exit` -> terminates the agent without replying (the only such command);
-- any other command -> replies `status = 1` ("not implemented") - the panel
-  shows the device information and hides the file-browser / shell / screen UI
-  on its own, because the capability mask declares no feature categories.
+- any other command -> replies `status = 1` ("not implemented").
 
-The panel therefore lists the agent with full identity (host, user, OS, arch)
-while nothing beyond identification is implemented - a pure device-information
-agent. Sample output:
+A side effect of advertising Shell without FileSystem: the panel's file
+manager automatically switches to its PowerShell-over-shell backend, so a
+basic file browser works too without any file opcodes in the agent.
+
+Sample output:
 
 ```
 [1] Connecting to https://relay.example.com/agent ... connected (HTTP 101 Switching Protocols)
-[2] Agent mode: replying to commands (capability mask = 0)...
+[2] Agent mode: replying to commands (capability mask = Shell)...
 [1] Received: type=0 (BINARY_MESSAGE), len=1
     command: 0x00 - Hello
     payload: (empty)
-    0000  00                                                |.|
-    text: "."
 [+] panel asks: who are you? (Hello)
 [+] identity sent to the panel (750 bytes)
 [<] Identity frame (750 bytes):
@@ -85,7 +102,18 @@ agent. Sample output:
     platform= "Windows"
     os      = "10.0.19045"
     build   = 1, commit = "course01", api = 4, 64-bit = 1
-    mask    = 00 00 00 00 00 00 00 00  (0 = information-only)
+    mask    = 02 00 00 00 00 00 00 00  (categories: Shell)
+[2] Received: type=0 (BINARY_MESSAGE), len=9
+    command: 0x0A - OpenShell
+[+] shell 0 opened (cmd.exe spawned) - id sent
+[3] Received: type=0 (BINARY_MESSAGE), len=15
+    command: 0x04 - WriteShell
+    payload: shell = 0, input = "echo hello"
+[+] write to shell 0 - status 0
+[4] Received: type=0 (BINARY_MESSAGE), len=9
+    command: 0x05 - ReadShell
+    payload: shell = 0
+[+] read shell 0 - 9 byte(s)
 ```
 
 Every received command is printed to the terminal decoded (opcode name +
@@ -107,9 +135,10 @@ returns the handle used for `WinHttpWebSocketReceive`.
   browser or a dedicated tool (e.g. [yt-dlp](https://github.com/yt-dlp/yt-dlp))
   for those.
 - Output filenames are expected to be ASCII in this version.
-- `relay_client` implements only the identification part of the relay protocol
-  (Hello / Exit / not-implemented status); there is no file, shell, or screen
-  functionality - the zero capability mask tells the panel as much. It is lab
-  tooling for a course assignment. Detection note: the connection pattern it
-  produces (periodic connect to a single fixed host with a non-browser user
-  agent) is trivially visible to network monitoring.
+- `relay_client` implements the identification and shell parts of the relay
+  protocol; there is no native file or screen functionality (the panel covers
+  files via its PowerShell-over-shell fallback). Shells die with the agent
+  process - there is no persistence across reconnects. It is lab tooling for
+  a course assignment. Detection note: the connection pattern it produces
+  (periodic connect to a single fixed host with a non-browser user agent) is
+  trivially visible to network monitoring.

