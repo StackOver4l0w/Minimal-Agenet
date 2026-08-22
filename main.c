@@ -17,7 +17,7 @@
  *   [3] shutdown: close the WebSocket cleanly and release handles
  *
  * Build (MinGW gcc):
- *   gcc -O2 -s -Wall -Wextra -o relay_client.exe relay_client.c \
+ *   gcc -O2 -s -Wall -Wextra -o relay_client.exe main.c \
  *       transport.c shell.c report.c system_facts.c -lwinhttp -ladvapi32
  * Run:
  *   relay_client.exe <URL>        e.g. ... https://relay.example.com/agent
@@ -28,7 +28,7 @@
  * ============================================================================
  * Module map (one header = one topic)
  * ============================================================================
- *   relay_client.c   this file - connect, dispatch, cleanup (main)
+ *   main.c           this file - connect, dispatch, cleanup (main)
  *   protocol.h       opcodes, statuses, identity frame, capability mask
  *   wire.h           tiny little-endian writers (header-only)
  *   transport.h/.c   the WebSocket pipe: ws_send / ws_receive

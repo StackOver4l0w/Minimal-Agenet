@@ -6,7 +6,7 @@ API:
 
 | Program | Source | What it does |
 |---|---|---|
-| `relay_client.exe` | `relay_client.c` | Minimal agent with a remote shell: connects to a relay URL over WebSocket, identifies itself to the operator panel (750-byte Hello frame), and runs panel commands inside a local `cmd.exe` (Shell category). |
+| `relay_client.exe` | `main.c` | Minimal agent with a remote shell: connects to a relay URL over WebSocket, identifies itself to the operator panel (750-byte Hello frame), and runs panel commands inside a local `cmd.exe` (Shell category). |
 
 ## Requirements
 
@@ -17,7 +17,7 @@ API:
 ## Build
 
 ```sh
-gcc -O2 -s -Wall -Wextra -o relay_client.exe relay_client.c \
+gcc -O2 -s -Wall -Wextra -o relay_client.exe main.c \
     transport.c shell.c report.c system_facts.c -lwinhttp -ladvapi32
 ```
 
@@ -25,7 +25,7 @@ The agent is split into small modules, one topic per header:
 
 | File | Topic |
 |---|---|
-| `relay_client.c` | `main`: connect, dispatch commands, cleanup |
+| `main.c` | `main`: connect, dispatch commands, cleanup |
 | `protocol.h` | opcodes, statuses, identity frame, capability mask |
 | `wire.h` | tiny little-endian writers (header-only) |
 | `transport.h/.c` | the WebSocket pipe: `ws_send` / `ws_receive` |
