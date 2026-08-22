@@ -33,6 +33,20 @@ The agent is split into small modules, one topic per header:
 | `report.h/.c` | human-facing output: errors, hex dumps, decoders |
 | `system_facts.h/.c` | machine UUID + hostname / user / OS facts |
 
+## CI / Releases (GitHub Actions)
+
+Cross-builds the three Windows arches with the
+[llvm-mingw](https://github.com/mstorsjo/llvm-mingw) toolchain (i686 /
+x86_64 / aarch64) using the same flags as the local build, and bakes the
+identity frame's metadata (`-DID_BUILD_NUMBER=...`,
+`-DAGENT_COMMIT_HASH=...`; local builds fall back to the in-code defaults):
+
+- **build.yml** — on every push/PR to `main`: compile check; on pushes, also
+  republishes the rolling **`preview`** pre-release carrying
+  `windows-i386.exe`, `windows-x86_64.exe`, `windows-aarch64.exe`;
+- **release.yml** — on a `v*` tag (or manual dispatch): the same binaries
+  published as a stable GitHub Release.
+
 ## Usage
 
 ```

@@ -62,7 +62,12 @@
 #define ID_OS_VERSION_SIZE      128
 #define ID_COMMIT_HASH_SIZE     9      /* 8 chars + NUL            */
 #define ID_API_VERSION          4      /* v4 = current framing     */
+
+/* Display-only build tag. CI bakes the real one in with
+ * -DID_BUILD_NUMBER=<git commit count>; local builds keep the default. */
+#ifndef ID_BUILD_NUMBER
 #define ID_BUILD_NUMBER         1      /* display-only build tag   */
+#endif
 
 /* ==========================================================================
  * Capability mask: 8 bytes, one bit per feature category, LSB first:

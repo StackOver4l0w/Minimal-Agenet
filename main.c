@@ -49,6 +49,12 @@
 #include "report.h"
 #include "system_facts.h"
 
+/* Commit tag baked into the identity frame. CI overrides it with
+ * -DAGENT_COMMIT_HASH="<8-char git hash>"; local builds keep the study tag. */
+#ifndef AGENT_COMMIT_HASH
+#define AGENT_COMMIT_HASH "course01"
+#endif
+
 /* ==========================================================================
  * The identity frame (the reply to Hello)
  * ======================================================================== */
@@ -75,7 +81,7 @@ static int build_identity_frame(unsigned char frame[IDENTITY_FRAME_SIZE],
     write_ascii_field(frame, &pos, facts->os_version, ID_OS_VERSION_SIZE);
 
     write_u32_le(frame, &pos, ID_BUILD_NUMBER);      /* build number     */
-    write_ascii_field(frame, &pos, "course01",       ID_COMMIT_HASH_SIZE);
+    write_ascii_field(frame, &pos, AGENT_COMMIT_HASH, ID_COMMIT_HASH_SIZE);
     write_u32_le(frame, &pos, ID_API_VERSION);       /* API version = 4  */
 
     frame[pos++] = (unsigned char)(sizeof(void *) == 8 ? 1 : 0);  /* 64-bit */
