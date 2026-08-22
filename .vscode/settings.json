@@ -1,0 +1,20 @@
+{
+    // IntelliSense defaults: the x86_64 llvm-mingw driver (in .tools/, used
+    // by the build tasks) provides the MinGW-w64 + WinHTTP headers.
+    "C_Cpp.default.compilerPath": "${workspaceFolder}/.tools/llvm-mingw/bin/x86_64-w64-mingw32-gcc.exe",
+    "C_Cpp.default.cStandard": "c17",
+    "C_Cpp.errorSquiggles": "enabled",
+    "C_Cpp.formatting": "clangFormat",
+    // This is a C project, not C++ (unlike the PIA beacon these settings
+    // were adapted from).
+    "files.associations": {
+        "*.h": "c"
+    },
+    "files.exclude": {
+        "**/.tools": true
+    },
+    "search.exclude": {
+        "**/.tools": true,
+        "**/artifacts": true
+    }
+}

@@ -3,9 +3,11 @@
 *.o
 *.obj
 
+# Local cross-compile toolchain for the .vscode build tasks
+.tools/
+
 # Editor / agent local state
 .claude/
-.vscode/
 .agent-docs/
 .crossnote/
 assets/

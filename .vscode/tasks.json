@@ -1,0 +1,146 @@
+{
+  "version": "2.0.0",
+  // The tasks drive the llvm-mingw cross-compilers directly (the same
+  // toolchain CI cross-builds with on Linux). Expected at .tools/llvm-mingw,
+  // gitignored; outputs land in the repo root next to the README's local
+  // gcc build (also *.exe, also gitignored). Local builds keep the in-code
+  // build-metadata defaults - CI bakes the real ones.
+  "options": {
+    "cwd": "${workspaceFolder}"
+  },
+  "presentation": {
+    "echo": true,
+    "reveal": "always",
+    "focus": false,
+    "panel": "shared",
+    "showReuseMessage": false,
+    "clear": true
+  },
+  "tasks": [
+    {
+      "label": "windows-i386-release",
+      "type": "process",
+      "command": "${workspaceFolder}\\.tools\\llvm-mingw\\bin\\i686-w64-mingw32-gcc.exe",
+      "args": [
+        "-O2",
+        "-s",
+        "-Wall",
+        "-Wextra",
+        "-o",
+        "windows-i386.exe",
+        "main.c",
+        "transport.c",
+        "shell.c",
+        "report.c",
+        "system_facts.c",
+        "-lwinhttp",
+        "-ladvapi32"
+      ],
+      "problemMatcher": ["$gcc"],
+      "group": "build"
+    },
+    {
+      "label": "windows-x86_64-release",
+      "type": "process",
+      "command": "${workspaceFolder}\\.tools\\llvm-mingw\\bin\\x86_64-w64-mingw32-gcc.exe",
+      "args": [
+        "-O2",
+        "-s",
+        "-Wall",
+        "-Wextra",
+        "-o",
+        "windows-x86_64.exe",
+        "main.c",
+        "transport.c",
+        "shell.c",
+        "report.c",
+        "system_facts.c",
+        "-lwinhttp",
+        "-ladvapi32"
+      ],
+      "problemMatcher": ["$gcc"],
+      "group": "build"
+    },
+    {
+      "label": "windows-aarch64-release",
+      "type": "process",
+      "command": "${workspaceFolder}\\.tools\\llvm-mingw\\bin\\aarch64-w64-mingw32-gcc.exe",
+      "args": [
+        "-O2",
+        "-s",
+        "-Wall",
+        "-Wextra",
+        "-o",
+        "windows-aarch64.exe",
+        "main.c",
+        "transport.c",
+        "shell.c",
+        "report.c",
+        "system_facts.c",
+        "-lwinhttp",
+        "-ladvapi32"
+      ],
+      "problemMatcher": ["$gcc"],
+      "group": "build"
+    },
+    {
+      "label": "windows-i386-debug",
+      "type": "process",
+      "command": "${workspaceFolder}\\.tools\\llvm-mingw\\bin\\i686-w64-mingw32-gcc.exe",
+      "args": [
+        "-O0",
+        "-g",
+        "-Wall",
+        "-Wextra",
+        "-o",
+        "windows-i386-debug.exe",
+        "main.c",
+        "transport.c",
+        "shell.c",
+        "report.c",
+        "system_facts.c",
+        "-lwinhttp",
+        "-ladvapi32"
+      ],
+      "problemMatcher": ["$gcc"],
+      "group": "build"
+    },
+    {
+      "label": "windows-x86_64-debug",
+      "type": "process",
+      "command": "${workspaceFolder}\\.tools\\llvm-mingw\\bin\\x86_64-w64-mingw32-gcc.exe",
+      "args": [
+        "-O0",
+        "-g",
+        "-Wall",
+        "-Wextra",
+        "-o",
+        "windows-x86_64-debug.exe",
+        "main.c",
+        "transport.c",
+        "shell.c",
+        "report.c",
+        "system_facts.c",
+        "-lwinhttp",
+        "-ladvapi32"
+      ],
+      "problemMatcher": ["$gcc"],
+      "group": "build"
+    },
+    {
+      "label": "Build All Windows",
+      "detail": "release build of the three arches (CI matrix: i386/x86_64/aarch64)",
+      "dependsOrder": "parallel",
+      "dependsOn": [
+        "windows-i386-release",
+        "windows-x86_64-release",
+        "windows-aarch64-release"
+      ],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": []
+    }
+  ]
+}
