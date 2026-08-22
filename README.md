@@ -1,23 +1,22 @@
-# WinHTTP Downloader (+ WebSocket Relay Client)
+# WinHTTP WebSocket Relay Client
 
-Two small Windows network programs in C, both built on the
-[WinHTTP](https://learn.microsoft.com/windows/win32/winhttp/winhttp-start-page) API:
+A small Windows network program in C, built on the
+[WinHTTP](https://learn.microsoft.com/windows/win32/winhttp/winhttp-start-page)
+API:
 
 | Program | Source | What it does |
 |---|---|---|
-| `downloader.exe` | `main.c` | Downloads a file over HTTP(S) and saves it to disk, streaming the body in chunks. |
 | `relay_client.exe` | `relay_client.c` | Minimal agent with a remote shell: connects to a relay URL over WebSocket, identifies itself to the operator panel (750-byte Hello frame), and runs panel commands inside a local `cmd.exe` (Shell category). |
 
 ## Requirements
 
-- Windows (the WebSocket client needs **Windows 8+** for the WinHTTP WebSocket API)
+- Windows (**Windows 8+** for the WinHTTP WebSocket API)
 - A C compiler with the WinHTTP headers. Tested with **MinGW-w64 gcc 16.1**
   (MSYS2 `ucrt64`).
 
 ## Build
 
 ```sh
-gcc -O2 -s -Wall -Wextra -o downloader.exe main.c -lwinhttp
 gcc -O2 -s -Wall -Wextra -o relay_client.exe relay_client.c \
     transport.c shell.c report.c system_facts.c -lwinhttp -ladvapi32
 ```
@@ -35,28 +34,6 @@ The agent is split into small modules, one topic per header:
 | `system_facts.h/.c` | machine UUID + hostname / user / OS facts |
 
 ## Usage
-
-### downloader
-
-```
-downloader.exe <URL> <FILE>
-```
-
-Examples:
-
-```
-downloader.exe https://example.com/ page.html
-downloader.exe https://www.python.org/static/img/python-logo.png logo.png
-```
-
-Features:
-
-- HTTP **and** HTTPS (TLS is handled automatically by WinHTTP).
-- Streams the response in 8 KB chunks (low memory use).
-- Prints the size and download progress.
-- Refuses to save a file on a non-2xx response (e.g. 404 / 500).
-
-### relay_client
 
 ```
 relay_client.exe <URL>          # quiet mode (default): one line per event
@@ -110,16 +87,9 @@ returns the handle used for `WinHttpWebSocketReceive`.
 
 ## Notes / Limitations
 
-- The downloader works only with **direct** HTTP(S) file URLs. Sites that hide
-  the real file behind a JavaScript redirect (some "download pages"), or that
-  require JavaScript / login (e.g. video platforms), are out of scope — use a
-  browser or a dedicated tool (e.g. [yt-dlp](https://github.com/yt-dlp/yt-dlp))
-  for those.
-- Output filenames are expected to be ASCII in this version.
-- `relay_client` implements the identification and shell parts of the relay
+- The agent implements the identification and shell parts of the relay
   protocol; there is no native file or screen functionality (the panel covers
   files via its PowerShell-over-shell fallback). Shells die with the agent
-  process - there is no persistence across reconnects. It is lab tooling for
-  a course assignment. Detection note: the connection pattern it produces
-  (periodic connect to a single fixed host with a non-browser user agent) is
-  trivially visible to network monitoring.
+  process - there is no persistence across reconnects. Detection note: the
+  connection pattern it produces (periodic connect to a single fixed host with
+  a non-browser user agent) is trivially visible to network monitoring.
