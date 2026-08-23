@@ -1,0 +1,142 @@
+name: Build
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - "**"
+
+concurrency:
+  group: ci-${{ github.event.pull_request.head.ref || github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  # ═════════════════════════════════════════════════════════════════════════
+  # Build — the three Windows arches the C2 Agents table tags (X86/AMD64/ARM64),
+  # cross-compiled on Linux with the llvm-mingw toolchain (gcc-compatible clang
+  # drivers + mingw-w64 import libs, e.g. -lwinhttp, for every Windows triple).
+  # ═════════════════════════════════════════════════════════════════════════
+  build:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { arch: i386,    triple: i686-w64-mingw32 }
+          - { arch: x86_64,  triple: x86_64-w64-mingw32 }
+          - { arch: aarch64, triple: aarch64-w64-mingw32 }
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0        # BUILD_NUMBER = git rev-list --count HEAD
+
+      # Asset names changed over time (ucrt-x86_64-linux.tar.xz →
+      # ucrt-ubuntu-XX.04-x86_64.tar.xz), so pick the URL from the release
+      # assets instead of hardcoding a filename.
+      - name: Resolve llvm-mingw version
+        id: llvm-mingw
+        run: |
+          json=$(curl -fsSL https://api.github.com/repos/mstorsjo/llvm-mingw/releases/latest)
+          echo "version=$(echo "$json" | jq -r .tag_name)" >> "$GITHUB_OUTPUT"
+          url=$(echo "$json" | jq -r '
+            .assets[].browser_download_url
+            | select(test("ucrt-.*(linux|ubuntu-).*x86_64.*\\.tar\\.xz$"))' | head -1)
+          test -n "$url"
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+
+      - name: Cache llvm-mingw
+        id: cache-llvm-mingw
+        uses: actions/cache@v6
+        with:
+          path: /opt/llvm-mingw
+          key: llvm-mingw-${{ steps.llvm-mingw.outputs.version }}-linux-x64
+
+      - name: Install llvm-mingw
+        if: steps.cache-llvm-mingw.outputs.cache-hit != 'true'
+        run: |
+          curl -fSL -o llvm-mingw.tar.xz "${{ steps.llvm-mingw.outputs.url }}"
+          sudo mkdir -p /opt/llvm-mingw
+          sudo tar -xf llvm-mingw.tar.xz --strip-components=1 -C /opt/llvm-mingw
+          rm llvm-mingw.tar.xz
+
+      - name: Add llvm-mingw to PATH
+        run: echo "/opt/llvm-mingw/bin" >> "$GITHUB_PATH"
+
+      # Same flags as the README's local build, plus the baked identity-frame
+      # metadata (build number + commit hash) the panel displays.
+      - name: Build
+        run: |
+          BUILD_NUMBER=$(git rev-list --count HEAD)
+          COMMIT_HASH=$(git rev-parse --short=8 HEAD)
+          echo "=== building windows-${{ matrix.arch }} (${{ matrix.triple }}-gcc) ==="
+          ${{ matrix.triple }}-gcc -O2 -s -Wall -Wextra \
+              -DID_BUILD_NUMBER="$BUILD_NUMBER" \
+              -DAGENT_COMMIT_HASH="\"$COMMIT_HASH\"" \
+              -o relay_client.exe main.c transport.c shell.c report.c system_facts.c \
+              -lwinhttp -ladvapi32
+          mkdir -p artifacts
+          cp relay_client.exe "artifacts/windows-${{ matrix.arch }}.exe"
+          ls -la artifacts/
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: build-windows-${{ matrix.arch }}
+          retention-days: 1
+          path: artifacts/
+
+  # ═════════════════════════════════════════════════════════════════════════
+  # Preview Release — rolling pre-release on every push to main; this is the
+  # "preview" tag the C2's Agents-table direct URLs point at.
+  # ═════════════════════════════════════════════════════════════════════════
+  preview-release:
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: [build]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v8
+        with:
+          path: artifacts
+          pattern: build-*
+
+      - name: Collect release files
+        run: |
+          mkdir -p release-files
+          find artifacts -type f -exec cp {} release-files/ \;
+          echo "Release files:"
+          ls -lh release-files/
+
+      - name: Create or update preview release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="preview"
+          TITLE="Preview (${GITHUB_SHA::7})"
+          BODY="Automated preview release from \`main\` branch.
+
+          **Commit:** [\`${GITHUB_SHA::7}\`](https://github.com/${{ github.repository }}/commit/${GITHUB_SHA})
+          **Date:** $(date -u '+%Y-%m-%d %H:%M UTC')
+
+          > This is a rolling pre-release that updates on every push to \`main\`.
+          > For stable releases, see tagged versions (\`v*\`)."
+
+          # Delete existing preview release and tag if they exist
+          gh release delete "$TAG" --yes 2>/dev/null || true
+          git push origin ":refs/tags/$TAG" 2>/dev/null || true
+
+          # Create fresh pre-release
+          gh release create "$TAG" \
+            --title "$TITLE" \
+            --notes "$BODY" \
+            --prerelease \
+            --target "$GITHUB_SHA" \
+            release-files/*

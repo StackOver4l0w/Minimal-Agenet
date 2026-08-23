@@ -3,16 +3,11 @@
 *.o
 *.obj
 
-# Test/download outputs produced by running the downloader
-*.html
-*.mov
-*.mp4
-*.png
-test
+# Local cross-compile toolchain for the .vscode build tasks
+.tools/
 
 # Editor / agent local state
 .claude/
-.vscode/
 .agent-docs/
 .crossnote/
 assets/
