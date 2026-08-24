@@ -2,6 +2,7 @@
  */
 
 #include "transport.h"
+#include "types.h"
 
 /* Send one binary reply. Returns the WinHTTP error code (0 = success). */
 DWORD ws_send(HINTERNET socket, const void *data, DWORD length)

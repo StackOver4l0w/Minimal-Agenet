@@ -7,7 +7,7 @@
 
 #pragma once
 
-#include <windows.h>
+#include "wintypes.h"
 
 #include "protocol.h"
 #include "transport.h"     /* incoming_message */

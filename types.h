@@ -1,4 +1,4 @@
-typedef unsigned long DWORD;
+typedef  long unsigned int DWORD;
 typedef void* HANDLE;
 typedef unsigned long long UINT64, *PUINT64, **PPUINT64;
 typedef void* PVOID;
@@ -17,3 +17,12 @@ typedef unsigned int USIZE, *PUSIZE, **PPUSIZE;
 typedef unsigned long long USIZE, *PUSIZE, **PPUSIZE;
 #endif
 typedef char CHAR, *PCHAR, **PPCHAR;
+typedef PVOID HINTERNET;
+typedef int BOOL;
+typedef long NTSTATUS;
+
+
+#define TRUE 1
+#define FALSE 0
+
+#define NO_ERROR 0L  
