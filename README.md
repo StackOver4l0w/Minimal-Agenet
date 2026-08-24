@@ -55,7 +55,11 @@ relay_client.exe <URL> -v       # verbose: dump every command's raw bytes
 ```
 
 A **minimal agent with a remote shell** for the relay protocol. It connects,
-upgrades the HTTP connection to WebSocket, and then serves the operator panel:
+upgrades the HTTP connection to WebSocket, and then serves the operator panel.
+A lost connection is a normal event, not an error: the agent redials with a
+capped backoff (1..32 s, reset after a healthy session) and keeps serving.
+Live shells survive a redial (their pool is per-process, not per-connection);
+only the `Exit` command ends the agent:
 
 - `0x00 Hello` -> replies with the full 750-byte identity frame: machine UUID
   (from the registry `MachineGuid`, .NET Guid byte order), hostname, logged-on
@@ -85,6 +89,8 @@ Sample output (quiet mode):
 [+] write to shell 0 - status 0
 [+] read shell 0 - 9 byte(s)
 [i] read shell 0 - idle
+[i] connection lost - redialing in 1 s ...
+[1] Connecting to https://relay.example.com/agent ... connected (HTTP 101 Switching Protocols)
 ```
 
 With `-v` every received command is additionally dumped decoded (opcode name +
@@ -104,6 +110,7 @@ returns the handle used for `WinHttpWebSocketReceive`.
 - The agent implements the identification and shell parts of the relay
   protocol; there is no native file or screen functionality (the panel covers
   files via its PowerShell-over-shell fallback). Shells die with the agent
-  process - there is no persistence across reconnects. Detection note: the
+  process, but survive connection losses (the agent redials; the panel just
+  sees the shell ids again when it re-opens them). Detection note: the
   connection pattern it produces (periodic connect to a single fixed host with
   a non-browser user agent) is trivially visible to network monitoring.

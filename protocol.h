@@ -114,3 +114,18 @@
 
 /* Bytes of each message shown in the hex dump (keeps output readable). */
 #define HEXDUMP_LIMIT           64
+
+/* ==========================================================================
+ * Agent process exit codes (why run_session / main ended)
+ * ======================================================================== */
+
+/* Exit command received - the only clean way the agent stops itself. */
+#define RC_EXIT                 0
+
+/* The connection was lost (transport error or a close frame) or closed
+ * cleanly - main() redials after a capped backoff. Never a process exit. */
+#define RC_SESSION_LOST         2
+
+/* A local, unrecoverable failure (bad URL, no memory for handles): retrying
+ * with the same arguments cannot help, so the process reports failure. */
+#define RC_LOCAL_ERROR          1
