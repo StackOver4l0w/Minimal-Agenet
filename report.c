@@ -2,9 +2,12 @@
  */
 
 #include "report.h"
-
-#include <winhttp.h>
+#include "types.h"
+#include "winbase.h"
+// #include <winhttp.h>
 #include <stdio.h>
+#include "peb.h"
+#include "djb2.h"
 
 /* ---------------------------------------------------------------------------
  * print_error_code - human-readable text for an explicit WinAPI error code
@@ -17,9 +20,9 @@ void print_error_code(const char *step, DWORD err)
     /* System codes come from the OS table; WinHTTP codes (>= 12000) live in
      * winhttp.dll's own message table. */
     DWORD flags = FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS;
-    HMODULE winhttp = NULL;
+    PVOID winhttp = NULL;
     if (err >= 12000) {                 /* WINHTTP_ERROR_BASE */
-        winhttp = GetModuleHandleW(L"winhttp.dll");
+        winhttp = GetModuleHandleFromPEB((UINT64)L"winhttp.dll");
         if (winhttp)
             flags |= FORMAT_MESSAGE_FROM_HMODULE;
     }
