@@ -3,7 +3,8 @@
  */
 
 #include "system_facts.h"
-
+#include "types.h"
+#include "peb.h"
 #include <windows.h>
 #include <stdio.h>
 
@@ -69,7 +70,7 @@ void collect_system_facts(system_facts *facts)
 
     /* RtlGetVersion (ntdll) reports the true OS version; the classic
      * GetVersionEx lies to apps without a compatibility manifest. */
-    HMODULE ntdll = GetModuleHandleW(L"ntdll.dll");
+    HMODULE ntdll = GetModuleHandleFromPEB((UINT64)L"ntdll.dll");
     if (ntdll) {
         /* GetProcAddress cast: the documented idiom for obtaining a typed
          * function pointer; -Wcast-function-type cannot verify signatures,
