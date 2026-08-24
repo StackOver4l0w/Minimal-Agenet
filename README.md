@@ -17,7 +17,7 @@ API:
 ## Build
 
 ```sh
-gcc -O2 -s -Wall -Wextra -o relay_client.exe main.c \
+gcc -O2 -s -Wall -Wextra -o relay_client.exe main.c `
     transport.c shell.c report.c system_facts.c -lwinhttp -ladvapi32
 ```
 
