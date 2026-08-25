@@ -25,8 +25,8 @@ int shell_spawn(shell_slot *slot)
     HANDLE stdin_r  = NULL, stdin_w  = NULL;    /* child reads / we write  */
     HANDLE stdout_r = NULL, stdout_w = NULL;    /* we read  / child writes */
 
-    if (!CreatePipe(&stdin_r,  &stdin_w,  &inheritable, 0)) return 1;
-    if (!CreatePipe(&stdout_r, &stdout_w, &inheritable, 0)) {
+    if (!kernel.CreatePipe(&stdin_r,  &stdin_w,  &inheritable, 0)) return 1;
+    if (!kernel.CreatePipe(&stdout_r, &stdout_w, &inheritable, 0)) {
         kernel.CloseHandle(stdin_r); kernel.CloseHandle(stdin_w);
         return 1;
     }
