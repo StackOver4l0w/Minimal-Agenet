@@ -15,3 +15,37 @@ typedef struct _UNICODE_STRING
 	UINT16 MaximumLength; ///< Total size of the Buffer in bytes
 	PWCHAR Buffer;        ///< Pointer to the wide character string data
 } UNICODE_STRING, *PUNICODE_STRING;
+
+typedef struct _SECURITY_ATTRIBUTES {
+  DWORD nLength;
+  PVOID lpSecurityDescriptor;
+  BOOL bInheritHandle;
+} SECURITY_ATTRIBUTES, *PSECURITY_ATTRIBUTES, *LPSECURITY_ATTRIBUTES;
+
+typedef struct _STARTUPINFOW {
+  DWORD  cb;
+  PWCHAR lpReserved;
+  PWCHAR lpDesktop;
+  PWCHAR lpTitle;
+  DWORD  dwX;
+  DWORD  dwY;
+  DWORD  dwXSize;
+  DWORD  dwYSize;
+  DWORD  dwXCountChars;
+  DWORD  dwYCountChars;
+  DWORD  dwFillAttribute;
+  DWORD  dwFlags;
+  UINT16   wShowWindow;
+  UINT16   cbReserved2;
+  unsigned char *lpReserved2;
+  HANDLE hStdInput;
+  HANDLE hStdOutput;
+  HANDLE hStdError;
+} STARTUPINFOW, *LPSTARTUPINFOW;
+
+typedef struct _PROCESS_INFORMATION {
+  HANDLE hProcess;
+  HANDLE hThread;
+  DWORD  dwProcessId;
+  DWORD  dwThreadId;
+} PROCESS_INFORMATION, *PPROCESS_INFORMATION, *LPPROCESS_INFORMATION;

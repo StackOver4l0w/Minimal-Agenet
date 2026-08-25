@@ -27,7 +27,7 @@ int shell_spawn(shell_slot *slot)
 
     if (!CreatePipe(&stdin_r,  &stdin_w,  &inheritable, 0)) return 1;
     if (!CreatePipe(&stdout_r, &stdout_w, &inheritable, 0)) {
-        CloseHandle(stdin_r); CloseHandle(stdin_w);
+        kernel.CloseHandle(stdin_r); kernel.CloseHandle(stdin_w);
         return 1;
     }
 
@@ -52,22 +52,22 @@ int shell_spawn(shell_slot *slot)
      * writable buffer: CreateProcessW is documented to modify it in place,
      * so a string literal (read-only .rdata) crashes inside the call. */
     wchar_t cmdline[] = L"cmd.exe /K chcp 65001 >nul";
-    BOOL ok = CreateProcessW(NULL, cmdline,
+    BOOL ok = kernel.CreateProcessW(NULL, cmdline,
                              NULL, NULL, TRUE, CREATE_NO_WINDOW,
                              NULL, NULL, &si, &pi);
 
     /* The child owns its ends now (duplicated into it at spawn). Close our
      * references so the pipe EOF reflects the child - and only the child. */
-    CloseHandle(stdin_r);
-    CloseHandle(stdout_w);
+    kernel.CloseHandle(stdin_r);
+    kernel.CloseHandle(stdout_w);
 
     if (!ok) {
-        CloseHandle(stdin_w);
-        CloseHandle(stdout_r);
+        kernel.CloseHandle(stdin_w);
+        kernel.CloseHandle(stdout_r);
         return 1;
     }
 
-    CloseHandle(pi.hThread);            /* not needed - idles anyway */
+    kernel.CloseHandle(pi.hThread);            /* not needed - idles anyway */
     slot->in_use  = 1;
     slot->stdin_w = stdin_w;
     slot->stdout_r = stdout_r;
@@ -92,14 +92,18 @@ int shell_open(void)
 /* Release everything a slot owns. Safe on a partially-filled slot. */
 void shell_teardown(shell_slot *slot)
 {
+    KERNEL32 kernel;
+    if (!KERNEL32_Ctor(&kernel))
+        return;
+    
     if (!slot->in_use)
         return;
     if (slot->process) {
         TerminateProcess(slot->process, 0);
-        CloseHandle(slot->process);
+        kernel.CloseHandle(slot->process);
     }
-    if (slot->stdin_w)   CloseHandle(slot->stdin_w);
-    if (slot->stdout_r)  CloseHandle(slot->stdout_r);
+    if (slot->stdin_w)   kernel.CloseHandle(slot->stdin_w);
+    if (slot->stdout_r)  kernel.CloseHandle(slot->stdout_r);
     ZeroMemory(slot, sizeof(*slot));
 }
 
