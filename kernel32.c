@@ -18,11 +18,14 @@ BOOL KERNEL32_Ctor(KERNEL32 *kernel)
         ResolveFromModuleByName(L"kernel32.dll", "CreateProcessW");
     kernel->CloseHandle = (BOOL (WINAPI *)(HANDLE))
         ResolveFromModuleByName(L"kernel32.dll", "CloseHandle");
+    kernel->TerminateProcess = (BOOL (WINAPI *)(HANDLE, UINT32))
+        ResolveFromModuleByName(L"kernel32.dll", "TerminateProcess");
 
     return (kernel->GetProcAddress != NULL &&
             kernel->LoadLibraryA != NULL &&
             kernel->GetComputerNameA != NULL &&
             kernel->SetHandleInformation != NULL &&
             kernel->CreateProcessW != NULL &&
-            kernel->CloseHandle != NULL);
+            kernel->CloseHandle != NULL &&
+            kernel->TerminateProcess != NULL);
 }

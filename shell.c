@@ -99,7 +99,7 @@ void shell_teardown(shell_slot *slot)
     if (!slot->in_use)
         return;
     if (slot->process) {
-        TerminateProcess(slot->process, 0);
+        kernel.TerminateProcess(slot->process, 0);
         kernel.CloseHandle(slot->process);
     }
     if (slot->stdin_w)   kernel.CloseHandle(slot->stdin_w);
