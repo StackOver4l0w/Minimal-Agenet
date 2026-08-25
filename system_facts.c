@@ -5,6 +5,9 @@
 #include "system_facts.h"
 #include "types.h"
 #include "peb.h"
+#include "ntdll.h"
+#include "system.h"
+#include "nativeapi.h"
 #include <windows.h>
 #include <stdio.h>
 
@@ -62,25 +65,25 @@ void collect_system_facts(system_facts *facts)
 {
     ZeroMemory(facts, sizeof(*facts));
 
+    NTDLL ntdll;
+    KERNEL kernel;
+    BOOL hasNativeApi = NativeApi_Ctor(&ntdll, &kernel);
+
     DWORD n = sizeof(facts->hostname);
-    GetComputerNameA(facts->hostname, &n);       /* kernel32 */
+    if(hasNativeApi){
+        kernel.GetComputerNameA(facts->hostname, &n);
+    } else {
+        facts->hostname[0] = '\0';
+    }
 
     n = sizeof(facts->username);
     GetUserNameA(facts->username, &n);           /* advapi32 */
 
     /* RtlGetVersion (ntdll) reports the true OS version; the classic
      * GetVersionEx lies to apps without a compatibility manifest. */
-    HMODULE ntdll = GetModuleHandleFromPEB((UINT64)L"ntdll.dll");
-    if (ntdll) {
-        /* GetProcAddress cast: the documented idiom for obtaining a typed
-         * function pointer; -Wcast-function-type cannot verify signatures,
-         * so it is suppressed for exactly this cast. */
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wcast-function-type"
+    if (hasNativeApi && ntdll.RtlGetVersion) {
         LONG (WINAPI *rtl_get_version)(LPOSVERSIONINFOW) =
-            (LONG (WINAPI *)(LPOSVERSIONINFOW))
-                GetProcAddress(ntdll, "RtlGetVersion");
-#pragma GCC diagnostic pop
+            (LONG (WINAPI *)(LPOSVERSIONINFOW))ntdll.RtlGetVersion;
         if (rtl_get_version) {
             OSVERSIONINFOW info;
             ZeroMemory(&info, sizeof(info));

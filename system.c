@@ -1,0 +1,89 @@
+#include "system.h"
+#include "djb2.h"
+
+static BOOL AsciiEquals(const CHAR *left, const CHAR *right)
+{
+    if (left == NULL || right == NULL)
+        return FALSE;
+
+    while (*left != '\0' && *right != '\0') {
+        if (*left != *right)
+            return FALSE;
+        left++;
+        right++;
+    }
+
+    return (*left == '\0' && *right == '\0');
+}
+
+
+PVOID ResolveExportByName(PVOID moduleBase, const CHAR *exportName)
+{
+    if (moduleBase == NULL || exportName == NULL)
+        return NULL;
+
+    PUINT8 base = (PUINT8)moduleBase;
+    PIMAGE_DOS_HEADER_MIN dos = (PIMAGE_DOS_HEADER_MIN)base;
+
+    if (dos->e_magic != IMAGE_DOS_SIGNATURE_MIN)
+        return NULL;
+
+    PUINT8 nt = base + dos->e_lfanew;
+    if (*(PUINT32)nt != IMAGE_NT_SIGNATURE_MIN)
+        return NULL;
+
+    PUINT8 optionalHeader = nt + 24;
+    UINT16 optionalMagic = *(PUINT16)optionalHeader;
+
+    UINT32 exportRva = 0;
+    UINT32 exportSize = 0;
+    if (optionalMagic == IMAGE_NT_OPTIONAL_HDR32_MAGIC_MIN) {
+        exportRva = *(PUINT32)(optionalHeader + IMAGE_EXPORT_DIRECTORY_RVA_32 +
+                               (IMAGE_DIRECTORY_ENTRY_EXPORT_MIN * 8));
+        exportSize = *(PUINT32)(optionalHeader + IMAGE_EXPORT_DIRECTORY_RVA_32 +
+                                (IMAGE_DIRECTORY_ENTRY_EXPORT_MIN * 8) + 4);
+    } else if (optionalMagic == IMAGE_NT_OPTIONAL_HDR64_MAGIC_MIN) {
+        exportRva = *(PUINT32)(optionalHeader + IMAGE_EXPORT_DIRECTORY_RVA_64 +
+                               (IMAGE_DIRECTORY_ENTRY_EXPORT_MIN * 8));
+        exportSize = *(PUINT32)(optionalHeader + IMAGE_EXPORT_DIRECTORY_RVA_64 +
+                                (IMAGE_DIRECTORY_ENTRY_EXPORT_MIN * 8) + 4);
+    } else {
+        return NULL;
+    }
+
+    if (exportRva == 0)
+        return NULL;
+
+    PIMAGE_EXPORT_DIRECTORY_MIN exportDir =
+        (PIMAGE_EXPORT_DIRECTORY_MIN)(base + exportRva);
+
+    PUINT32 names = (PUINT32)(base + exportDir->AddressOfNames);
+    PUINT16 ordinals = (PUINT16)(base + exportDir->AddressOfNameOrdinals);
+    PUINT32 functions = (PUINT32)(base + exportDir->AddressOfFunctions);
+
+    for (UINT32 i = 0; i < exportDir->NumberOfNames; i++) {
+        const CHAR *name = (const CHAR *)(base + names[i]);
+        if (!AsciiEquals(name, exportName))
+            continue;
+
+        UINT16 ordinal = ordinals[i];
+        if (ordinal >= exportDir->NumberOfFunctions)
+            return NULL;
+
+        UINT32 functionRva = functions[ordinal];
+
+        /* Forwarded exports point back inside .edata and need a second lookup. */
+        if (functionRva >= exportRva && functionRva < exportRva + exportSize)
+            return NULL;
+
+        return (PVOID)(base + functionRva);
+    }
+
+    return NULL;
+}
+
+PVOID ResolveFromModuleByName(const WCHAR *moduleName, const CHAR *exportName)
+{
+    PVOID moduleBase = GetModuleHandleFromPEB(Hash(moduleName));
+    return ResolveExportByName(moduleBase, exportName);
+}

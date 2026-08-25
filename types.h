@@ -26,3 +26,93 @@ typedef long NTSTATUS;
 #define FALSE 0
 
 #define NO_ERROR 0L  
+
+
+#if defined(_MSC_VER) && !defined(__clang__) && !defined(__GNUC__)
+#define COMPILER_MSVC
+#elif defined(__GNUC__) 
+#define COMPILER_GCC
+#elif defined(__clang__)
+#define COMPILER_CLANG
+#endif
+
+
+// Check windows
+#if defined(COMPILER_MSVC)
+	#if defined(_WIN64)
+		#define ENVIRONMENT_x86_64
+	#else
+		#define ENVIRONMENT_I386
+	#endif
+// Check GCC
+#elif defined(COMPILER_GCC) 
+    #if defined(__aarch64__) || defined(_M_ARM64)
+        #define ENVIRONMENT_ARM64
+    #elif defined(__arm__) || defined(_M_ARM)
+        #define ENVIRONMENT_ARM32
+    #elif defined(__x86_64__) || defined(__amd64__) || defined(_M_X64)
+        #define ENVIRONMENT_x86_64
+    #elif defined(__i386__) || defined(_M_IX86)
+        #define ENVIRONMENT_I386
+    #else
+        #error Unsupported architecture
+    #endif
+
+#elif defined(COMPILER_CLANG)
+    #if defined(__aarch64__) || defined(_M_ARM64)
+        #define ENVIRONMENT_ARM64
+    #elif defined(__arm__) || defined(_M_ARM)
+        #define ENVIRONMENT_ARM32
+    #elif defined(__x86_64__) || defined(__amd64__) || defined(_M_X64)
+        #define ENVIRONMENT_x86_64
+    #elif defined(__i386__) || defined(_M_IX86)
+        #define ENVIRONMENT_I386
+    #else
+        #error Unsupported architecture
+    #endif
+ #endif	
+
+ 
+#if defined(COMPILER_MSVC)
+
+	#if defined(ENVIRONMENT_I386)
+
+		#define WINAPI __stdcall
+		#define WINAPIV __cdecl
+
+	#else
+
+		#define WINAPI
+		#define WINAPIV
+		
+	#endif
+
+#elif defined(COMPILER_GCC) 
+
+	#if defined(ENVIRONMENT_I386)
+
+		#define WINAPI  __stdcall
+		#define WINAPIV __cdecl
+
+	#else
+
+		#define WINAPI 
+		#define WINAPIV 
+
+	#endif
+
+#elif defined(COMPILER_CLANG)
+
+	#if defined(ENVIRONMENT_I386)
+
+	#define WINAPI  __attribute__((stdcall))
+	#define WINAPIV  __attribute__((cdecl))
+
+	#else
+
+		#define WINAPI
+		#define WINAPIV
+		
+	#endif
+
+#endif
