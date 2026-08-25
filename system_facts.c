@@ -6,9 +6,12 @@
 #include "types.h"
 #include "peb.h"
 #include "ntdll.h"
+#include "wintypes.h"
 #include "system.h"
 #include "nativeapi.h"
+#include "advapi.h"
 #include <windows.h>
+
 #include <stdio.h>
 
 /* Get the machine UUID from HKLM\...\Cryptography\MachineGuid, converted to
@@ -22,13 +25,17 @@ void get_machine_uuid(unsigned char out[16])
 {
     char text[64] = {0};
     DWORD size = sizeof(text) - 1;
+    ADVAPI advapi;
+    if (!ADVAPI_Ctor(&advapi)) {
+        return;
+    }
 
     HKEY key;
-    if (RegOpenKeyExA(HKEY_LOCAL_MACHINE, "SOFTWARE\\Microsoft\\Cryptography",
-                      0, KEY_QUERY_VALUE, &key) == ERROR_SUCCESS) {
+    if (advapi.RegOpenKeyExA(HKEY_LOCAL_MACHINE, "SOFTWARE\\Microsoft\\Cryptography",
+                             0, KEY_QUERY_VALUE, (HKEY *)&key) == ERROR_SUCCESS) {
         DWORD type = 0;
         if (RegQueryValueExA(key, "MachineGuid", NULL, &type,
-                             (LPBYTE)text, &size) != ERROR_SUCCESS ||
+                             (unsigned char*)text, &size) != ERROR_SUCCESS ||
             type != REG_SZ)
             text[0] = '\0';
         RegCloseKey(key);

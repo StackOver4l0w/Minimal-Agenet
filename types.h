@@ -20,6 +20,13 @@ typedef char CHAR, *PCHAR, **PPCHAR;
 typedef PVOID HINTERNET;
 typedef int BOOL;
 typedef long NTSTATUS;
+typedef long LSTATUS;
+
+#define DECLARE_HANDLE(name) struct name##__{int unused;}; typedef struct name##__ *name
+
+DECLARE_HANDLE(HKEY);
+
+typedef DWORD REGSAM;
 
 #if defined(ENVIRONMENT_I386)
 typedef unsigned long ULONG_PTR;   // 32-bit
@@ -32,6 +39,7 @@ typedef unsigned long long ULONG_PTR;  // 64-bit
 #define FALSE 0
 
 #define NO_ERROR 0L  
+#define ERROR_SUCCESS 0
 
 
 #if defined(_MSC_VER) && !defined(__clang__) && !defined(__GNUC__)
@@ -121,4 +129,8 @@ typedef unsigned long long ULONG_PTR;  // 64-bit
 		
 	#endif
 
+#endif
+
+#ifndef WINAPI
+#define WINAPI
 #endif

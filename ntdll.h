@@ -1,9 +1,7 @@
 #include "types.h"
 #include "wintypes.h"
 
-#ifndef WINAPI
-#define WINAPI
-#endif
+
 
 typedef struct NTDLL
 {
