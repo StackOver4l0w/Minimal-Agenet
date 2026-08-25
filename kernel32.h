@@ -3,11 +3,12 @@
 #include "peb.h"
 #include "system.h"
 
-typedef struct KERNEL
+typedef struct KERNEL32
 {
     PVOID (WINAPI *GetProcAddress)(PVOID ModuleHandle, const CHAR *ProcName);
     PVOID (WINAPI *LoadLibraryA)(const CHAR *LibFileName);
     BOOL (WINAPI *GetComputerNameA)(PCHAR Buffer, DWORD *Size);
-} KERNEL;
+    BOOL (WINAPI *SetHandleInformation)(HANDLE hObject, DWORD dwMask, DWORD dwFlags);
+} KERNEL32;
 
-BOOL KERNEL_Ctor(KERNEL *kernel);
+BOOL KERNEL32_Ctor(KERNEL32 *kernel);

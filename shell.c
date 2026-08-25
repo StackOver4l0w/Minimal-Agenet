@@ -2,6 +2,8 @@
  */
 
 #include "shell.h"
+#include "types.h"
+#include "kernel32.h"
 
 /* static storage = zero-initialized: all slots start free. */
 static shell_slot shells[SHELL_POOL_SIZE];
@@ -16,6 +18,9 @@ static shell_slot shells[SHELL_POOL_SIZE];
 int shell_spawn(shell_slot *slot)
 {
     SECURITY_ATTRIBUTES inheritable = { sizeof(inheritable), NULL, TRUE };
+    KERNEL32 kernel;
+    if (!KERNEL32_Ctor(&kernel))
+        return 1;
 
     HANDLE stdin_r  = NULL, stdin_w  = NULL;    /* child reads / we write  */
     HANDLE stdout_r = NULL, stdout_w = NULL;    /* we read  / child writes */
@@ -29,8 +34,8 @@ int shell_spawn(shell_slot *slot)
     /* Only the child's ends may be inherited; if ours were inherited too,
      * a second cmd.exe would keep the pipes alive after this one exits and
      * EOF would never reach us. */
-    SetHandleInformation(stdin_w,  HANDLE_FLAG_INHERIT, 0);
-    SetHandleInformation(stdout_r, HANDLE_FLAG_INHERIT, 0);
+    kernel.SetHandleInformation(stdin_w,  HANDLE_FLAG_INHERIT, 0);
+    kernel.SetHandleInformation(stdout_r, HANDLE_FLAG_INHERIT, 0);
 
     STARTUPINFOW si;
     ZeroMemory(&si, sizeof(si));

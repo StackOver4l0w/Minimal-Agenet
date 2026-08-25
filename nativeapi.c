@@ -1,5 +1,5 @@
 #include "nativeapi.h"
 
-BOOL NativeApi_Ctor(NTDLL *ntdll, KERNEL *kernel){
-    return NTDLL_Ctor(ntdll) && KERNEL_Ctor(kernel);
+BOOL NativeApi_Ctor(NTDLL *ntdll, KERNEL32 *kernel){
+    return NTDLL_Ctor(ntdll) && KERNEL32_Ctor(kernel);
 }

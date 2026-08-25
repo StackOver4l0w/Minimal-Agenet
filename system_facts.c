@@ -66,7 +66,7 @@ void collect_system_facts(system_facts *facts)
     ZeroMemory(facts, sizeof(*facts));
 
     NTDLL ntdll;
-    KERNEL kernel;
+    KERNEL32 kernel;
     BOOL hasNativeApi = NativeApi_Ctor(&ntdll, &kernel);
 
     DWORD n = sizeof(facts->hostname);
