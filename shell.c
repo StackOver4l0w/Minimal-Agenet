@@ -146,7 +146,7 @@ int shell_read(shell_slot *slot, unsigned char *out, DWORD cap,
         return SHELL_READ_DEAD;
 
     DWORD available = 0;
-    if (!PeekNamedPipe(slot->stdout_r, NULL, 0, NULL, &available, NULL)) {
+    if (!kernel.PeekNamedPipe(slot->stdout_r, NULL, 0, NULL, &available, NULL)) {
         /* The pipe is broken: cmd.exe has exited. Drain what is left and
          * free the slot; the next ReadShell reports status 1. */
         shell_teardown(slot);

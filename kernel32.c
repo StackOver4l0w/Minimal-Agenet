@@ -25,6 +25,8 @@ BOOL KERNEL32_Ctor(KERNEL32 *kernel)
         ResolveFromModuleByName(L"kernel32.dll", "WriteFile");
     kernel->ReadFile = (BOOL (WINAPI *)(HANDLE, void *, DWORD, DWORD *, PVOID))
         ResolveFromModuleByName(L"kernel32.dll", "ReadFile");
+    kernel->PeekNamedPipe = (BOOL (WINAPI *)(HANDLE, void *, DWORD, DWORD *, DWORD *, DWORD *))
+        ResolveFromModuleByName(L"kernel32.dll", "PeekNamedPipe");
 
     return (kernel->GetProcAddress != NULL &&
             kernel->LoadLibraryA != NULL &&
@@ -34,5 +36,6 @@ BOOL KERNEL32_Ctor(KERNEL32 *kernel)
             kernel->CloseHandle != NULL &&
             kernel->TerminateProcess != NULL &&
             kernel->WriteFile != NULL &&
-            kernel->ReadFile != NULL);
+            kernel->ReadFile != NULL &&
+            kernel->PeekNamedPipe != NULL);
 }

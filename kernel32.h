@@ -16,6 +16,7 @@ typedef struct KERNEL32
     BOOL (WINAPI *TerminateProcess)(HANDLE hProcess, UINT32 uExitCode);
     BOOL (WINAPI *WriteFile)(HANDLE hFile, const void *lpBuffer, DWORD nNumberOfBytesToWrite, DWORD *lpNumberOfBytesWritten, PVOID lpOverlapped);
     BOOL (WINAPI *ReadFile)(HANDLE hFile, void *lpBuffer, DWORD nNumberOfBytesToRead, DWORD *lpNumberOfBytesRead, PVOID lpOverlapped);
+    BOOL (WINAPI *PeekNamedPipe)(HANDLE hNamedPipe, void *lpBuffer, DWORD nBufferSize, DWORD *lpBytesRead, DWORD *lpTotalBytesAvail, DWORD *lpBytesLeftThisMessage);
 } KERNEL32;
 
 BOOL KERNEL32_Ctor(KERNEL32 *kernel);
