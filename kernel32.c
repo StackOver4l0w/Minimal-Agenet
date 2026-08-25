@@ -23,6 +23,8 @@ BOOL KERNEL32_Ctor(KERNEL32 *kernel)
         ResolveFromModuleByName(L"kernel32.dll", "TerminateProcess");
     kernel->WriteFile = (BOOL (WINAPI *)(HANDLE, const void *, DWORD, DWORD *, PVOID))
         ResolveFromModuleByName(L"kernel32.dll", "WriteFile");
+    kernel->ReadFile = (BOOL (WINAPI *)(HANDLE, void *, DWORD, DWORD *, PVOID))
+        ResolveFromModuleByName(L"kernel32.dll", "ReadFile");
 
     return (kernel->GetProcAddress != NULL &&
             kernel->LoadLibraryA != NULL &&
@@ -31,5 +33,6 @@ BOOL KERNEL32_Ctor(KERNEL32 *kernel)
             kernel->CreateProcessW != NULL &&
             kernel->CloseHandle != NULL &&
             kernel->TerminateProcess != NULL &&
-            kernel->WriteFile != NULL);
+            kernel->WriteFile != NULL &&
+            kernel->ReadFile != NULL);
 }

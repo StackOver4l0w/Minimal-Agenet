@@ -141,6 +141,10 @@ int shell_write(shell_slot *slot, const void *data, DWORD len)
 int shell_read(shell_slot *slot, unsigned char *out, DWORD cap,
                DWORD *out_len)
 {
+    KERNEL32 kernel;
+    if (!KERNEL32_Ctor(&kernel))
+        return SHELL_READ_DEAD;
+
     DWORD available = 0;
     if (!PeekNamedPipe(slot->stdout_r, NULL, 0, NULL, &available, NULL)) {
         /* The pipe is broken: cmd.exe has exited. Drain what is left and
@@ -154,7 +158,7 @@ int shell_read(shell_slot *slot, unsigned char *out, DWORD cap,
     if (cap > available)
         cap = available;
     DWORD got = 0;
-    if (!ReadFile(slot->stdout_r, out, cap, &got, NULL) || got == 0) {
+    if (!kernel.ReadFile(slot->stdout_r, out, cap, &got, NULL) || got == 0) {
         shell_teardown(slot);
         return SHELL_READ_DEAD;
     }
