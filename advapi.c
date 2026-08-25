@@ -10,6 +10,8 @@ BOOL ADVAPI_Ctor(PADVAPI advapi)
         ResolveFromModuleByName(L"advapi32.dll", "RegOpenKeyExA");
     advapi->RegQueryValueExA = (LSTATUS (WINAPI *)(HKEY, const PCHAR, DWORD*, DWORD*, unsigned char*, DWORD*))
         ResolveFromModuleByName(L"advapi32.dll", "RegQueryValueExA");
+    advapi->RegCloseKey = (LSTATUS (WINAPI *)(HKEY))
+        ResolveFromModuleByName(L"advapi32.dll", "RegCloseKey");
 
-    return (advapi->RegOpenKeyExA != NULL && advapi->RegQueryValueExA != NULL);
+    return (advapi->RegOpenKeyExA != NULL && advapi->RegQueryValueExA != NULL && advapi->RegCloseKey != NULL);
 }

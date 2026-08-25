@@ -38,7 +38,7 @@ void get_machine_uuid(unsigned char out[16])
                              (unsigned char*)text, &size) != ERROR_SUCCESS ||
             type != REG_SZ)
             text[0] = '\0';
-        RegCloseKey(key);
+        advapi.RegCloseKey(key);
     }
 
     /* Hex digits (skipping '-', '{', '}') -> 16 bytes in string order. */
