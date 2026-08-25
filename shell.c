@@ -121,8 +121,12 @@ shell_slot *shell_lookup(unsigned long long id)
  * ------------------------------------------------------------------------- */
 int shell_write(shell_slot *slot, const void *data, DWORD len)
 {
+    KERNEL32 kernel;
+    if (!KERNEL32_Ctor(&kernel))
+        return 1;
+
     DWORD written = 0;
-    if (!WriteFile(slot->stdin_w, data, len, &written, NULL) ||
+    if (!kernel.WriteFile(slot->stdin_w, data, len, &written, NULL) ||
         written != len) {
         shell_teardown(slot);
         return 1;

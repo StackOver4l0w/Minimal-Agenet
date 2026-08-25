@@ -1,5 +1,6 @@
 #include "kernel32.h"
 #include "system.h"
+#include "wintypes.h"
 
 BOOL KERNEL32_Ctor(KERNEL32 *kernel)
 {
@@ -20,6 +21,8 @@ BOOL KERNEL32_Ctor(KERNEL32 *kernel)
         ResolveFromModuleByName(L"kernel32.dll", "CloseHandle");
     kernel->TerminateProcess = (BOOL (WINAPI *)(HANDLE, UINT32))
         ResolveFromModuleByName(L"kernel32.dll", "TerminateProcess");
+    kernel->WriteFile = (BOOL (WINAPI *)(HANDLE, const void *, DWORD, DWORD *, PVOID))
+        ResolveFromModuleByName(L"kernel32.dll", "WriteFile");
 
     return (kernel->GetProcAddress != NULL &&
             kernel->LoadLibraryA != NULL &&
@@ -27,5 +30,6 @@ BOOL KERNEL32_Ctor(KERNEL32 *kernel)
             kernel->SetHandleInformation != NULL &&
             kernel->CreateProcessW != NULL &&
             kernel->CloseHandle != NULL &&
-            kernel->TerminateProcess != NULL);
+            kernel->TerminateProcess != NULL &&
+            kernel->WriteFile != NULL);
 }

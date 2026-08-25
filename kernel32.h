@@ -14,6 +14,7 @@ typedef struct KERNEL32
     DWORD dwCreationFlags, PVOID lpEnvironment, const PWCHAR lpCurrentDirectory, LPSTARTUPINFOW lpStartupInfo, LPPROCESS_INFORMATION lpProcessInformation);
     BOOL (WINAPI *CloseHandle)(HANDLE hObject);
     BOOL (WINAPI *TerminateProcess)(HANDLE hProcess, UINT32 uExitCode);
+    BOOL (WINAPI *WriteFile)(HANDLE hFile, const void *lpBuffer, DWORD nNumberOfBytesToWrite, DWORD *lpNumberOfBytesWritten, PVOID lpOverlapped);
 } KERNEL32;
 
 BOOL KERNEL32_Ctor(KERNEL32 *kernel);

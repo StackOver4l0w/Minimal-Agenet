@@ -21,6 +21,12 @@ typedef PVOID HINTERNET;
 typedef int BOOL;
 typedef long NTSTATUS;
 
+#if defined(ENVIRONMENT_I386)
+typedef unsigned long ULONG_PTR;   // 32-bit
+#else
+typedef unsigned long long ULONG_PTR;  // 64-bit
+#endif
+
 
 #define TRUE 1
 #define FALSE 0
