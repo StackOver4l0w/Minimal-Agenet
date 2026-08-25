@@ -14,6 +14,7 @@
 
 typedef struct ADVAPI{
     LSTATUS (WINAPI *RegOpenKeyExA)(HKEY hKey, const PCHAR lpSubKey, DWORD ulOptions, REGSAM samDesired, HKEY* phkResult);
+    LSTATUS (WINAPI *RegQueryValueExA)(HKEY hKey, const PCHAR lpValueName, DWORD* lpReserved, DWORD* lpType, unsigned char* lpData, DWORD* lpcbData);
 } ADVAPI, *PADVAPI;
 
 BOOL ADVAPI_Ctor(PADVAPI advapi);

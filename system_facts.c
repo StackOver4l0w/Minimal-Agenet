@@ -34,7 +34,7 @@ void get_machine_uuid(unsigned char out[16])
     if (advapi.RegOpenKeyExA(HKEY_LOCAL_MACHINE, "SOFTWARE\\Microsoft\\Cryptography",
                              0, KEY_QUERY_VALUE, (HKEY *)&key) == ERROR_SUCCESS) {
         DWORD type = 0;
-        if (RegQueryValueExA(key, "MachineGuid", NULL, &type,
+        if (advapi.RegQueryValueExA(key, "MachineGuid", NULL, &type,
                              (unsigned char*)text, &size) != ERROR_SUCCESS ||
             type != REG_SZ)
             text[0] = '\0';
