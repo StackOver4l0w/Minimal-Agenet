@@ -198,16 +198,19 @@ void print_command(int index, const incoming_message *msg)
 void print_identity_frame(const unsigned char frame[IDENTITY_FRAME_SIZE],
                           int frame_len)
 {
-    /* Numeric fields, little-endian. */
+    /* Numeric fields, little-endian (v5 layout, see protocol.h). */
     unsigned status = frame[0]  | (frame[1]  << 8) |
                       (frame[2] << 16) | ((unsigned)frame[3]  << 24);
-    unsigned build  = frame[724]| (frame[725] << 8) |
-                      (frame[726]<< 16) | ((unsigned)frame[727] << 24);
-    unsigned api    = frame[737]| (frame[738] << 8) |
-                      (frame[739]<< 16) | ((unsigned)frame[740] << 24);
-    unsigned is64   = frame[741];
+    unsigned api    = frame[4]  | (frame[5]  << 8) |
+                      (frame[6] << 16) | ((unsigned)frame[7]  << 24);
+    unsigned breed  = frame[8]  | (frame[9]  << 8) |
+                      (frame[10]<< 16) | ((unsigned)frame[11] << 24);
+    unsigned build  = frame[21]| (frame[22] << 8) |
+                      (frame[23]<< 16) | ((unsigned)frame[24] << 24);
+    unsigned is64   = frame[25];
 
     LOG_INFO("[<] Identity frame (%d bytes):\n", frame_len);
+    LOG_INFO("    api     = %u, breed = %u (0=PIA, 1=this agent)\n", api, breed);
     LOG_INFO("    status  = %u\n", status);
     LOG_INFO("    uuid    = ");
     for (int i = 0; i < 16; i++) {
@@ -231,6 +234,7 @@ void print_identity_frame(const unsigned char frame[IDENTITY_FRAME_SIZE],
            (frame[742] & 4) ? "Display" : "");
     if ((frame[742] & 7) == 0)
         LOG_INFO("            (information-only agent)\n");
+
 
     DWORD dump_len = (frame_len < HEXDUMP_LIMIT) ? (DWORD)frame_len
                                                  : HEXDUMP_LIMIT;

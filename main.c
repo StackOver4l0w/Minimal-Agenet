@@ -67,7 +67,10 @@
  * The identity frame (the reply to Hello)
  * ======================================================================== */
 
-/* Build the full 750-byte identity frame. Returns the frame size. */
+/* Build the full 754-byte v5 identity frame. Returns the frame size.
+ * Metadata first (status, api version, breed id, commit hash, build
+ * number, 64-bit flag) so the panel can detect the layout before the
+ * variable-length fields; then UUID + facts; mask last. See protocol.h. */
 static int build_identity_frame(unsigned char frame[IDENTITY_FRAME_SIZE],
                                 const system_facts *facts)
 {
@@ -75,6 +78,12 @@ static int build_identity_frame(unsigned char frame[IDENTITY_FRAME_SIZE],
     int pos = 0;
 
     write_u32_le(frame, &pos, STATUS_OK);            /* status = 0       */
+    write_u32_le(frame, &pos, ID_API_VERSION);       /* API version = 5  */
+    write_u32_le(frame, &pos, ID_AGENT_NAME_ID);     /* breed id = 1     */
+    write_ascii_field(frame, &pos, AGENT_COMMIT_HASH, ID_COMMIT_HASH_SIZE);
+    write_u32_le(frame, &pos, ID_BUILD_NUMBER);      /* build number     */
+
+    frame[pos++] = (unsigned char)(sizeof(void *) == 8 ? 1 : 0);  /* 64-bit */
 
     unsigned char uuid[16];
     get_machine_uuid(uuid);
@@ -87,12 +96,6 @@ static int build_identity_frame(unsigned char frame[IDENTITY_FRAME_SIZE],
                       sizeof(void *) == 8 ? "x64" : "x86", ID_ARCH_SIZE);
     write_ascii_field(frame, &pos, "Windows",        ID_PLATFORM_SIZE);
     write_ascii_field(frame, &pos, facts->os_version, ID_OS_VERSION_SIZE);
-
-    write_u32_le(frame, &pos, ID_BUILD_NUMBER);      /* build number     */
-    write_ascii_field(frame, &pos, AGENT_COMMIT_HASH, ID_COMMIT_HASH_SIZE);
-    write_u32_le(frame, &pos, ID_API_VERSION);       /* API version = 4  */
-
-    frame[pos++] = (unsigned char)(sizeof(void *) == 8 ? 1 : 0);  /* 64-bit */
 
     write_u64_le(frame, &pos, CAPABILITY_MASK);      /* capability mask  */
 
