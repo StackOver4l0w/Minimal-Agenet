@@ -11,7 +11,7 @@
 #include "system.h"
 #include "advapi.h"
 #include "memory.h"
-#include <stdio.h>
+#include "string.h"
 
 void collect_system_facts(system_facts *facts)
 {
@@ -48,9 +48,8 @@ void collect_system_facts(system_facts *facts)
         info.dwOSVersionInfoSize = sizeof(info);
         
         if (ntdll.RtlGetVersion(&info) == 0) {
-            snprintf(
+            String_Format(
                 facts->os_version,
-                sizeof(facts->os_version),
                 "%lu.%lu.%lu",
                 info.dwMajorVersion,
                 info.dwMinorVersion,

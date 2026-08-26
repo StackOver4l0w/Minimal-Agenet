@@ -1,4 +1,5 @@
 typedef  long unsigned int DWORD;
+typedef long long int INT64;
 typedef void* HANDLE;
 typedef unsigned long long UINT64, *PUINT64, **PPUINT64;
 typedef void* PVOID;
@@ -140,3 +141,11 @@ typedef long LONG;
 #ifndef WINAPI
 #define WINAPI
 #endif
+
+typedef CHAR* va_list;
+
+#define _ADDRESSOF(v) (&(v))
+#define _INTSIZEOF(n) ((sizeof(n) + sizeof(int) - 1) & ~(sizeof(int) - 1))
+#define va_start(v,l)	((v) = (va_list)_ADDRESSOF(l) + _INTSIZEOF(l))
+#define va_arg(v,l)	(*(l *)(((v) += _INTSIZEOF(l)) - _INTSIZEOF(l)))
+#define va_end(v)		((v) = (va_list)0)

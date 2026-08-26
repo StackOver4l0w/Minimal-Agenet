@@ -12,13 +12,6 @@
 #include "protocol.h"
 #include "transport.h"     /* incoming_message */
 
-/* Human-readable text for an explicit WinAPI error code.
- *
- * Why an explicit code parameter? The WinHttpWebSocket* family returns the
- * error code directly (DWORD), unlike classic WinHTTP which returns BOOL and
- * leaves the code in GetLastError(). One helper serves both families. */
-void print_error_code(const char *step, DWORD err);
-
 /* WinHTTP's WebSocket buffer type, as a string. WinHTTP does not expose
  * RFC 6455 frame opcodes; this enum is the only "type" the application
  * ever sees (ping/pong is handled internally). */
