@@ -1,3 +1,4 @@
+#pragma once
 #include "ntdll.h"
 #include "djb2.h"
 #include "peb.h"

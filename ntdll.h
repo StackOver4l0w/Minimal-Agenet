@@ -2,17 +2,16 @@
 #include "wintypes.h"
 
 
-
 typedef struct NTDLL
 {
     NTSTATUS (WINAPI *LdrLoadDll)(
         WCHAR *PathToFile,
         UINT32 Flags,
         PUNICODE_STRING ModuleFileName,
-        PVOID *ModuleHandle
+        void* *ModuleHandle
     );
 
-    NTSTATUS (WINAPI *RtlGetVersion)(PVOID VersionInformation);
+    NTSTATUS (WINAPI *RtlGetVersion)(void* VersionInformation);
 
 } NTDLL;
 
