@@ -1,3 +1,4 @@
+#pragma once
 typedef  long unsigned int DWORD;
 typedef long long int INT64;
 typedef void* HANDLE;

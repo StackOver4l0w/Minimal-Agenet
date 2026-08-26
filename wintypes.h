@@ -1,3 +1,4 @@
+#pragma once
 #include "types.h"
 
 typedef enum _WINHTTP_WEB_SOCKET_BUFFER_TYPE
