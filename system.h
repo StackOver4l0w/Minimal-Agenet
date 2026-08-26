@@ -1,3 +1,4 @@
+#pragma once
 #include "peb.h"
 
 typedef struct _IMAGE_DOS_HEADER_MIN
