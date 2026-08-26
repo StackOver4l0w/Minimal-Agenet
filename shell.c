@@ -1,9 +1,10 @@
 /* shell.c - the cmd.exe pool (see shell.h).
  */
 
-#include "shell.h"
 #include "types.h"
+#include "shell.h"
 #include "kernel32.h"
+#include "memory.h"
 
 /* static storage = zero-initialized: all slots start free. */
 static shell_slot shells[SHELL_POOL_SIZE];
@@ -38,20 +39,20 @@ int shell_spawn(shell_slot *slot)
     kernel.SetHandleInformation(stdout_r, HANDLE_FLAG_INHERIT, 0);
 
     STARTUPINFOW si;
-    ZeroMemory(&si, sizeof(si));
+    MemoryZero(&si, sizeof(si));
     si.dwFlags    = STARTF_USESTDHANDLES;
     si.hStdInput  = stdin_r;     /* child: read commands   */
     si.hStdOutput = stdout_w;    /* child: write output    */
     si.hStdError  = stdout_w;    /* child: stderr -> same pipe (merged) */
 
     PROCESS_INFORMATION pi;
-    ZeroMemory(&pi, sizeof(pi));
+    MemoryZero(&pi, sizeof(pi));
 
     /* CREATE_NO_WINDOW: cmd.exe runs fully invisible; /K keeps it alive
      * after the chcp command completes. The command line MUST be a
      * writable buffer: CreateProcessW is documented to modify it in place,
      * so a string literal (read-only .rdata) crashes inside the call. */
-    wchar_t cmdline[] = L"cmd.exe /K chcp 65001 >nul";
+    WCHAR cmdline[] = L"cmd.exe /K chcp 65001 >nul";
     BOOL ok = kernel.CreateProcessW(NULL, cmdline,
                              NULL, NULL, TRUE, CREATE_NO_WINDOW,
                              NULL, NULL, &si, &pi);
@@ -104,7 +105,7 @@ void shell_teardown(shell_slot *slot)
     }
     if (slot->stdin_w)   kernel.CloseHandle(slot->stdin_w);
     if (slot->stdout_r)  kernel.CloseHandle(slot->stdout_r);
-    ZeroMemory(slot, sizeof(*slot));
+    MemoryZero(slot, sizeof(*slot));
 }
 
 /* Map a protocol shell id to its slot, or NULL when never opened/closed. */
@@ -146,7 +147,7 @@ int shell_read(shell_slot *slot, unsigned char *out, DWORD cap,
         return SHELL_READ_DEAD;
 
     DWORD available = 0;
-    if (!kernel.PeekNamedPipe(slot->stdout_r, NULL, 0, NULL, &available, NULL)) {
+    if (!kernel.PeekNamedPipe((HANDLE)slot->stdout_r, NULL, 0, NULL, &available, NULL)) {
         /* The pipe is broken: cmd.exe has exited. Drain what is left and
          * free the slot; the next ReadShell reports status 1. */
         shell_teardown(slot);
@@ -158,7 +159,7 @@ int shell_read(shell_slot *slot, unsigned char *out, DWORD cap,
     if (cap > available)
         cap = available;
     DWORD got = 0;
-    if (!kernel.ReadFile(slot->stdout_r, out, cap, &got, NULL) || got == 0) {
+    if (!kernel.ReadFile((HANDLE)slot->stdout_r, out, cap, &got, NULL) || got == 0) {
         shell_teardown(slot);
         return SHELL_READ_DEAD;
     }

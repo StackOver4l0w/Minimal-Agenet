@@ -3,6 +3,7 @@
 
 #include "transport.h"
 #include "types.h"
+#include "memory.h"
 
 /* Send one binary reply. Returns the WinHTTP error code (0 = success). */
 DWORD ws_send(HINTERNET socket, const void *data, DWORD length)
@@ -15,7 +16,7 @@ DWORD ws_send(HINTERNET socket, const void *data, DWORD length)
 /* Receive and assemble one complete WebSocket message (see transport.h). */
 DWORD ws_receive(HINTERNET socket, incoming_message *msg, BOOL *closed)
 {
-    ZeroMemory(msg, sizeof(*msg));
+    MemoryZero(msg, sizeof(*msg));
     *closed = FALSE;
 
     for (;;) {

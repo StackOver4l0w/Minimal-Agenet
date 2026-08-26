@@ -43,14 +43,17 @@
 #include <windows.h>
 #include <winhttp.h>
 #include <stdio.h>
-#include <string.h>      /* strcmp (the -v flag) */
 
+#include "string.h"     /* strcmp (the -v flag) */
 #include "protocol.h"
 #include "wire.h"
 #include "transport.h"
 #include "shell.h"
 #include "report.h"
 #include "system_facts.h"
+#include "types.h"
+#include "wintypes.h"
+#include "memory.h"
 
 /* Commit tag baked into the identity frame. CI overrides it with
  * -DAGENT_COMMIT_HASH="<8-char git hash>"; local builds keep the study tag. */
@@ -66,7 +69,7 @@
 static int build_identity_frame(unsigned char frame[IDENTITY_FRAME_SIZE],
                                 const system_facts *facts)
 {
-    ZeroMemory(frame, IDENTITY_FRAME_SIZE);
+    MemoryZero(frame, IDENTITY_FRAME_SIZE);
     int pos = 0;
 
     write_u32_le(frame, &pos, STATUS_OK);            /* status = 0       */
@@ -250,9 +253,9 @@ static DWORD handle_close_shell(HINTERNET socket, const incoming_message *msg)
  * ======================================================================== */
 
 /* One full connect/serve/close session (defined below main). */
-static int run_session(const wchar_t *url, int *long_lived);
+static int run_session(const WCHAR *url, int *long_lived);
 
-int main(int argc, char *argv[])
+int main(int argc, CHAR *argv[])
 {
     /* ----- Stage 1: the URL must come from the command line ----- */
     if (argc == 3 && strcmp(argv[2], "-v") == 0)
@@ -265,7 +268,7 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    wchar_t url[2048];
+    WCHAR url[2048];
     if (MultiByteToWideChar(CP_ACP, 0, argv[1], -1, url, 2048) == 0) {
         print_error_code("MultiByteToWideChar(URL)", GetLastError());
         return 1;
@@ -310,7 +313,7 @@ int main(int argc, char *argv[])
  * All handles are released on every path (no leaks across redials).
  * *long_lived is set when the session served at least one command - the
  * caller uses it to reset the redial backoff after a healthy session. */
-static int run_session(const wchar_t *url, int *long_lived)
+static int run_session(const WCHAR *url, int *long_lived)
 {
     /* Resource state for correct cleanup via goto. */
     int       rc = RC_SESSION_LOST;     /* default: dial again          */
@@ -321,11 +324,11 @@ static int run_session(const wchar_t *url, int *long_lived)
 
     /* ----- Stage 2: split the URL into components (WinHttpCrackUrl) ----- */
     URL_COMPONENTS uc;
-    ZeroMemory(&uc, sizeof(uc));
+    MemoryZero(&uc, sizeof(uc));
     uc.dwStructSize = sizeof(uc);
 
-    wchar_t host[256];
-    wchar_t path[2048];
+    WCHAR host[256];
+    WCHAR path[2048];
     uc.lpszHostName    = host;  uc.dwHostNameLength = 256;
     uc.lpszUrlPath     = path;  uc.dwUrlPathLength  = 2048;
 

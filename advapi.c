@@ -12,6 +12,8 @@ BOOL ADVAPI_Ctor(PADVAPI advapi)
         ResolveFromModuleByName(L"advapi32.dll", "RegQueryValueExA");
     advapi->RegCloseKey = (LSTATUS (WINAPI *)(HKEY))
         ResolveFromModuleByName(L"advapi32.dll", "RegCloseKey");
+    advapi->GetUserNameA = (BOOL (WINAPI *)(PCHAR, DWORD *))
+        ResolveFromModuleByName(L"advapi32.dll", "GetUserNameA");
 
-    return (advapi->RegOpenKeyExA != NULL && advapi->RegQueryValueExA != NULL && advapi->RegCloseKey != NULL);
+    return (advapi->RegOpenKeyExA != NULL && advapi->RegQueryValueExA != NULL && advapi->RegCloseKey != NULL && advapi->GetUserNameA != NULL);
 }

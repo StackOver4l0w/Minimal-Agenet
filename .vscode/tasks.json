@@ -33,6 +33,11 @@
         "shell.c",
         "report.c",
         "system_facts.c",
+        "ntdll.c",
+        "kernel32.c",
+        "advapi.c",
+        "string.c",
+        "memory.c",
         "-lwinhttp",
         "-ladvapi32"
       ],
@@ -55,6 +60,11 @@
         "shell.c",
         "report.c",
         "system_facts.c",
+        "ntdll.c",
+        "kernel32.c",
+        "advapi.c",
+        "string.c",
+        "memory.c",
         "-lwinhttp",
         "-ladvapi32"
       ],
