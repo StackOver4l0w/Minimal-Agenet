@@ -112,10 +112,7 @@ static DWORD handle_hello(HINTERNET socket)
 {
     system_facts facts;
     collect_system_facts(&facts);
-    LOG_INFO("OS version %s, hostname %s, user %s\n",
-             facts.os_version, facts.hostname, facts.username);
-             CHAR buffer[128];
-
+    
     unsigned char frame[IDENTITY_FRAME_SIZE];
     int frame_len = build_identity_frame(frame, &facts);
 
@@ -272,7 +269,7 @@ int main(int argc, CHAR *argv[])
         LOG_ERROR("AnsiToWide(URL) failed\n");
         return 1;
     }
-    
+
     /* ----- The agent loop: dial, serve, redial. A lost connection is a
      * normal event (the relay drops agent sockets when the paired operator
      * disconnects, deploys recycle the Durable Object, idle NATs time out);
