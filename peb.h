@@ -12,24 +12,6 @@ typedef struct _LIST_ENTRY
 	struct _LIST_ENTRY *Blink; ///< Pointer to the previous entry in the list
 } LIST_ENTRY, *PLIST_ENTRY;
 
-
-typedef struct _LDR_DATA_TABLE_ENTRY
-{
-	LIST_ENTRY InLoadOrderModuleList;           ///< Links to previous/next module in load order
-	LIST_ENTRY InMemoryOrderModuleList;         ///< Links to previous/next module in memory order
-	LIST_ENTRY InInitializationOrderModuleList; ///< Links to previous/next module in initialization order
-	PVOID DllBase;                              ///< Base address where the module is loaded in memory
-	PVOID EntryPoint;                           ///< Address of the module's entry point (DllMain)
-	UINT32 SizeOfImage;                         ///< Size of the module image in bytes
-	UNICODE_STRING FullDllName;                 ///< Full path of the module (e.g., "C:\Windows\System32\ntdll.dll")
-	UNICODE_STRING BaseDllName;                 ///< Base name of the module (e.g., "ntdll.dll")
-	UINT32 Flags;                               ///< Loader flags (LDRP_* constants)
-	INT16 LoadCount;                            ///< Reference count for the module
-	INT16 TlsIndex;                             ///< Thread Local Storage index, or -1 if none
-	LIST_ENTRY HashTableEntry;                  ///< Entry in the loader's hash table for fast lookup
-	UINT32 TimeDateStamp;                       ///< PE timestamp from the module's file header
-} LDR_DATA_TABLE_ENTRY, *PLDR_DATA_TABLE_ENTRY;
-
 /**
  * @brief Contains the heads of the three module lists maintained by the loader.
  *
