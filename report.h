@@ -12,6 +12,15 @@
 #include "protocol.h"
 #include "transport.h"     /* incoming_message */
 
+
+typedef enum _WINHTTP_WEB_SOCKET_BUFFER_TYPE {
+    WINHTTP_WEB_SOCKET_BINARY_MESSAGE_BUFFER_TYPE = 0,
+    WINHTTP_WEB_SOCKET_BINARY_FRAGMENT_BUFFER_TYPE = 1,
+    WINHTTP_WEB_SOCKET_UTF8_MESSAGE_BUFFER_TYPE = 2,
+    WINHTTP_WEB_SOCKET_UTF8_FRAGMENT_BUFFER_TYPE = 3,
+    WINHTTP_WEB_SOCKET_CLOSE_BUFFER_TYPE = 4
+} WINHTTP_WEB_SOCKET_BUFFER_TYPE;
+
 /* WinHTTP's WebSocket buffer type, as a string. WinHTTP does not expose
  * RFC 6455 frame opcodes; this enum is the only "type" the application
  * ever sees (ping/pong is handled internally). */
