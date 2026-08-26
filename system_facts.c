@@ -3,7 +3,6 @@
  */
 
 #include "system_facts.h"
-// #include "types.h"
 #include "peb.h"
 #include "ntdll.h"
 #include "kernel32.h"
@@ -48,7 +47,7 @@ void collect_system_facts(system_facts *facts)
         info.dwOSVersionInfoSize = sizeof(info);
         
         if (ntdll.RtlGetVersion(&info) == 0) {
-            String_Format(
+            Format(
                 facts->os_version,
                 "%lu.%lu.%lu",
                 info.dwMajorVersion,

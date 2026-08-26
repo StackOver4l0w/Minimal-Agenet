@@ -2,34 +2,21 @@
 #include "types.h"
 
 #define TO_LOWER_CASE(c) ((c) >= 'A' && (c) <= 'Z' ? (c) + ('a' - 'A') : (c))
-static INT32 String_atoi(PCHAR str){
-    INT32 num = 0;  // Initialize the number to 0, which will hold the converted integer value
-    INT32 sign = 1; // Initialize the sign to positive, WIll be adjusted if a negative sign is found
 
-    // Validate the input string
-    if(str==NULL) {
-        return 0; 
-    }
-    // Skip leading whitespace characters
-    while (*str==' ') {
-        str++;
-    }
-    // Check for optional sign character
-    if (*str=='-') {
-        sign = -1; // If a negative sign is found, set the sign to -1
-        str++;     // Skip the sign character
-    } else if (*str=='+') { // Check for a positive sign
-        str++;     // Skip the positive sign character
+INT32 AnsiToWide(const CHAR *ansi, PWCHAR wide, INT32 wideSize) {
+    if (ansi == NULL || wide == NULL || wideSize <= 0) {
+        return -1; 
     }
 
-    // Convert string to integer
-    while (*str >= '0' && *str <= '9') {
-        num = num * 10 + (*str - '0'); // Multiply the current number by 10 and add the integer value of the current character
-        str++;                         // Move to the next character in the string  
+    INT32 i = 0;
+    for (; i < wideSize - 1 && ansi[i] != '\0'; ++i) {
+        wide[i] = (WCHAR)ansi[i]; 
     }
+    wide[i] = L'\0';
 
-    return num * sign;                 // Return the final integer value, adjusting for sign
+    return i; 
 }
+
 
 // Function to convert an integer to a string with specified formatting - using zero padding, width, and alignment
 void intToStr(INT32 num, PCHAR str, PINT32 index,
@@ -275,24 +262,6 @@ void uintToStr(UINT64 num, PCHAR str, PINT32 index, INT32 width, INT32 zeroPad, 
     }
 }
 
-// Function to convert integer to hexadecimal string
-void intToHexStr(UINT64 num, PCHAR str, PINT32 index) {
-    PCHAR hex_digits = (CHAR[]){'0','1','2','3','4','5','6','7','8','9','a','b','c','d','e','f','\0'}; // Hexadecimal digits for conversion
-    CHAR rev[20]; // Temporary storage for reversed digits
-    INT32 len = 0; // Length of the number in digits
-
-    // Convert the number to a reversed hexadecimal string
-    do {
-        rev[len++] = hex_digits[num % 16]; // Get the last digit in hexadecimal and convert it to character
-        num /= 16; // Remove the last digit from the number
-    } while (num);
-
-    // Copy hexadecimal digits in correct order
-    while (len) {
-        str[(*index)++] = rev[--len];
-    }
-}
-
 // Function to convert pointer address to hexadecimal string
 void ptrToHex(PVOID ptr, PCHAR str, PINT32 index) {
 
@@ -419,7 +388,7 @@ void formatHex(UINT32 num, INT32 fieldWidth, INT32 uppercase, PCHAR s, INT32* j,
 
 
 // Custom vsprintf function implementation
-INT32 String_FormatV(PCHAR s, PCHAR format, va_list args) {
+INT32 FormatV(PCHAR s, PCHAR format, va_list args) {
  
     INT32 i = 0, j = 0; // Index for the format string and output string
     INT32 precision = 6;  // Default precision for floating-point numbers
@@ -638,10 +607,10 @@ INT32 String_FormatV(PCHAR s, PCHAR format, va_list args) {
 }
 
 // Function to format a string with variable arguments
-INT32 String_Format(PCHAR s, PCHAR format, ...) {
+INT32 Format(PCHAR s, PCHAR format, ...) {
     va_list args; // Variatic arguments list
     va_start(args, format); // Initialize the argument list with format so we can access the variable arguments
-    INT32 len = String_FormatV(s, format, args); // Format the string using the variable arguments
+    INT32 len = FormatV(s, format, args); // Format the string using the variable arguments
     va_end(args); // Clean up the argument list
     return len; // Return the length of the formatted string
 }

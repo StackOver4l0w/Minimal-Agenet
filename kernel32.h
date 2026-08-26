@@ -24,6 +24,7 @@ typedef struct KERNEL32
     BOOL (WINAPI *CreatePipe)(HANDLE *hReadPipe, HANDLE *hWritePipe, LPSECURITY_ATTRIBUTES lpPipeAttributes, DWORD nSize);
     HANDLE (WINAPI *GetStdHandle)(DWORD nStdHandle);
     DWORD (WINAPI *GetLastError)(void);
+    void (WINAPI *Sleep)(DWORD dwMilliseconds);
 } KERNEL32;
 
 BOOL KERNEL32_Ctor(KERNEL32 *kernel);

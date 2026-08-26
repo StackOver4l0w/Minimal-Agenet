@@ -33,6 +33,8 @@ BOOL KERNEL32_Ctor(KERNEL32 *kernel)
         ResolveFromModuleByName(L"kernel32.dll", "GetStdHandle");
     kernel->GetLastError = (DWORD (WINAPI *)(void))
         ResolveFromModuleByName(L"kernel32.dll", "GetLastError");
+    kernel->Sleep = (void (WINAPI *)(DWORD))
+        ResolveFromModuleByName(L"kernel32.dll", "Sleep");
         
     return (kernel->GetProcAddress != NULL &&
             kernel->LoadLibraryA != NULL &&
@@ -46,5 +48,6 @@ BOOL KERNEL32_Ctor(KERNEL32 *kernel)
             kernel->PeekNamedPipe != NULL &&
             kernel->CreatePipe != NULL &&
             kernel->GetStdHandle != NULL &&
-            kernel->GetLastError != NULL);
+            kernel->GetLastError != NULL &&
+            kernel->Sleep != NULL);
 }

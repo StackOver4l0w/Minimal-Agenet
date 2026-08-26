@@ -11,7 +11,7 @@ INT32 PRINT_FORMATTED_STRING(PCHAR format, ...)
     va_list args;
 
     va_start(args, format);
-    INT32 len = String_FormatV(buffer, format, args);
+    INT32 len = FormatV(buffer, format, args);
     va_end(args);
 
     if (len < 0)
