@@ -225,38 +225,41 @@ void print_command(int index, const incoming_message *msg)
 void print_identity_frame(const unsigned char frame[IDENTITY_FRAME_SIZE],
                           int frame_len)
 {
-    /* Numeric fields, little-endian. */
+    /* Numeric fields, little-endian (v5 layout, see protocol.h). */
     unsigned status = frame[0]  | (frame[1]  << 8) |
                       (frame[2] << 16) | ((unsigned)frame[3]  << 24);
-    unsigned build  = frame[724]| (frame[725] << 8) |
-                      (frame[726]<< 16) | ((unsigned)frame[727] << 24);
-    unsigned api    = frame[737]| (frame[738] << 8) |
-                      (frame[739]<< 16) | ((unsigned)frame[740] << 24);
-    unsigned is64   = frame[741];
+    unsigned api    = frame[4]  | (frame[5]  << 8) |
+                      (frame[6] << 16) | ((unsigned)frame[7]  << 24);
+    unsigned breed  = frame[8]  | (frame[9]  << 8) |
+                      (frame[10]<< 16) | ((unsigned)frame[11] << 24);
+    unsigned build  = frame[21]| (frame[22] << 8) |
+                      (frame[23]<< 16) | ((unsigned)frame[24] << 24);
+    unsigned is64   = frame[25];
 
     printf("[<] Identity frame (%d bytes):\n", frame_len);
     printf("    status  = %u\n", status);
+    printf("    api     = %u, breed = %u (0=PIA, 1=this agent)\n", api, breed);
     printf("    uuid    = ");
     for (int i = 0; i < 16; i++) {
-        printf("%02x", frame[4 + i]);
+        printf("%02x", frame[26 + i]);
         if (i == 3 || i == 5 || i == 7 || i == 9) putchar('-');
     }
     printf("  (machine, .NET Guid order)\n");
-    printf("    host    = \"%s\"\n", (const char *)(frame + 20));
-    printf("    user    = \"%s\"\n", (const char *)(frame + 276));
-    printf("    arch    = \"%s\"\n", (const char *)(frame + 532));
-    printf("    platform= \"%s\"\n", (const char *)(frame + 564));
-    printf("    os      = \"%s\"\n", (const char *)(frame + 596));
-    printf("    build   = %u, commit = \"%s\", api = %u, 64-bit = %u\n",
-           build, (const char *)(frame + 728), api, is64);
+    printf("    host    = \"%s\"\n", (const char *)(frame + 42));
+    printf("    user    = \"%s\"\n", (const char *)(frame + 298));
+    printf("    arch    = \"%s\"\n", (const char *)(frame + 554));
+    printf("    platform= \"%s\"\n", (const char *)(frame + 586));
+    printf("    os      = \"%s\"\n", (const char *)(frame + 618));
+    printf("    build   = %u, commit = \"%s\", 64-bit = %u\n",
+           build, (const char *)(frame + 12), is64);
     printf("    mask    = ");
     for (int i = 0; i < 8; i++)
-        printf("%02x ", frame[742 + i]);
+        printf("%02x ", frame[746 + i]);
     printf("(categories: %s%s%s)\n",
-           (frame[742] & 1) ? "FileSystem " : "",
-           (frame[742] & 2) ? "Shell " : "",
-           (frame[742] & 4) ? "Display" : "");
-    if ((frame[742] & 7) == 0)
+           (frame[746] & 1) ? "FileSystem " : "",
+           (frame[746] & 2) ? "Shell " : "",
+           (frame[746] & 4) ? "Display" : "");
+    if ((frame[746] & 7) == 0)
         printf("            (information-only agent)\n");
 
     DWORD dump_len = (frame_len < HEXDUMP_LIMIT) ? (DWORD)frame_len

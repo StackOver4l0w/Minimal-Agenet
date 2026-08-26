@@ -32,36 +32,46 @@
 #define STATUS_ERROR            1
 
 /* ==========================================================================
- * The identity frame - the reply to Hello (0x00)
+ * The identity frame - the reply to Hello (0x00), API v5
  *
- * Fixed layout, ASCII strings NUL-padded to their field width:
+ * Identification metadata first so the panel can detect the layout before
+ * parsing anything variable-length. Fixed layout, ASCII strings NUL-padded
+ * to their field width (field order per C2 docs/13-agent-implementation.md
+ * §4.1; mirror of the v5 parser in C2 RelaySocket.cs ReadHelloV5):
  *
  *   offset  size  field
  *   ------  ----  -------------------------------------------------
  *   0       4     status = 0
- *   4       16    machine UUID, .NET Guid byte order (system_facts.c)
- *   20      256   hostname
- *   276     256   logged-on user name
- *   532     32    CPU architecture ("x64" / "x86")
- *   564     32    platform ("Windows")
- *   596     128   OS version ("10.0.19045")
- *   724     4     build number (display only)
- *   728     9     commit hash (8 chars + NUL, display only)
- *   737     4     API version = 4
- *   741     1     is-64-bit-process flag
- *   742     8     capability mask
+ *   4       4     API version = 5 (selects this layout in the panel)
+ *   8       4     agent name id (breed; 0 = PIA, 1 = this agent)
+ *   12      9     commit hash (8 chars + NUL, display only)
+ *   21      4     build number (display only)
+ *   25      1     is-64-bit-process flag
+ *   26      16    machine UUID, .NET Guid byte order (system_facts.c)
+ *   42      256   hostname
+ *   298     256   logged-on user name
+ *   554     32    CPU architecture ("x64" / "x86")
+ *   586     32    platform ("Windows")
+ *   618     128   OS version ("10.0.19045")
+ *   746     8     capability mask
  *   ------------------------------------------------------------------------
- *   total: 750 bytes
+ *   total: 754 bytes
+ *
+ * v4 (750 bytes, UUID first, trailer "BuildNumber CommitHash ApiVersion
+ * Is64Bit") is gone; the panel keeps its v4 fallback for older agents.
+ * The shell wire format is unchanged in v5 - only this Hello reply moved.
  * ======================================================================== */
 
-#define IDENTITY_FRAME_SIZE     750
+#define IDENTITY_FRAME_SIZE     754
 #define ID_HOSTNAME_SIZE        256
 #define ID_USERNAME_SIZE        256
 #define ID_ARCH_SIZE            32
 #define ID_PLATFORM_SIZE        32
 #define ID_OS_VERSION_SIZE      128
 #define ID_COMMIT_HASH_SIZE     9      /* 8 chars + NUL            */
-#define ID_API_VERSION          4      /* v4 = current framing     */
+#define ID_API_VERSION          5      /* v5 = metadata-first      */
+#define ID_AGENT_NAME_ID        1      /* breed id: 0 = PIA, 1 = this agent
+                                        * (register in C2 AgentBreeds) */
 
 /* Display-only build tag. CI bakes the real one in with
  * -DID_BUILD_NUMBER=<git commit count>; local builds keep the default. */
