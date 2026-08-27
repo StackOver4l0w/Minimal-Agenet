@@ -25,29 +25,31 @@
  *     commits the guard page and grows the stack legally
  *   - RSP is never moved: the caller's "sub rsp, rax" does the alloc */
 #if defined(ENVIRONMENT_x86_64) || defined(__x86_64__) || defined(_M_X64)
-__attribute__((naked, used))
-void ___chkstk_ms(void)
-{
-    __asm__ volatile (
-        "pushq %rcx\n\t"
-        "pushq %rax\n\t"
-        "cmpq  $0x1000, %rax\n\t"
-        "leaq  0x18(%rsp), %rcx\n\t"
-        "jb    2f\n\t"
-        "1:\n\t"
-        "subq  $0x1000, %rcx\n\t"
-        "orq   $0, (%rcx)\n\t"      /* touch: commits the guard page */
-        "subq  $0x1000, %rax\n\t"
-        "cmpq  $0x1000, %rax\n\t"
-        "ja    1b\n\t"
-        "2:\n\t"
-        "subq  %rax, %rcx\n\t"
-        "orq   $0, (%rcx)\n\t"      /* final touch at the frame bottom */
-        "popq  %rax\n\t"
-        "popq  %rcx\n\t"
-        "ret\n\t"
-    );
-}
+/* naked functions have no prologue, but a bare asm statement needs a
+ * body; a top-level asm keeps the symbol portable across gcc and clang
+ * (llvm-mingw warns on naked+asm in C mode). */
+void ___chkstk_ms(void);
+asm(
+    ".globl ___chkstk_ms\n"
+    "___chkstk_ms:\n"
+    "   pushq %rcx\n"
+    "   pushq %rax\n"
+    "   cmpq  $0x1000, %rax\n"
+    "   leaq  0x18(%rsp), %rcx\n"
+    "   jb    2f\n"
+    "1:\n"
+    "   subq  $0x1000, %rcx\n"
+    "   orq   $0, (%rcx)\n"      /* touch: commits the guard page */
+    "   subq  $0x1000, %rax\n"
+    "   cmpq  $0x1000, %rax\n"
+    "   ja    1b\n"
+    "2:\n"
+    "   subq  %rax, %rcx\n"
+    "   orq   $0, (%rcx)\n"      /* final touch at the frame bottom */
+    "   popq  %rax\n"
+    "   popq  %rcx\n"
+    "   ret\n"
+);
 #endif
 
 #define ENTRY_ARGC_MAX 8

