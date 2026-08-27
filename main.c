@@ -26,11 +26,11 @@
  *
  *   gcc -O2 -c main.c transport.c shell.c report.c system_facts.c \
  *       winhttp_api.c memory.c string.c kernel32.c advapi.c ntdll.c \
- *       peb.c system.c djb2.c logger.c entry.c
+ *       peb.c system.c djb2.c logger.c entry.c freestanding.c
  *   gcc -O2 -s -nostdlib -e entry -o minimal_agent.exe \
  *       entry.o main.o transport.o shell.o report.o system_facts.o \
  *       winhttp_api.o memory.o string.o kernel32.o advapi.o ntdll.o \
- *       peb.o system.o djb2.o logger.o
+ *       peb.o system.o djb2.o logger.o freestanding.o
  *
  * (entry.c MUST be in the object list and -e entry names the real entry
  *  point - omitting either leaves ___chkstk_ms unresolved or the entry

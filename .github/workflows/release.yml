@@ -71,11 +71,11 @@ jobs:
               -DAGENT_COMMIT_HASH="\"$COMMIT_HASH\"" \
               -c main.c transport.c shell.c report.c system_facts.c \
                  winhttp_api.c memory.c string.c kernel32.c advapi.c ntdll.c \
-                 peb.c system.c djb2.c logger.c entry.c
+                 peb.c system.c djb2.c logger.c entry.c freestanding.c
           ${{ matrix.triple }}-gcc -O2 -s -nostdlib -e entry -o minimal_agent.exe \
               entry.o main.o transport.o shell.o report.o system_facts.o \
               winhttp_api.o memory.o string.o kernel32.o advapi.o ntdll.o \
-              peb.o system.o djb2.o logger.o
+              peb.o system.o djb2.o logger.o freestanding.o
           if ${{ matrix.triple }}-objdump -p minimal_agent.exe | grep -q "DLL Name"; then
             echo "FAIL: import table is not empty"; exit 1
           fi
