@@ -57,17 +57,28 @@ typedef struct _LDR_DATA_TABLE_ENTRY
 } LDR_DATA_TABLE_ENTRY, *PLDR_DATA_TABLE_ENTRY;
 
 
+/* Offsets MUST match the real loader layout (phnt / winternl.h): every
+ * field address is annotated. A missing pad skews every later field -
+ * the entry point reads CommandLine at 0x70/0x78, and a wrong offset
+ * means dereferencing garbage (the crash we debugged on the full line).
+ * UNICODE_STRING in wintypes.h already carries the x64 padding. */
 typedef struct _RTL_USER_PROCESS_PARAMETERS
 {
-	UINT32 MaximumLength;  ///< Maximum size of this structure in bytes
-	UINT32 Length;         ///< Actual size of this structure in bytes
-	UINT32 Flags;          ///< Parameter flags (e.g., RTL_USER_PROC_PARAMS_NORMALIZED)
-	UINT32 DebugFlags;     ///< Debug-related flags
-	PVOID ConsoleHandle;   ///< Handle to the process's console window
-	UINT32 ConsoleFlags;   ///< Console creation flags
-	PVOID StandardInput;   ///< Handle to the standard input device
-	PVOID StandardOutput;  ///< Handle to the standard output device
-	PVOID StandardError;   ///< Handle to the standard error device
+	UINT32 MaximumLength;  ///< 0x00 Maximum size of this structure in bytes
+	UINT32 Length;         ///< 0x04 Actual size of this structure in bytes
+	UINT32 Flags;          ///< 0x08 Parameter flags (e.g., RTL_USER_PROC_PARAMS_NORMALIZED)
+	UINT32 DebugFlags;     ///< 0x0C Debug-related flags
+	PVOID ConsoleHandle;   ///< 0x10 Handle to the process's console window
+	UINT32 ConsoleFlags;   ///< 0x18 Console creation flags
+	UINT32 Padding1;       ///< 0x1C Alignment to pointer width
+	PVOID StandardInput;   ///< 0x20 Handle to the standard input device
+	PVOID StandardOutput;  ///< 0x28 Handle to the standard output device
+	PVOID StandardError;   ///< 0x30 Handle to the standard error device
+	UNICODE_STRING CurrentDirectoryPath; ///< 0x38 Working directory at start
+	PVOID CurrentDirectoryHandle;        ///< 0x48 Handle of that directory
+	UNICODE_STRING DllPath;              ///< 0x50 Search path for DLLs
+	UNICODE_STRING ImagePathName;        ///< 0x60 Full path of our exe
+	UNICODE_STRING CommandLine;          ///< 0x70 Full command line (wide)
 } RTL_USER_PROCESS_PARAMETERS, *PRTL_USER_PROCESS_PARAMETERS;
 
 

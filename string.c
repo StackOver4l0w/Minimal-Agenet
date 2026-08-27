@@ -17,6 +17,25 @@ INT32 AnsiToWide(const CHAR *ansi, PWCHAR wide, INT32 wideSize) {
     return i; 
 }
 
+// String equality per the C contract: returns 0 when equal, and the
+// difference of the first mismatching bytes otherwise (sign shows which
+// one is greater). Declared in string.h all along; the body was never
+// written, so calls silently linked to the CRT version - which does not
+// exist under -nostdlib. The loop touches bytes through volatile
+// pointers so -O2 cannot rewrite it as a compiler builtin.
+INT32 strcmp(const CHAR *s1, const CHAR *s2)
+{
+    const volatile CHAR *a = s1;
+    const volatile CHAR *b = s2;
+
+    while (*a != '\0' && *a == *b) {
+        a++;
+        b++;
+    }
+
+    return (INT32)(UINT8)*a - (INT32)(UINT8)*b;
+}
+
 
 // Function to convert an integer to a string with specified formatting - using zero padding, width, and alignment
 void intToStr(INT32 num, PCHAR str, PINT32 index,
@@ -301,9 +320,15 @@ void wideToStr(PWCHAR wstr, PCHAR str, PINT32 index, INT32 width)
     INT32 padding = width - len;
     if (padding < 0) padding = 0;
 
-    // Add padding spaces before the string
-    for (INT32 j = 0; j < padding; j++) {
-        str[destIndex++] = ' ';
+    // Add padding spaces before the string.
+    // volatile: a plain fill loop is recognized by GCC -O2 as a memset
+    // idiom and replaced with a CRT call - which does not exist under
+    // -nostdlib. Each store must stay as written.
+    {
+        volatile CHAR *vdest = &str[destIndex];
+        for (INT32 j = 0; j < padding; j++)
+            vdest[j] = ' ';
+        destIndex += padding;
     }
 
     // Copy each character from the wide string to the narrow string
@@ -480,9 +505,13 @@ INT32 FormatV(PCHAR s, PCHAR format, va_list args) {
                 continue;
             }
             else if (TO_LOWER_CASE(format[i])=='c') {  // Handle %c (character)
-                // Loop through the field width to ensure proper spacing
-                for (INT32 k = 0; k < fieldWidth - 1; k++) {
-                    s[j++] = ' '; // Add spaces for field width
+                // Loop through the field width to ensure proper spacing.
+                // volatile: fill loop -> memset idiom under -O2 (no CRT).
+                {
+                    volatile CHAR *vp = &s[j];
+                    for (INT32 k = 0; k < fieldWidth - 1; k++)
+                        vp[k] = ' ';
+                    j += fieldWidth - 1;
                 }
                 s[j++] = (CHAR)va_arg(args, INT32); // Get the next argument as an INT32 (character) and add it to the string
                 i++; // Skip 'c'
@@ -499,7 +528,9 @@ INT32 FormatV(PCHAR s, PCHAR format, va_list args) {
 
                 // Checking the string is not NULL and calculating its length
                 if (str) {
-                    PCHAR temp = str;
+                    // volatile: a plain count-to-NUL loop is recognized
+                    // as a CRT strlen call under -O2 (no CRT here).
+                    const volatile CHAR *temp = str;
                     while (*temp) {
                         len++;
                         temp++;
@@ -507,9 +538,13 @@ INT32 FormatV(PCHAR s, PCHAR format, va_list args) {
                     INT32 padding = fieldWidth - len; // Calculate padding based on field width and string length
                     if (padding < 0) padding = 0; // Ensure padding is non-negative
 
-                    // If left-aligned, copy the string directly
-                    for (int k = 0; k < padding; k++) {
-                        s[j++] = ' ';
+                    // If left-aligned, copy the string directly.
+                    // volatile: fill loop -> memset idiom under -O2 (no CRT).
+                    {
+                        volatile CHAR *vp = &s[j];
+                        for (int k = 0; k < padding; k++)
+                            vp[k] = ' ';
+                        j += padding;
                     }
                     // Copy the string to the output
                     while (*str) {

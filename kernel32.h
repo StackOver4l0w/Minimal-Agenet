@@ -26,6 +26,7 @@ typedef struct KERNEL32
     HANDLE (WINAPI *GetStdHandle)(DWORD nStdHandle);
     DWORD (WINAPI *GetLastError)(void);
     void (WINAPI *Sleep)(DWORD dwMilliseconds);
+    void (WINAPI *ExitProcess)(UINT32 uExitCode);
 } KERNEL32;
 
 BOOL KERNEL32_Ctor(KERNEL32 *kernel);

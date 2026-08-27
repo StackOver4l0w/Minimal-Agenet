@@ -11,10 +11,15 @@ typedef enum _WINHTTP_WEB_SOCKET_BUFFER_TYPE
 } WINHTTP_WEB_SOCKET_BUFFER_TYPE;
 
 
+/* The UINT32 pad is load-bearing on x64: without it Buffer lands at
+ * offset 6 while the real loader layout puts it at 8 - every struct
+ * embedding UNICODE_STRING (RTL_USER_PROCESS_PARAMETERS, LDR entries)
+ * then skews and we read garbage pointers. */
 typedef struct _UNICODE_STRING
 {
 	UINT16 Length;        ///< Length of the string in bytes (not including any null terminator)
 	UINT16 MaximumLength; ///< Total size of the Buffer in bytes
+	UINT32 Padding;       ///< Alignment so Buffer sits at offset 8 (x64)
 	PWCHAR Buffer;        ///< Pointer to the wide character string data
 } UNICODE_STRING, *PUNICODE_STRING;
 

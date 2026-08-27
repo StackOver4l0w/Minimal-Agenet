@@ -57,6 +57,7 @@
 #include "memory.h"
 #include "logger.h"
 #include "kernel32.h"
+#include "entry.h"      /* agent_main: the -nostdlib entry contract */
 
 
 /* Commit tag baked into the identity frame. CI overrides it with
@@ -255,7 +256,7 @@ static DWORD handle_close_shell(HINTERNET socket, const incoming_message *msg)
 /* One full connect/serve/close session (defined below main). */
 static int run_session(const WCHAR *url, int *long_lived);
 
-int main(int argc, CHAR *argv[])
+INT32 agent_main(INT32 argc, CHAR *argv[])
 {
     KERNEL32 kernel;
     if (!KERNEL32_Ctor(&kernel)) {
