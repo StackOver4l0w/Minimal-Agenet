@@ -43,7 +43,6 @@
  *   system_facts.h/.c  machine UUID + hostname/user/OS facts
  */
 
-#include <windows.h>
 #include "winhttp_api.h"   /* runtime-resolved WinHTTP table (no <winhttp.h>) */
 
 #include "string.h"     /* strcmp (the -v flag) */
@@ -90,7 +89,7 @@ static int build_identity_frame(unsigned char frame[IDENTITY_FRAME_SIZE],
 
     unsigned char uuid[16];
     get_machine_uuid(uuid);
-    CopyMemory(frame + pos, uuid, 16);               /* machine UUID     */
+    MemoryCopy(frame + pos, uuid, 16);               /* machine UUID     */
     pos += 16;
 
     write_ascii_field(frame, &pos, facts->hostname,  ID_HOSTNAME_SIZE);
