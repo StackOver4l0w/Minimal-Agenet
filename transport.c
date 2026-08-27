@@ -36,7 +36,7 @@ DWORD ws_receive(HINTERNET socket, incoming_message *msg, BOOL *closed)
 
         if (got > 0) {
             if (msg->length + got <= MAX_MESSAGE_SIZE) {
-                CopyMemory(msg->data + msg->length, fragment, got);
+                MemoryCopy(msg->data + msg->length, fragment, got);
                 msg->length += got;
             } else {
                 msg->truncated = TRUE;   /* keep the first MAX_MESSAGE_SIZE */

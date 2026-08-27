@@ -87,7 +87,7 @@ static int build_identity_frame(unsigned char frame[IDENTITY_FRAME_SIZE],
 
     unsigned char uuid[16];
     get_machine_uuid(uuid);
-    CopyMemory(frame + pos, uuid, 16);               /* machine UUID     */
+    MemoryCopy(frame + pos, uuid, 16);               /* machine UUID     */
     pos += 16;
 
     write_ascii_field(frame, &pos, facts->hostname,  ID_HOSTNAME_SIZE);
@@ -255,12 +255,14 @@ static int run_session(const WCHAR *url, int *long_lived);
 
 int main(int argc, CHAR *argv[])
 {
+    LOG_INFO("Minimal agent starting (commit %s)\n", AGENT_COMMIT_HASH);
     KERNEL32 kernel;
     if (!KERNEL32_Ctor(&kernel)) {
         LOG_ERROR("Failed to load kernel32.dll\n");
     }
+    LOG_INFO("Kernel is initialized\n");
     /* ----- Stage 1: the URL must come from the command line ----- */
-    if (argc == 3 && strcmp(argv[2], "-v") == 0)
+    if (argc == 3 && Compare(argv[2], "-v") == 0)
         verbose = 1;
     else if (argc != 2) {
         LOG_ERROR("Usage: %s <URL> [-v]\n", argv[0]);
@@ -272,6 +274,7 @@ int main(int argc, CHAR *argv[])
         LOG_ERROR("AnsiToWide(URL) failed\n");
         return 1;
     }
+    LOG_INFO("URL: %ls\n", url);
 
     /* ----- The agent loop: dial, serve, redial. A lost connection is a
      * normal event (the relay drops agent sockets when the paired operator
@@ -282,6 +285,7 @@ int main(int argc, CHAR *argv[])
      * ids after the panel re-opens. */
     int rc = RC_SESSION_LOST;
     while (rc == RC_SESSION_LOST) {
+        LOG_INFO("Dialing %ls ...\n", url);
         int long_lived = 0;
         rc = run_session(url, &long_lived);
         if (rc == RC_SESSION_LOST) {
@@ -303,6 +307,7 @@ int main(int argc, CHAR *argv[])
             kernel.Sleep((DWORD)wait_s * 1000);
         }
     }
+    LOG_INFO("Agent exiting (rc = %d)\n", rc);
     return rc;
 }
 
@@ -318,6 +323,8 @@ static int run_session(const WCHAR *url, int *long_lived)
     HINTERNET session = NULL, connection = NULL, request = NULL;
     HINTERNET socket = NULL;
     KERNEL32 kernel32;
+
+    LOG_INFO("[1] Session start: connect, upgrade, serve commands, cleanup ...\n");
     if (!KERNEL32_Ctor(&kernel32)) {
         LOG_ERROR("Failed to load kernel32.dll\n");
     }
@@ -326,7 +333,9 @@ static int run_session(const WCHAR *url, int *long_lived)
 
     /* ----- Stage 2: split the URL into components (WinHttpCrackUrl) ----- */
     URL_COMPONENTS uc;
+    LOG_INFO("Cracking URL %ls ...\n", url);
     MemoryZero(&uc, sizeof(uc));
+    LOG_INFO("URL_COMPONENTS struct size = %zu\n", sizeof(uc));
     uc.dwStructSize = sizeof(uc);
 
     WCHAR host[256];

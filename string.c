@@ -3,6 +3,16 @@
 
 #define TO_LOWER_CASE(c) ((c) >= 'A' && (c) <= 'Z' ? (c) + ('a' - 'A') : (c))
 
+INT32 Compare(const CHAR *s1, const CHAR *s2) {
+    while (*s1 && *s1 == *s2)
+    {
+        s1++;
+        s2++;
+    }
+
+    return (unsigned char)*s1 - (unsigned char)*s2;
+}
+
 INT32 AnsiToWide(const CHAR *ansi, PWCHAR wide, INT32 wideSize) {
     if (ansi == NULL || wide == NULL || wideSize <= 0) {
         return -1; 
