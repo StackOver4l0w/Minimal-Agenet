@@ -17,3 +17,6 @@ notes/
 
 # Local test harness (kept personal for now)
 shell_harness.py
+
+# Local-only test oracles (kept out of the repository by choice)
+.local-tests/
