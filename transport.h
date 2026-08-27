@@ -8,10 +8,15 @@
 
 #pragma once
 
-#include <windows.h>
-#include <winhttp.h>
-
+#include "types.h"
+#include "wintypes.h"      /* WINHTTP_WEB_SOCKET_BUFFER_TYPE (local copy) */
 #include "protocol.h"      /* MAX_MESSAGE_SIZE */
+
+/* Returned by ws_send/ws_receive when the WinHTTP table could not be
+ * resolved: nonzero per the family's direct-error-code contract, so a
+ * caller that only checks "0 = success" behaves correctly. Value from
+ * SDK winerror.h. */
+#define ERROR_MOD_NOT_FOUND 126
 
 /* Send one binary reply. Returns the WinHTTP error code (0 = success). */
 DWORD ws_send(HINTERNET socket, const void *data, DWORD length);

@@ -76,7 +76,8 @@ jobs:
               -DID_BUILD_NUMBER="$BUILD_NUMBER" \
               -DAGENT_COMMIT_HASH="\"$COMMIT_HASH\"" \
               -o relay_client.exe main.c transport.c shell.c report.c system_facts.c \
-              -lwinhttp -ladvapi32
+              winhttp_api.c memory.c string.c kernel32.c advapi.c ntdll.c \
+              peb.c system.c djb2.c logger.c -ladvapi32
           mkdir -p artifacts
           cp relay_client.exe "artifacts/windows-${{ matrix.arch }}.exe"
           ls -la artifacts/
