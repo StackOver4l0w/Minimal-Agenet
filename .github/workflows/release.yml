@@ -70,11 +70,11 @@ jobs:
           ${{ matrix.triple }}-gcc -O2 -s -Wall -Wextra \
               -DID_BUILD_NUMBER="$BUILD_NUMBER" \
               -DAGENT_COMMIT_HASH="\"$COMMIT_HASH\"" \
-              -o relay_client.exe main.c transport.c shell.c report.c system_facts.c \
+              -o minimal_agent.exe main.c transport.c shell.c report.c system_facts.c \
               winhttp_api.c memory.c string.c kernel32.c advapi.c ntdll.c \
               peb.c system.c djb2.c logger.c -ladvapi32
           mkdir -p artifacts
-          cp relay_client.exe "artifacts/windows-${{ matrix.arch }}.exe"
+          cp minimal_agent.exe "artifacts/windows-${{ matrix.arch }}.exe"
           ls -la artifacts/
 
       - name: Upload artifacts
