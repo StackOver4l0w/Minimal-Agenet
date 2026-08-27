@@ -13,18 +13,17 @@
 #include "system.h"      /* IMAGE_DOS_HEADER_MIN + signatures */
 
 /* --- ___chkstk_ms: the stack probe ------------------------------------
- * gcc emits `call ___chkstk_ms` (THREE underscores on mingw x64 - the
- * name carried the i386 decoration '_' + '__chkstk_ms'; a two-underscore
- * definition silently mismatches and the link fails) in any function
- * whose frame exceeds one page (4 KB) - our 64 KB receive buffers
- * qualify. Without the probe a big "sub rsp" skips the guard page and
- * the first local write faults.
- *
- * mingw-w64 contract: R10 = byte count needed; the caller's prologue
- * does its own "sub rsp, r10" AFTER this call, so this routine must
- * NOT move RSP - only touch each page between the frame bottom and the
- * current RSP, low to high (each touch lets the OS commit the guard
- * page and grow the stack legally). */
+ * gcc emits `call ___chkstk_ms` (three underscores on mingw x64) in any
+ * function whose frame exceeds one page - our 72 KB run_session frame
+ * qualifies. Transcribed VERBATIM from libgcc's _chkstk_ms.o (the
+ * canonical implementation; an earlier hand-rolled variant misread the
+ * contract - size arrives in RAX, not R10 - and crashed on the first
+ * big frame):
+ *   - RAX = byte count needed (set by the caller's prologue)
+ *   - RCX walks DOWN from lea [rsp+0x18] (two pushes + return addr),
+ *     one page per step; `orq 0,(rcx)` touches the page so the OS
+ *     commits the guard page and grows the stack legally
+ *   - RSP is never moved: the caller's "sub rsp, rax" does the alloc */
 #if defined(ENVIRONMENT_x86_64) || defined(__x86_64__) || defined(_M_X64)
 __attribute__((naked, used))
 void ___chkstk_ms(void)
@@ -32,18 +31,18 @@ void ___chkstk_ms(void)
     __asm__ volatile (
         "pushq %rcx\n\t"
         "pushq %rax\n\t"
-        "movq  %rsp, %rax\n\t"      /* RSP below the two pushes     */
-        "movq  %r10, %rcx\n\t"      /* frame size                   */
-        "subq  %rcx, %rax\n\t"      /* bottom of the coming frame   */
-        "andq  $-4096, %rax\n\t"    /* page-align down              */
-        "cmpq  %rsp, %rax\n\t"
-        "jae   2f\n\t"
+        "cmpq  $0x1000, %rax\n\t"
+        "leaq  0x18(%rsp), %rcx\n\t"
+        "jb    2f\n\t"
         "1:\n\t"
-        "movq  (%rax), %rcx\n\t"    /* touch: commits the guard page */
-        "addq  $4096, %rax\n\t"
-        "cmpq  %rsp, %rax\n\t"
-        "jb    1b\n\t"
+        "subq  $0x1000, %rcx\n\t"
+        "orq   $0, (%rcx)\n\t"      /* touch: commits the guard page */
+        "subq  $0x1000, %rax\n\t"
+        "cmpq  $0x1000, %rax\n\t"
+        "ja    1b\n\t"
         "2:\n\t"
+        "subq  %rax, %rcx\n\t"
+        "orq   $0, (%rcx)\n\t"      /* final touch at the frame bottom */
         "popq  %rax\n\t"
         "popq  %rcx\n\t"
         "ret\n\t"
