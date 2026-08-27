@@ -3,8 +3,6 @@
 
 #include "report.h"
 #include "types.h"
-#include "winbase.h"
-// #include <winhttp.h>
 #include "peb.h"
 #include "djb2.h"
 #include "logger.h"

