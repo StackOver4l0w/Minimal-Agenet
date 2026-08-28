@@ -9,9 +9,6 @@
 
 #pragma once
 
-/* No <windows.h>: every type this header needs (HANDLE, DWORD, the
- * STARTUPINFOW / PROCESS_INFORMATION / SECURITY_ATTRIBUTES shapes) lives
- * in the project's own minimal dictionary - types.h / wintypes.h. */
 #include "types.h"
 #include "wintypes.h"
 

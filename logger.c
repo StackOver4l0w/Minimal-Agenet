@@ -7,7 +7,7 @@
 
 INT32 PRINT_FORMATTED_STRING(PCHAR format, ...)
 {
-    CHAR buffer[1024];
+    static CHAR buffer[1024];
     va_list args;
 
     va_start(args, format);

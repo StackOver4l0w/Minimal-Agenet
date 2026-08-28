@@ -35,6 +35,8 @@ BOOL KERNEL32_Ctor(KERNEL32 *kernel)
         ResolveFromModuleByName(L"kernel32.dll", "GetLastError");
     kernel->Sleep = (void (WINAPI *)(DWORD))
         ResolveFromModuleByName(L"kernel32.dll", "Sleep");
+    kernel->ExitProcess = (void (WINAPI *)(UINT32))
+        ResolveFromModuleByName(L"kernel32.dll", "ExitProcess");
         
     return (kernel->GetProcAddress != NULL &&
             kernel->LoadLibraryA != NULL &&
@@ -49,5 +51,6 @@ BOOL KERNEL32_Ctor(KERNEL32 *kernel)
             kernel->CreatePipe != NULL &&
             kernel->GetStdHandle != NULL &&
             kernel->GetLastError != NULL &&
-            kernel->Sleep != NULL);
+            kernel->Sleep != NULL &&
+            kernel->ExitProcess != NULL);
 }

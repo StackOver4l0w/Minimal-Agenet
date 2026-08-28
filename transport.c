@@ -39,7 +39,7 @@ DWORD ws_receive(HINTERNET socket, incoming_message *msg, BOOL *closed)
         return ERROR_MOD_NOT_FOUND;
 
     for (;;) {
-        unsigned char fragment[RECV_FRAGMENT_SIZE];
+        static unsigned char fragment[RECV_FRAGMENT_SIZE];
         DWORD got = 0;
         WINHTTP_WEB_SOCKET_BUFFER_TYPE type;
 

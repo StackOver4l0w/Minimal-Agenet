@@ -1,7 +1,8 @@
 #include "types.h"
-#include "memory.h"
 
 INT32 AnsiToWide(const CHAR *ansi, PWCHAR wide, INT32 wideSize);
-INT32 Compare(const CHAR *s1, const CHAR *s2);
+INT32 strcmp(const CHAR *s1, const CHAR *s2);
 INT32 FormatV(PCHAR s, PCHAR format, va_list args);
 INT32 Format(PCHAR s, PCHAR format, ...);
+SIZE_T strlen(const CHAR *s);
+SIZE_T strlen_w(const WCHAR *s);

@@ -56,7 +56,6 @@ typedef struct _LDR_DATA_TABLE_ENTRY
 	UINT32 TimeDateStamp;                       ///< PE timestamp from the module's file header
 } LDR_DATA_TABLE_ENTRY, *PLDR_DATA_TABLE_ENTRY;
 
-
 typedef struct _RTL_USER_PROCESS_PARAMETERS
 {
 	UINT32 MaximumLength;  ///< Maximum size of this structure in bytes
@@ -65,9 +64,15 @@ typedef struct _RTL_USER_PROCESS_PARAMETERS
 	UINT32 DebugFlags;     ///< Debug-related flags
 	PVOID ConsoleHandle;   ///< Handle to the process's console window
 	UINT32 ConsoleFlags;   ///< Console creation flags
+	UINT32 Padding1;       ///< Alignment to pointer width
 	PVOID StandardInput;   ///< Handle to the standard input device
 	PVOID StandardOutput;  ///< Handle to the standard output device
 	PVOID StandardError;   ///< Handle to the standard error device
+	UNICODE_STRING CurrentDirectoryPath; ///< Working directory at start
+	PVOID CurrentDirectoryHandle;        ///< Handle of that directory
+	UNICODE_STRING DllPath;              ///< Search path for DLLs
+	UNICODE_STRING ImagePathName;        ///< Full path of our exe
+	UNICODE_STRING CommandLine;          ///< Full command line (wide)
 } RTL_USER_PROCESS_PARAMETERS, *PRTL_USER_PROCESS_PARAMETERS;
 
 
