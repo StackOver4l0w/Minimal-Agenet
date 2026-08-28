@@ -11,12 +11,16 @@ SIZE_T strlen(const CHAR *s) {
     return len;
 }
 
-SIZE_T strlen_w(const WCHAR *s) {
+SIZE_T wcslen(const WCHAR *s) {
     SIZE_T len = 0;
     while (s[len] != L'\0') {
         len++;
     }
     return len;
+}
+
+SIZE_T strlen_w(const WCHAR *s) {
+    return wcslen(s);
 }
 
 INT32 AnsiToWide(const CHAR *ansi, PWCHAR wide, INT32 wideSize) {
