@@ -1,4 +1,4 @@
-# WinHTTP WebSocket Relay Client
+# WinHTTP WebSocket Relay Client (minimal_agent)
 
 A small Windows network program in C, built on the
 [WinHTTP](https://learn.microsoft.com/windows/win32/winhttp/winhttp-start-page)
@@ -6,31 +6,95 @@ API:
 
 | Program | Source | What it does |
 |---|---|---|
-| `relay_client.exe` | `main.c` | Minimal agent with a remote shell: connects to a relay URL over WebSocket, identifies itself to the operator panel (750-byte Hello frame), and runs panel commands inside a local `cmd.exe` (Shell category). |
+| `minimal_agent.exe` | `main.c` | Minimal agent with a remote shell: connects to a relay URL over WebSocket, identifies itself to the operator panel (750-byte Hello frame), and runs panel commands inside a local `cmd.exe` (Shell category). |
 
 ## Requirements
 
 - Windows (**Windows 8+** for the WinHTTP WebSocket API)
-- A C compiler with the WinHTTP headers. Tested with **MinGW-w64 gcc 16.1**
-  (MSYS2 `ucrt64`).
+- **MinGW-w64 gcc 16.1** (MSYS2 `ucrt64`) — no WinHTTP SDK headers are
+  needed: the project keeps its own minimal type dictionary (`types.h`,
+  `wintypes.h`) and resolves every OS call at runtime.
 
 ## Build
 
-```sh
-gcc -O2 -s -nostdlib -e entry -Wall -Wextra -o minimal_agent.exe entry.c main.c transport.c shell.c report.c system_facts.c winhttp_api.c ntdll.c kernel32.c advapi.c string.c memory.c peb.c system.c djb2.c logger.c
+The single flavor is **dependency-free**: no CRT, no import table, no
+`-lwinhttp`. Every OS call (WinHTTP included) is resolved at runtime via
+the PEB; the process starts at our own entry (`entry.c`), not the CRT
+startup. Two steps — compile, then link.
+
+**PowerShell** (from the repo root; MSYS2 `ucrt64` on PATH):
+
+```powershell
+# 1) compile (objects go to a separate dir, the repo root stays clean)
+gcc -O2 -c entry.c main.c transport.c shell.c report.c system_facts.c `
+    winhttp_api.c ntdll.c kernel32.c advapi.c string.c memory.c `
+    peb.c system.c djb2.c logger.c
+New-Item -ItemType Directory -Force obj | Out-Null
+Move-Item *.o obj
+
+# 2) link (entry.o MUST be in the list; -e entry names the real entry point)
+gcc -O2 -s -nostdlib -e entry -o minimal_agent.exe `
+    obj\entry.o obj\main.o obj\transport.o obj\shell.o obj\report.o `
+    obj\system_facts.o obj\winhttp_api.o obj\ntdll.o obj\kernel32.o `
+    obj\advapi.o obj\string.o obj\memory.o obj\peb.o obj\system.o `
+    obj\djb2.o obj\logger.o
 ```
+
+Two gates to check after linking:
+
+```powershell
+# gate 1: empty import table — must print NOTHING
+objdump -p minimal_agent.exe | Select-String "DLL Name"   # no output = OK
+
+# gate 2: the entry point is OUR entry, not a linker default.
+# The shipped exe is stripped (-s), so nm sees no symbols in it —
+# link an unstripped CHECK copy of the same objects and compare:
+gcc -O2 -nostdlib -e entry -o ma_check.exe (Get-ChildItem obj\*.o | ForEach-Object FullName)
+nm ma_check.exe | Select-String " T entry"               # -> ... T entry
+objdump -f ma_check.exe | Select-String "start address"  # -> same address
+Remove-Item ma_check.exe
+
+# paste-safe one-liner for the whole gate 2 (if a paste eats line breaks):
+gcc -O2 -nostdlib -e entry -o ma_check.exe (Get-ChildItem obj\*.o | ForEach-Object FullName); nm ma_check.exe | Select-String " T entry"; objdump -f ma_check.exe | Select-String "start address"; Remove-Item ma_check.exe
+```
+
+**bash** (MSYS2 shell) equivalent:
+
+```sh
+gcc -O2 -c entry.c main.c transport.c shell.c report.c system_facts.c \
+    winhttp_api.c ntdll.c kernel32.c advapi.c string.c memory.c \
+    peb.c system.c djb2.c logger.c && mkdir -p obj && mv *.o obj/
+gcc -O2 -s -nostdlib -e entry -o minimal_agent.exe obj/*.o
+objdump -p minimal_agent.exe | grep "DLL Name"          # no output = OK
+gcc -O2 -nostdlib -e entry -o /tmp/ma_check.exe obj/*.o
+nm /tmp/ma_check.exe | grep " T entry"                  # -> ... T entry
+objdump -f /tmp/ma_check.exe | grep "start address"     # -> same address
+```
+
+Gate 2 matters because omitting `-e entry` (or losing `entry.o` from the
+list) silently leaves the linker default entry in place — the binary
+builds but crashes at startup (see `entry.h` for the contract).
 
 The agent is split into small modules, one topic per header:
 
 | File | Topic |
 |---|---|
-| `main.c` | `main`: connect, dispatch commands, cleanup |
+| `entry.c` | CRT-free process entry: zeroes `.bss`, builds argv from the PEB, exits via `ExitProcess` |
+| `main.c` | `agent_main`: connect, dispatch commands, cleanup |
 | `protocol.h` | opcodes, statuses, identity frame, capability mask |
 | `wire.h` | tiny little-endian writers (header-only) |
 | `transport.h/.c` | the WebSocket pipe: `ws_send` / `ws_receive` |
 | `shell.h/.c` | the cmd.exe pool: spawn / read / write / teardown |
 | `report.h/.c` | human-facing output: errors, hex dumps, decoders |
 | `system_facts.h/.c` | machine UUID + hostname / user / OS facts |
+| `winhttp_api.h/.c` | the WinHTTP vtable + `LdrLoadDll` bootstrap |
+| `kernel32.h/.c`, `ntdll.h/.c`, `advapi.h/.c` | per-DLL function tables |
+| `peb.h/.c` | TEB/PEB access and the loader module-list walk |
+| `system.h/.c` | PE export-table resolve (by name and by hash) |
+| `apihash.h` | precomputed djb2 constants for every module/export name |
+| `stackstrings.h` | module names built on the stack (no `.rdata` literals) |
+| `djb2.h/.c` | the djb2 hash used by both resolve paths |
+| `string.c`, `memory.c`, `logger.c` | hand-rolled CRT replacements |
 
 ## CI / Releases (GitHub Actions)
 
@@ -49,8 +113,8 @@ identity frame's metadata (`-DID_BUILD_NUMBER=...`,
 ## Usage
 
 ```
-relay_client.exe <URL>          # quiet mode (default): one line per event
-relay_client.exe <URL> -v       # verbose: dump every command's raw bytes
+minimal_agent.exe <URL>          # quiet mode (default): one line per event
+minimal_agent.exe <URL> -v       # verbose: dump every command's raw bytes
 ```
 
 A **minimal agent with a remote shell** for the relay protocol. It connects,

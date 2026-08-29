@@ -2,6 +2,7 @@
 #include "djb2.h"
 #include "peb.h"
 #include "system.h"
+#include "apihash.h"
 
 BOOL NTDLL_Ctor(NTDLL *ntdll)
 {
@@ -9,9 +10,9 @@ BOOL NTDLL_Ctor(NTDLL *ntdll)
         return FALSE;
 
     ntdll->LdrLoadDll = (NTSTATUS (WINAPI *)(WCHAR *, UINT32, PUNICODE_STRING, PVOID *))
-        ResolveFromModuleByName(L"ntdll.dll", "LdrLoadDll");
+        ResolveFromModuleByHash(HASH_MOD_NTDLL, HASH_LDRLOADDLL);
     ntdll->RtlGetVersion = (NTSTATUS (WINAPI *)(PVOID))
-        ResolveFromModuleByName(L"ntdll.dll", "RtlGetVersion");
+        ResolveFromModuleByHash(HASH_MOD_NTDLL, HASH_RTLGETVERSION);
 
     return (ntdll->LdrLoadDll != NULL && ntdll->RtlGetVersion != NULL);
 }
