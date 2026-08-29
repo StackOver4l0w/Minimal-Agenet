@@ -1,185 +1,288 @@
-# WinHTTP WebSocket Relay Client (minimal_agent)
+# minimal_agent — a dependency-free Windows agent
 
-A small Windows network program in C, built on the
-[WinHTTP](https://learn.microsoft.com/windows/win32/winhttp/winhttp-start-page)
-API:
+A small C program that connects to a relay over WebSocket, tells the
+operator panel who it is (a 754-byte identity frame), and serves panel
+commands inside a local `cmd.exe` (the Shell capability).
 
-| Program | Source | What it does |
-|---|---|---|
-| `minimal_agent.exe` | `main.c` | Minimal agent with a remote shell: connects to a relay URL over WebSocket, identifies itself to the operator panel (750-byte Hello frame), and runs panel commands inside a local `cmd.exe` (Shell category). |
+What makes it interesting is what it does NOT have:
 
-## Requirements
+- **no CRT** — no printf, no malloc, no startup code from the C runtime;
+- **no import table** — not a single DLL is listed in the PE imports;
+  every OS call, WinHTTP included, is found at runtime by walking the
+  process's own module list (the PEB) and matching name hashes;
+- **no strings in the binary** — API names live as precomputed hash
+  constants inside instructions; the few strings the OS genuinely needs
+  (the DLL name handed to the loader, the user agent, …) are built on
+  the stack, XOR-decoded as they are written;
+- **no `.bss`** — nothing static; everything lives on stack frames
+  chosen so their lifetime matches what the data needs;
+- **logging is a build option, not a feature** — a release build is
+  silent; a dev build (`-DLOGGING_ENABLED`) talks.
 
-- Windows (**Windows 8+** for the WinHTTP WebSocket API)
-- **MinGW-w64 gcc 16.1** (MSYS2 `ucrt64`) — no WinHTTP SDK headers are
-  needed: the project keeps its own minimal type dictionary (`types.h`,
-  `wintypes.h`) and resolves every OS call at runtime.
+The goal shape is a single-`.text` blob (raw shellcode); the section
+scoreboard below shows where that journey stands.
+
+---
+
+## What you need
+
+- Windows 8+ (WinHTTP's WebSocket API)
+- **MinGW-w64 gcc** from MSYS2 (`ucrt64` environment). Nothing else -
+  no SDK headers, no libraries: the project carries its own minimal
+  type dictionary (`types.h`, `wintypes.h`) and resolves everything
+  else at runtime.
+
+---
 
 ## Build
 
-The single flavor is **dependency-free**: no CRT, no import table, no
-`-lwinhttp`. Every OS call (WinHTTP included) is resolved at runtime via
-the PEB; the process starts at our own entry (`entry.c`), not the CRT
-startup. Two steps — compile, then link.
+Two steps: compile each `.c` into an object, then link the objects
+into the exe. Compile and link flags must match (see the pair note
+below).
 
-**PowerShell** (from the repo root; MSYS2 `ucrt64` on PATH):
+### PowerShell (from the repo root)
 
 ```powershell
-# 1) compile (objects go to a separate dir, the repo root stays clean).
-#    The two -fno-* flags are a PAIR (see the note below).
-gcc -O2 -fno-asynchronous-unwind-tables -fno-shrink-wrap -c entry.c main.c transport.c shell.c report.c system_facts.c `
-    winhttp_api.c ntdll.c kernel32.c advapi.c string.c memory.c `
-    peb.c system.c djb2.c logger.c
+# Compile. Objects land in obj\ so the repo root stays clean.
+#   -O2                        optimize (the flags below assume -O2)
+#   -fno-asynchronous-...      no SEH unwind tables (.pdata/.xdata die)
+#   -fno-shrink-wrap           required companion (see note below)
+#   -fno-ident                 drop the compiler's signature strings
+#   -DLOGGING_ENABLED          OPTIONAL: add this to get terminal logs
+gcc -O2 -fno-asynchronous-unwind-tables -fno-shrink-wrap -fno-ident -c entry.c main.c transport.c shell.c report.c system_facts.c winhttp_api.c ntdll.c kernel32.c advapi.c string.c memory.c peb.c system.c djb2.c logger.c
+
+New-Item -ItemType Directory -Force obj | Out-Null   # create obj\ (silent if exists)
+Move-Item *.o obj                                     # move the fresh objects in
+
+# Link. 
+#   -s          strip symbols from the shipped exe
+#   -nostdlib   no CRT - our entry.c is the startup
+#   -e entry    THE entry point is our entry() (omitting this = instant crash)
+gcc -O2 -s -fno-asynchronous-unwind-tables -fno-shrink-wrap -fno-ident -nostdlib -e entry -o minimal_agent.exe (Get-ChildItem obj\*.o | ForEach-Object FullName)
+```
+
+### cmd (classic Command Prompt)
+
+```bat
+:: same compile, one line - cmd has no line-continuation
+gcc -O2 -fno-asynchronous-unwind-tables -fno-shrink-wrap -fno-ident -c entry.c main.c transport.c shell.c report.c system_facts.c winhttp_api.c ntdll.c kernel32.c advapi.c string.c memory.c peb.c system.c djb2.c logger.c
+
+if not exist obj mkdir obj     & :: create obj\
+move *.o obj                   & :: park the objects
+
+gcc -O2 -s -fno-asynchronous-unwind-tables -fno-shrink-wrap -fno-ident -nostdlib -e entry -o minimal_agent.exe obj\*.o
+```
+
+### bash (MSYS2 shell)
+
+```sh
+gcc -O2 -fno-asynchronous-unwind-tables -fno-shrink-wrap -fno-ident -c \
+    entry.c main.c transport.c shell.c report.c system_facts.c winhttp_api.c \
+    ntdll.c kernel32.c advapi.c string.c memory.c peb.c system.c djb2.c logger.c
+mkdir -p obj && mv *.o obj/                      # objects out of the root
+gcc -O2 -s -fno-asynchronous-unwind-tables -fno-shrink-wrap -fno-ident -nostdlib -e entry -o minimal_agent.exe obj/*.o
+```
+
+### Why the two `-fno-*` flags travel as a pair
+
+`-fno-asynchronous-unwind-tables` removes the SEH unwind tables the
+agent never uses. But the moment they are gone, gcc is allowed to
+*shrink-wrap* prologues - the `push`/`sub rsp` moves into the middle
+of a function - and it rebuilds the prologue of every function; the
+code GREW by 1 KB when measured. `-fno-shrink-wrap` forbids that.
+The pair costs +64 bytes total instead.
+
+---
+
+## Check your build (the two gates)
+
+**Gate 1 - the import table must be EMPTY.** A single `DLL Name:`
+line means something pulled a library back in.
+
+```powershell
+# PowerShell / cmd (findstr needs /C: for a literal phrase with a space,
+# otherwise it matches "DLL" OR "Name" and prints the table header):
+objdump -p minimal_agent.exe | findstr /C:"DLL Name:"
+# prints NOTHING = pass
+```
+
+```sh
+# bash:
+objdump -p minimal_agent.exe | grep "DLL Name"     # no output = pass
+```
+
+**Gate 2 - the entry point must be OURS.** The shipped exe is stripped
+(`-s`), so `nm` sees no symbols in it - link an unstripped CHECK copy
+of the same objects and compare two addresses:
+
+```powershell
+# PowerShell: build a check copy, then ask nm where the entry symbol is
+gcc -nostdlib -e entry -o ma_check.exe (Get-ChildItem obj\*.o | ForEach-Object FullName)
+nm ma_check.exe | findstr /C:" T entry"         # prints e.g. 0000000140004aa0 T entry
+objdump -f ma_check.exe | findstr /C:"start address"   # start address 0x...4aa0
+del ma_check.exe                                # same number twice = pass
+```
+
+```sh
+# bash:
+gcc -nostdlib -e entry -o /tmp/ma_check.exe obj/*.o
+nm /tmp/ma_check.exe | grep " T entry"          # -> ...4aa0 T entry
+objdump -f /tmp/ma_check.exe | grep "start address"   # -> same address = pass
+```
+
+If gate 2 fails, you forgot `-e entry` or lost `entry.o` from the list:
+the binary would build fine and crash instantly at startup.
+
+### Check the sections (the scoreboard)
+
+The whole point of this project's shape; see where it stands:
+
+```sh
+objdump -h minimal_agent.exe        # list every section with its size
+```
+
+The current scoreboard (release build):
+
+| Section   | Size | Meaning |
+|---|---|---|
+| `.text`   | ~15 KB | the code - everything the agent is |
+| `.rdata`  | 32 B | unreferenced linker tail (no code reads it) |
+| `.idata`  | 24 B | empty import-directory skeleton |
+| `.bss`    | gone | nothing static anywhere |
+
+`.pdata`/`.xdata` (exception unwind tables) are gone too. A quick
+eyeball in PowerShell:
+
+```powershell
+objdump -h minimal_agent.exe | findstr /C:".text" /C:".rdata" /C:".bss" /C:".pdata"
+```
+
+---
+
+## Run
+
+```
+minimal_agent.exe <relay-url>        # e.g. https://relay.example.com/agent
+minimal_agent.exe <relay-url> -v     # verbose: also dump every command raw (dev builds)
+```
+
+**A release build prints nothing.** Not even errors. It connects,
+identifies, and serves; the console just sits there while it works -
+that silence is the point of the release flavor.
+
+To actually SEE what it does, build the DEV flavor: the same two
+steps as the release build with `-DLOGGING_ENABLED` added to BOTH
+the compile and the link line (miss one and you get a silent hybrid),
+and a distinct output name so the two exes do not overwrite each
+other:
+
+```powershell
+# 1) compile - same flags, plus -DLOGGING_ENABLED
+gcc -O2 -fno-asynchronous-unwind-tables -fno-shrink-wrap -fno-ident -DLOGGING_ENABLED -c entry.c main.c transport.c shell.c report.c system_facts.c winhttp_api.c ntdll.c kernel32.c advapi.c string.c memory.c peb.c system.c djb2.c logger.c
+
+# 2) park the objects in obj\ (separate dir per flavor keeps them apart)
 New-Item -ItemType Directory -Force obj | Out-Null
 Move-Item *.o obj
 
-# 2) link (entry.o MUST be in the list; -e entry names the real entry point)
-gcc -O2 -s -fno-asynchronous-unwind-tables -fno-shrink-wrap -nostdlib -e entry -o minimal_agent.exe (Get-ChildItem obj\*.o | ForEach-Object FullName)
+# 3) link - the flag AGAIN here, and a distinct name
+gcc -O2 -s -fno-asynchronous-unwind-tables -fno-shrink-wrap -fno-ident -DLOGGING_ENABLED -nostdlib -e entry -o minimal_agent_dev.exe (Get-ChildItem obj\*.o | ForEach-Object FullName)
+
+# 4) run the talkative one
+.\minimal_agent_dev.exe https://relay.example.com/agent
 ```
 
-Two gates to check after linking:
+It prints:
 
-```powershell
-# gate 1: empty import table — must print NOTHING
-objdump -p minimal_agent.exe | Select-String "DLL Name"   # no output = OK
+```
+[INF] Connecting to https://relay.example.com/agent ...
+[INF] Connected (HTTP 101 Switching Protocols)
 
-# gate 2: the entry point is OUR entry, not a linker default.
-# The shipped exe is stripped (-s), so nm sees no symbols in it —
-# link an unstripped CHECK copy of the same objects and compare:
-gcc -O2 -nostdlib -e entry -o ma_check.exe (Get-ChildItem obj\*.o | ForEach-Object FullName)
-nm ma_check.exe | Select-String " T entry"               # -> ... T entry
-objdump -f ma_check.exe | Select-String "start address"  # -> same address
-Remove-Item ma_check.exe
+[INF] [2] Agent mode: replying to commands (capability mask = Shell)...
 
-# paste-safe one-liner for the whole gate 2 (if a paste eats line breaks):
-gcc -O2 -nostdlib -e entry -o ma_check.exe (Get-ChildItem obj\*.o | ForEach-Object FullName); nm ma_check.exe | Select-String " T entry"; objdump -f ma_check.exe | Select-String "start address"; Remove-Item ma_check.exe
+[INF] Identity sent to the panel (754 bytes)
+
 ```
 
-**bash** (MSYS2 shell) equivalent:
+With `-v` (dev build) every incoming command is additionally dumped:
+opcode name, decoded payload, a hex dump, and the outgoing identity
+frame field by field.
 
-```sh
-gcc -O2 -fno-asynchronous-unwind-tables -fno-shrink-wrap -c entry.c main.c transport.c shell.c report.c system_facts.c \
-    winhttp_api.c ntdll.c kernel32.c advapi.c string.c memory.c \
-    peb.c system.c djb2.c logger.c && mkdir -p obj && mv *.o obj/
-gcc -O2 -s -fno-asynchronous-unwind-tables -fno-shrink-wrap -nostdlib -e entry -o minimal_agent.exe obj/*.o
-objdump -p minimal_agent.exe | grep "DLL Name"          # no output = OK
-gcc -O2 -nostdlib -e entry -o /tmp/ma_check.exe obj/*.o
-nm /tmp/ma_check.exe | grep " T entry"                  # -> ... T entry
-objdump -f /tmp/ma_check.exe | grep "start address"     # -> same address
-```
+### What it does on the wire
 
-**Why the two `-fno-*` flags travel as a pair.** The agent is being
-driven toward a single-`.text` binary (no `.pdata`/`.xdata`/`.bss`/
-`.rdata`); `-fno-asynchronous-unwind-tables` removes the SEH unwind
-tables the agent never uses. But the moment those tables are gone the
-compiler is allowed to *shrink-wrap* prologues (the `push`/`sub rsp`
-moves into the middle of a function) and rebuilds the prologue of every
-function — the code GREW by 1 KB when measured. `-fno-shrink-wrap`
-forbids that; the pair costs +64 bytes total instead.
+- connects and upgrades HTTP to WebSocket (an ordinary HTTPS GET with
+  `WINHTTP_OPTION_UPGRADE_TO_WEB_SOCKET`; the `101 Switching
+  Protocols` response completes the handshake);
+- `Hello` -> the 754-byte identity frame: machine UUID (registry
+  MachineGuid in .NET Guid byte order), hostname, user, OS version,
+  build metadata, and a capability mask with Shell set;
+- `OpenShell` -> spawns a hidden `cmd.exe` (code page UTF-8) behind
+  two pipes; the slot index IS the shell id (256 slots);
+- `WriteShell` / `ReadShell` -> feed input / drain output; reads never
+  block, the panel's polling drives the flow;
+- `CloseShell` -> kill the shell, free the slot;
+- `Exit` -> terminate the agent (the only command with no reply);
+- anything else -> `status = 1`.
 
-Gate 2 matters because omitting `-e entry` (or losing `entry.o` from the
-list) silently leaves the linker default entry in place — the binary
-builds but crashes at startup (see `entry.h` for the contract).
+A lost connection is normal, not an error: the agent redials after a
+backoff (1..32 s, reset after a healthy session). Live shells survive
+a redial - their pool belongs to the process, not the connection.
 
-The agent is split into small modules, one topic per header:
+Because the agent advertises Shell without FileSystem, the panel's
+file manager falls back to PowerShell-over-shell - a basic file
+browser works with zero file opcodes implemented.
 
-| File | Topic |
+---
+
+## How the code is laid out
+
+| File | What it owns |
 |---|---|
-| `entry.c` | CRT-free process entry: zeroes `.bss` (a no-op while it is empty), builds argv from the PEB, exits via `ExitProcess`; its frame owns the entry KERNEL32 table |
-| `main.c` | `agent_main`: owns the process-lifetime state (shell pool, backoff) on its frame and passes it down as `agent_ctx`; connect, dispatch commands, cleanup |
-| `protocol.h` | opcodes, statuses, identity frame, capability mask |
+| `entry.c` | the real process entry: zero `.bss` (a no-op while empty), build argv from the PEB, call agent_main, exit via ExitProcess |
+| `main.c` | `agent_main`: owns process-lifetime state on its frame (shell pool, backoff), bundles it into `agent_ctx`, runs dial/serve/redial |
+| `protocol.h` | opcodes, statuses, the identity frame layout, capability mask |
 | `wire.h` | tiny little-endian writers (header-only) |
-| `transport.h/.c` | the WebSocket pipe: `ws_send` / `ws_receive` |
-| `shell.h/.c` | the cmd.exe pool: spawn / read / write / teardown |
-| `report.h/.c` | human-facing output: errors, hex dumps, decoders |
-| `system_facts.h/.c` | machine UUID + hostname / user / OS facts |
-| `winhttp_api.h/.c` | the WinHTTP vtable + `LdrLoadDll` bootstrap |
-| `kernel32.h/.c`, `ntdll.h/.c`, `advapi.h/.c` | per-DLL function tables |
-| `peb.h/.c` | TEB/PEB access and the loader module-list walk |
-| `system.h/.c` | PE export-table resolve (by name and by hash) |
-| `apihash.h` | precomputed djb2 constants for every module/export name |
-| `stackstrings.h` | module names built on the stack (no `.rdata` literals) |
-| `djb2.h/.c` | the djb2 hash used by both resolve paths |
-| `string.c`, `memory.c`, `logger.c` | hand-rolled CRT replacements |
+| `transport.h/.c` | the WebSocket pipe: one reply out (`ws_send`), one assembled message in (`ws_receive`) |
+| `shell.h/.c` | the cmd.exe pool: spawn / write / drain / teardown, 256 slots |
+| `report.h/.c` | terminal diagnostics - compiles to NOTHING unless `LOGGING_ENABLED` |
+| `system_facts.h/.c` | machine UUID, hostname, username, OS version (the identity payload) |
+| `winhttp_api.h/.c` | the WinHTTP table + the LdrLoadDll bootstrap that maps winhttp.dll |
+| `kernel32/ntdll/advapi.h/.c` | one function table per DLL, hash-resolved |
+| `peb.h/.c` | TEB/PEB access, the loader module-list walk |
+| `system.h/.c` | export-table resolve - by name (tooling) and by hash (the agent) |
+| `apihash.h` | the precomputed djb2 constants for every name used |
+| `stackstrings.h` | every runtime string, built on the stack, XOR-decoded in the write |
+| `djb2.h/.c` | the hash both resolve paths share |
+| `string.c` / `memory.c` / `logger.c` | the hand-rolled CRT replacements |
+
+Reading order for a newcomer: `entry.c` (how a process starts without
+a runtime) -> `peb.c` + `system.c` (how functions are found without
+imports) -> `transport.c` (the wire) -> `main.c` (the loop).
+
+---
 
 ## CI / Releases (GitHub Actions)
 
-Cross-builds the three Windows arches with the
-[llvm-mingw](https://github.com/mstorsjo/llvm-mingw) toolchain (i686 /
-x86_64 / aarch64) using the same flags as the local build, and bakes the
-identity frame's metadata (`-DID_BUILD_NUMBER=...`,
-`-DAGENT_COMMIT_HASH=...`; local builds fall back to the in-code defaults):
+Cross-builds the three Windows architectures with
+[llvm-mingw](https://github.com/mstorsjo/llvm-mingw) (i686 / x86_64 /
+aarch64) and bakes the identity metadata (`-DID_BUILD_NUMBER`,
+`-DAGENT_COMMIT_HASH`):
 
-- **build.yml** — on every push/PR to `main`: compile check; on pushes, also
-  republishes the rolling **`preview`** pre-release carrying
-  `windows-i386.exe`, `windows-x86_64.exe`, `windows-aarch64.exe`;
-- **release.yml** — on a `v*` tag (or manual dispatch): the same binaries
-  published as a stable GitHub Release.
+- **build.yml** — on push/PR: compile check; on pushes to main also
+  republishes the rolling `preview` pre-release
+  (`windows-i386.exe`, `windows-x86_64.exe`, `windows-aarch64.exe`);
+- **release.yml** — on a `v*` tag: the same binaries as a stable
+  GitHub Release.
 
-## Usage
+---
 
-```
-minimal_agent.exe <URL>          # quiet mode (default): one line per event
-minimal_agent.exe <URL> -v       # verbose: dump every command's raw bytes
-```
+## Honest limitations
 
-A **minimal agent with a remote shell** for the relay protocol. It connects,
-upgrades the HTTP connection to WebSocket, and then serves the operator panel.
-A lost connection is a normal event, not an error: the agent redials with a
-capped backoff (1..32 s, reset after a healthy session) and keeps serving.
-Live shells survive a redial (their pool is per-process, not per-connection);
-only the `Exit` command ends the agent:
-
-- `0x00 Hello` -> replies with the full 750-byte identity frame: machine UUID
-  (from the registry `MachineGuid`, .NET Guid byte order), hostname, logged-on
-  user, architecture, platform, OS version, build metadata, API version 4, and
-  a capability mask with **Shell (bit 1) set**;
-- `0x0A OpenShell` -> spawns a hidden `cmd.exe` (code page switched to UTF-8)
-  wired to two pipes, allocates a shell id from a 256-slot pool (v4 framing:
-  the agent owns shell identity), and returns the id;
-- `0x04 WriteShell` / `0x05 ReadShell` -> feed operator input to the shell's
-  stdin / drain buffered stdout back to the panel (reading never blocks; the
-  panel's adaptive 250..3000 ms polling drives the output flow);
-- `0x08 CloseShell` -> terminates the shell process and frees its slot;
-- `0x09 Exit` -> terminates the agent without replying (the only such command);
-- any other command -> replies `status = 1` ("not implemented").
-
-A side effect of advertising Shell without FileSystem: the panel's file
-manager automatically switches to its PowerShell-over-shell backend, so a
-basic file browser works too without any file opcodes in the agent.
-
-Sample output (quiet mode):
-
-```
-[1] Connecting to https://relay.example.com/agent ... connected (HTTP 101 Switching Protocols)
-[2] Agent mode: replying to commands (capability mask = Shell)...
-[+] identity sent to the panel (750 bytes)
-[+] shell 0 opened (cmd.exe spawned) - id sent
-[+] write to shell 0 - status 0
-[+] read shell 0 - 9 byte(s)
-[i] read shell 0 - idle
-[i] connection lost - redialing in 1 s ...
-[1] Connecting to https://relay.example.com/agent ... connected (HTTP 101 Switching Protocols)
-```
-
-With `-v` every received command is additionally dumped decoded (opcode name +
-payload + raw bytes), and the full identity frame is printed field by field.
-Note that WinHTTP does not expose raw RFC 6455 frame opcodes - the printed
-"type" is the WinHTTP buffer type (0 = binary message, 2 = UTF-8 message,
-1/3 = fragments, 4 = close).
-
-How the WebSocket upgrade works: an ordinary HTTPS GET request is created,
-`WINHTTP_OPTION_UPGRADE_TO_WEB_SOCKET` makes WinHTTP add the handshake headers,
-`WinHttpSendRequest` + `WinHttpReceiveResponse` exchange the
-`101 Switching Protocols` response, and `WinHttpWebSocketCompleteUpgrade`
-returns the handle used for `WinHttpWebSocketReceive`.
-
-## Notes / Limitations
-
-- The agent implements the identification and shell parts of the relay
-  protocol; there is no native file or screen functionality (the panel covers
-  files via its PowerShell-over-shell fallback). Shells die with the agent
-  process, but survive connection losses (the agent redials; the panel just
-  sees the shell ids again when it re-opens them). Detection note: the
-  connection pattern it produces (periodic connect to a single fixed host with
-  a non-browser user agent) is trivially visible to network monitoring.
+- Shell only: no native file or screen opcodes (the panel covers files
+  via its PowerShell-over-shell fallback); shells die with the process.
+- WinHTTP is loaded at runtime but visible in the process's module
+  list for its whole life (removing it is future work).
+- The connection pattern (periodic dial to one host, a non-browser
+  user agent) is trivially visible to network monitoring - deliberate
+  scope: this project studies form, not evasion.
+- The `.rdata`/`.idata` tails still exist as unreferenced sections;
+  the remaining step toward the single-`.text` blob is linker work.

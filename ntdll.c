@@ -1,3 +1,12 @@
+/* ntdll.c - the ntdll function table (see ntdll.h).
+ *
+ * ntdll IS the loader, so it is mapped before any user code runs -
+ * the PEB walk always finds it. Two exports matter to this agent:
+ * LdrLoadDll (to map winhttp.dll, which nothing else loads for us)
+ * and RtlGetVersion (the OS version that does not lie - the classic
+ * GetVersionEx is patched per-manifest).
+ */
+
 #include "ntdll.h"
 #include "djb2.h"
 #include "peb.h"

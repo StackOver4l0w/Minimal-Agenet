@@ -20,8 +20,8 @@
 #define ERROR_MOD_NOT_FOUND 126
 
 /* Send one binary reply. Returns the WinHTTP error code (0 = success).
- * С1 step 2: the WinHTTP table arrives as a parameter - run_session()
- * owns it on its frame for the whole session (no static cache). */
+ * The WinHTTP table arrives as a parameter; run_session() owns it on
+ * its frame for the whole session. */
 DWORD ws_send(const WINHTTP_API *api, HINTERNET socket, const void *data, DWORD length);
 
 /* One assembled incoming message. */

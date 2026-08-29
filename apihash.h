@@ -11,7 +11,9 @@
  * and fails silently at resolve time (the table lookup just misses),
  * so the values must be regenerated together with any seed change.
  *
- * Collision check performed 2026-08-29: 33 names -> 33 unique values.
+ * Collision-checked: every name maps to a unique value. Regenerate the
+ * check together with the values whenever a name is added or the seed
+ * changes - a collision resolves the wrong function, silently.
  */
 
 #pragma once

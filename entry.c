@@ -59,11 +59,10 @@ asm(
  * token started, close it with a NUL at the separator; double quotes
  * toggle "inside a token" so a quoted path survives - enough for the
  * agent's "<URL> [-v]" usage.
- * C1 step 2 + live-fix 2026-08-30: argv[] points INTO the narrow scratch, so
- * the buffer MUST outlive this function. A local here was a dangling-pointer
- * bug (agent_main read freed-crate argv in the silent release build; caught
- * by the user's live run). The scratch lives on entry()'s eternal frame and
- * arrives as a parameter - same lifetime as the old static, zero .bss. */
+ * LIFETIME: argv[] points INTO the scratch buffer, so the buffer must
+ * outlive this function - it lives on entry()'s frame and arrives as a
+ * parameter. Never make it local to this function: after it returns, a
+ * local buffer is dead memory and every argv string is garbage. */
 static INT32 split_command_line(const PWCHAR cmdline, CHAR *argv[], INT32 argv_max,
                                  CHAR narrow[], USIZE narrow_size)
 {
@@ -150,9 +149,9 @@ void entry(void)
      * wrong branch (a call through a garbage pointer). */
     zero_bss_from_pe();
 
-    /* С1 step 2: the table is a LOCAL - entry's frame outlives the whole
-     * agent (agent_main returns here), so a stack table is as permanent
-     * as a static one, without .bss. */
+    /*      * The KERNEL32 table lives on entry's frame: this frame outlives the
+     * whole agent (agent_main returns here, then we exit the process), so
+     * a local is as permanent as a static - without static storage. */
     KERNEL32 entry_k32;
     if (!KERNEL32_Ctor(&entry_k32))
         return;                            /* no table - no way out  */
@@ -160,7 +159,8 @@ void entry(void)
     PPEB peb = GetCurrentPEB();
     PWCHAR cmdline = peb->ProcessParameters->CommandLine.Buffer;
 
-    CHAR narrow[2048];   /* outlives agent_main - argv points into it */
+    /* The narrow command line - argv[] points into it (see above). */
+    CHAR narrow[2048];
     CHAR *argv[ENTRY_ARGC_MAX];
     INT32 argc = split_command_line(cmdline, argv, ENTRY_ARGC_MAX, narrow, sizeof(narrow));
 

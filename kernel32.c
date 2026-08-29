@@ -1,3 +1,16 @@
+/* kernel32.c - the kernel32 function table (see kernel32.h).
+ *
+ * One ResolveFromModuleByHash call per member: the module is found by
+ * walking the loader's list in the PEB (kernel32 is mapped in every
+ * Windows process, so nothing needs loading first), then the export
+ * table is scanned for the matching djb2 hash (apihash.h). No string
+ * literal is involved anywhere in the chain.
+ *
+ * The NULL-check conjunction at the end doubles as the "did the whole
+ * table resolve" flag: callers treat a FALSE return as fatal for their
+ * feature, not for the process.
+ */
+
 #include "kernel32.h"
 #include "system.h"
 #include "wintypes.h"

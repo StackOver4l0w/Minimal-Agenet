@@ -1,3 +1,22 @@
+/* string.c - strings and formatting without libc (see string.h).
+ *
+ * Three families live here:
+ *   - length/compare/convert helpers (strlen, strcmp, AnsiToWide...)
+ *   - numeric formatting (int/uint/hex/pointer/double -> chars),
+ *     which LOG macros and the identity frame build on;
+ *   - Format/FormatV - a printf REPLACEMENT covering exactly the
+ *     specifiers this project uses (see FormatV for the list).
+ *
+ * Formatting writes into caller buffers through an index pointer
+ * (*index advances; callers embed several values into one buffer).
+ *
+ * Recurring theme, see memory.c for the full story: anything the
+ * optimizer can recognize as data (float constants, digit tables,
+ * sign masks) gets pooled into .rdata. Every such spot below is
+ * rewritten as integer arithmetic on volatile locals, so the
+ * binary carries the digits inside its instructions instead.
+ */
+
 #include "string.h"
 #include "types.h"
 
@@ -120,9 +139,12 @@ void doubleToStr(double num, PCHAR str, PINT32 index, INT32 precision, INT32 wid
     if (num < 0) {
         isNegative = TRUE;
         str[(*index)++] = '-'; // Add negative sign to the string
-        /* C1 step 3a: negate via an integer sign-bit flip. A plain
-         * `num = -num` compiles to xorpd with a 16-byte SSE mask the
-         * optimizer pools into .rdata (the last 48 bytes). */
+        /* Negate by flipping the sign BIT, not by computing -num: the
+         * floating-point negation compiles into an SSE xor against a
+         * 16-byte constant that would live in .rdata. The union views
+         * the same 8 bytes as an integer; flipping bit 63 is the exact
+         * IEEE-754 meaning of negation. volatile keeps the shift and
+         * the xor as real instructions. */
         union { double d; UINT64 u; } flip;
         volatile UINT64 signbit = 1;
         signbit <<= 63;
@@ -179,8 +201,9 @@ void doubleToStr(double num, PCHAR str, PINT32 index, INT32 precision, INT32 wid
     if (precision > 0) {
         str[(*index)++] = '.';  // Add the decimal point
         // Convert the fractional part and round
-        /* C1 step 3a: bit-pattern -> volatile float; a plain float const
-         * gets pooled into .rdata by the optimizer. */
+        /* 10.0f via its IEEE-754 bit pattern: a literal float would be
+         * pooled into .rdata by the optimizer; volatile keeps the
+         * store from being folded back into one. */
         volatile UINT32 b10 = 0x41200000u;  /* 10.0f */
         float f10 = *(float *)&b10;
         while (precision--) {
@@ -298,7 +321,8 @@ void uintToStr(UINT64 num, PCHAR str, PINT32 index, INT32 width, INT32 zeroPad, 
 void ptrToHex(PVOID ptr, PCHAR str, PINT32 index) {
 
     UINT64 addr = (SIZE_T)ptr; // Cast pointer to SIZE to get the address as an unsigned integer
-    /* C1 step 3a: arithmetic digits, no pooled table */
+    /* Digits by arithmetic (< 10 ? '0' : 'a'-10), not a lookup
+     * table: a table would be initialized data in .rdata. */
     CHAR rev[20]; // Temporary storage for reversed digits
     INT32 len = 0; // Length of the number in digits
 
@@ -356,9 +380,8 @@ void wideToStr(PWCHAR wstr, PCHAR str, PINT32 index, INT32 width)
 
 // Helper function: formats an unsigned number in hexadecimal with a given field width
 void formatHex(UINT32 num, INT32 fieldWidth, INT32 uppercase, PCHAR s, INT32* j, INT32 zeroPad, BOOL addPrefix) {
-    /* C1 step 3a: hex digits by ARITHMETIC, not a table. The compound
-     * literals here were pooled into .rdata (16+16 bytes, seen in the
-     * section inventory); a computed digit needs no data section. */
+    /* Hex digits computed, not looked up: the compound literals this
+     * replaced were const-pooled into .rdata by the optimizer. */
     INT32 base = uppercase ? 'A' : 'a';
     CHAR buffer[16]; // Temporary storage for hexadecimal digits
     INT32 index = 0; // Index for the buffer

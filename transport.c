@@ -6,11 +6,10 @@
 #include "memory.h"
 #include "winhttp_api.h"
 
-/* С1 step 2: the lazy static table is GONE. The WinHTTP table is built
- * ONCE per session by run_session() (its frame owns it) and passed down
- * as a parameter - the same owner-on-top model as the shell pool. This
- * keeps the colleague's "resolve once, not per call" property (the PEB
- * walk still happens exactly once per session) while removing .bss. */
+/* The WinHTTP table is built once per session by run_session() (its frame
+ * owns it) and arrives here as a parameter - the same owner-on-top model
+ * as the shell pool. The PEB walk + export scan happens exactly once per
+ * session: not per call, and no cached static. */
 
 /* Send one binary reply. Returns the WinHTTP error code (0 = success). */
 DWORD ws_send(const WINHTTP_API *api, HINTERNET socket, const void *data, DWORD length)
@@ -34,7 +33,8 @@ DWORD ws_receive(const WINHTTP_API *api, HINTERNET socket, incoming_message *msg
     *closed = FALSE;
 
     for (;;) {
-        unsigned char fragment[RECV_FRAGMENT_SIZE];   /* С1 step 2: frame-local */
+        /* One fragment at a time, on the frame. */
+        unsigned char fragment[RECV_FRAGMENT_SIZE];
         DWORD got = 0;
         WINHTTP_WEB_SOCKET_BUFFER_TYPE type;
 

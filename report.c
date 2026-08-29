@@ -7,9 +7,9 @@
 #include "djb2.h"
 #include "logger.h"
 
-/* C1 step 3a: the whole file is terminal diagnostics. In a release
- * build (no -DLOGGING_ENABLED) it compiles to nothing and its many
- * format strings never enter the binary. */
+/* This whole file is terminal diagnostics. In a release build (built
+ * without -DLOGGING_ENABLED) it compiles to nothing and none of its
+ * format strings enter the binary. */
 #ifndef LOGGING_ENABLED
 /* silent build: no diagnostics */
 #else

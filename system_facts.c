@@ -48,8 +48,8 @@ void collect_system_facts(system_facts *facts)
         info.dwOSVersionInfoSize = sizeof(info);
         
         if (ntdll.RtlGetVersion(&info) == 0) {
-            /* C1 step 3a: the version string is written digit by digit -
-             * a "%lu.%lu.%lu" literal would sit in .rdata. */
+            /* The version is written digit by digit: a format literal
+             * would be a string in the binary's read-only data. */
             INT32 pos = 0;
             UINT32 parts[3];
             volatile UINT32 *pv = parts;
@@ -89,7 +89,7 @@ void get_machine_uuid(unsigned char out[16])
         return;
     }
 
-    /* C1 step 3b: registry path/value built on the stack, no literals */
+    /* Registry path and value name, built on the stack (stackstrings.h). */
     CHAR regpath[37];
     StrRegPath(regpath);
     CHAR guidname[12];

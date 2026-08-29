@@ -1,3 +1,24 @@
+/* system.c - finding functions without an import table (see system.h).
+ *
+ * Two questions, two answers:
+ *   WHERE is a module?   - GetModuleHandleFromPEB (peb.c) walks the
+ *     loader in-memory module list and matches a name hash.
+ *   WHERE is a function? - the export table walk below: the PE header
+ *     of the module describes three parallel arrays (names, ordinals,
+ *     addresses); find the name, follow its ordinal, read the address.
+ *
+ * ByName variants compare literal bytes (kept for local tooling);
+ * ByHash variants compare precomputed djb2 constants (apihash.h) and
+ * are what the agent uses - no name is ever stored as data.
+ *
+ * Guarded details that bite:
+ *   - both PE32 and PE32+ optional headers (magic decides the export
+ *     directory offset - 32-bit modules on 64-bit processes);
+ *   - FORWARDED exports: their "address" points back INTO the export
+ *     directory (it is a string like "otherdll.Func"), so anything
+ *     inside the directory range is refused, not called.
+ */
+
 #include "system.h"
 #include "djb2.h"
 #include "apihash.h"
@@ -17,9 +38,9 @@ static BOOL AsciiEquals(const CHAR *left, const CHAR *right)
     return (*left == '\0' && *right == '\0');
 }
 
-/* djb2 over an ASCII export name, same fold+step as Hash() in djb2.c
- * (which hashes WCHAR streams). Export tables are narrow strings, so
- * this is the byte-at-a-time twin. */
+/* djb2 over a NARROW string - the byte-at-a-time twin of Hash()
+ * (which walks WCHAR streams). Export names are narrow, module
+ * names in the PEB are wide: one algorithm, two widths. */
 static UINT64 HashAscii(const CHAR *s)
 {
     UINT64 h = API_HASH_SEED;

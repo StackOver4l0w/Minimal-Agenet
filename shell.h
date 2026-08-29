@@ -26,9 +26,9 @@ typedef struct {
  * Returns 0 on success, non-zero on failure (handles already cleaned up). */
 int shell_spawn(shell_slot *slot);
 
-/* The shell pool. C1 step 2: the array is NOT static .bss storage any
- * more - agent_main() owns it on its frame (which lives for the whole
- * process) and passes it down. Every pool function takes it first. */
+/* The shell pool is not static storage: agent_main() owns the array on
+ * its frame (which lives for the whole process) and passes it down.
+ * Every pool function takes the pool as its first argument. */
 #define SHELL_POOL shell_slot pool[SHELL_POOL_SIZE]
 
 /* Find a free pool slot, spawn cmd.exe into it, and return its index
