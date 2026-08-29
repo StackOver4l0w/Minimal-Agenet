@@ -55,16 +55,15 @@ asm(
 
 #define ENTRY_ARGC_MAX 8
 
-static KERNEL32 entry_k32;
-
-/* Wide command line -> narrow argv over a static scratch (statics are
- * legal until the PIC phase). Classic tokenizer: remember where the
+/* Wide command line -> narrow argv. Classic tokenizer: remember where the
  * token started, close it with a NUL at the separator; double quotes
  * toggle "inside a token" so a quoted path survives - enough for the
- * agent's "<URL> [-v]" usage. */
+ * agent's "<URL> [-v]" usage.
+ * С1 step 2: no statics - the table and the scratch live on entry()'s
+ * frame; a stack frame that outlives everything it owns needs no .bss. */
 static INT32 split_command_line(const PWCHAR cmdline, CHAR *argv[], INT32 argv_max)
 {
-    static CHAR narrow[2048];
+    CHAR narrow[2048];
     INT32 argc = 0;
     USIZE o = 0;
     BOOL in_quotes = FALSE;
@@ -148,6 +147,10 @@ void entry(void)
      * wrong branch (a call through a garbage pointer). */
     zero_bss_from_pe();
 
+    /* С1 step 2: the table is a LOCAL - entry's frame outlives the whole
+     * agent (agent_main returns here), so a stack table is as permanent
+     * as a static one, without .bss. */
+    KERNEL32 entry_k32;
     if (!KERNEL32_Ctor(&entry_k32))
         return;                            /* no table - no way out  */
 

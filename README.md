@@ -25,19 +25,16 @@ startup. Two steps — compile, then link.
 **PowerShell** (from the repo root; MSYS2 `ucrt64` on PATH):
 
 ```powershell
-# 1) compile (objects go to a separate dir, the repo root stays clean)
-gcc -O2 -c entry.c main.c transport.c shell.c report.c system_facts.c `
+# 1) compile (objects go to a separate dir, the repo root stays clean).
+#    The two -fno-* flags are a PAIR (see the note below).
+gcc -O2 -fno-asynchronous-unwind-tables -fno-shrink-wrap -c entry.c main.c transport.c shell.c report.c system_facts.c `
     winhttp_api.c ntdll.c kernel32.c advapi.c string.c memory.c `
     peb.c system.c djb2.c logger.c
 New-Item -ItemType Directory -Force obj | Out-Null
 Move-Item *.o obj
 
 # 2) link (entry.o MUST be in the list; -e entry names the real entry point)
-gcc -O2 -s -nostdlib -e entry -o minimal_agent.exe `
-    obj\entry.o obj\main.o obj\transport.o obj\shell.o obj\report.o `
-    obj\system_facts.o obj\winhttp_api.o obj\ntdll.o obj\kernel32.o `
-    obj\advapi.o obj\string.o obj\memory.o obj\peb.o obj\system.o `
-    obj\djb2.o obj\logger.o
+gcc -O2 -s -fno-asynchronous-unwind-tables -fno-shrink-wrap -nostdlib -e entry -o minimal_agent.exe (Get-ChildItem obj\*.o | ForEach-Object FullName)
 ```
 
 Two gates to check after linking:
@@ -61,15 +58,24 @@ gcc -O2 -nostdlib -e entry -o ma_check.exe (Get-ChildItem obj\*.o | ForEach-Obje
 **bash** (MSYS2 shell) equivalent:
 
 ```sh
-gcc -O2 -c entry.c main.c transport.c shell.c report.c system_facts.c \
+gcc -O2 -fno-asynchronous-unwind-tables -fno-shrink-wrap -c entry.c main.c transport.c shell.c report.c system_facts.c \
     winhttp_api.c ntdll.c kernel32.c advapi.c string.c memory.c \
     peb.c system.c djb2.c logger.c && mkdir -p obj && mv *.o obj/
-gcc -O2 -s -nostdlib -e entry -o minimal_agent.exe obj/*.o
+gcc -O2 -s -fno-asynchronous-unwind-tables -fno-shrink-wrap -nostdlib -e entry -o minimal_agent.exe obj/*.o
 objdump -p minimal_agent.exe | grep "DLL Name"          # no output = OK
 gcc -O2 -nostdlib -e entry -o /tmp/ma_check.exe obj/*.o
 nm /tmp/ma_check.exe | grep " T entry"                  # -> ... T entry
 objdump -f /tmp/ma_check.exe | grep "start address"     # -> same address
 ```
+
+**Why the two `-fno-*` flags travel as a pair.** The agent is being
+driven toward a single-`.text` binary (no `.pdata`/`.xdata`/`.bss`/
+`.rdata`); `-fno-asynchronous-unwind-tables` removes the SEH unwind
+tables the agent never uses. But the moment those tables are gone the
+compiler is allowed to *shrink-wrap* prologues (the `push`/`sub rsp`
+moves into the middle of a function) and rebuilds the prologue of every
+function — the code GREW by 1 KB when measured. `-fno-shrink-wrap`
+forbids that; the pair costs +64 bytes total instead.
 
 Gate 2 matters because omitting `-e entry` (or losing `entry.o` from the
 list) silently leaves the linker default entry in place — the binary
@@ -79,8 +85,8 @@ The agent is split into small modules, one topic per header:
 
 | File | Topic |
 |---|---|
-| `entry.c` | CRT-free process entry: zeroes `.bss`, builds argv from the PEB, exits via `ExitProcess` |
-| `main.c` | `agent_main`: connect, dispatch commands, cleanup |
+| `entry.c` | CRT-free process entry: zeroes `.bss` (a no-op while it is empty), builds argv from the PEB, exits via `ExitProcess`; its frame owns the entry KERNEL32 table |
+| `main.c` | `agent_main`: owns the process-lifetime state (shell pool, backoff) on its frame and passes it down as `agent_ctx`; connect, dispatch commands, cleanup |
 | `protocol.h` | opcodes, statuses, identity frame, capability mask |
 | `wire.h` | tiny little-endian writers (header-only) |
 | `transport.h/.c` | the WebSocket pipe: `ws_send` / `ws_receive` |

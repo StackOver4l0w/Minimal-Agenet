@@ -7,7 +7,9 @@
 
 INT32 PRINT_FORMATTED_STRING(PCHAR format, ...)
 {
-    static CHAR buffer[1024];
+    /* С1 step 2: stack-local scratch (a static buffer is .bss). One
+     * line of log fits in 1 KB; deeper frames pay the probe, not .bss. */
+    CHAR buffer[1024];
     va_list args;
 
     va_start(args, format);
