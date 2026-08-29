@@ -120,7 +120,15 @@ void doubleToStr(double num, PCHAR str, PINT32 index, INT32 precision, INT32 wid
     if (num < 0) {
         isNegative = TRUE;
         str[(*index)++] = '-'; // Add negative sign to the string
-        num = -num;  // Make the number positive for further processing
+        /* C1 step 3a: negate via an integer sign-bit flip. A plain
+         * `num = -num` compiles to xorpd with a 16-byte SSE mask the
+         * optimizer pools into .rdata (the last 48 bytes). */
+        union { double d; UINT64 u; } flip;
+        volatile UINT64 signbit = 1;
+        signbit <<= 63;
+        flip.d = num;
+        flip.u ^= signbit;
+        num = flip.d;
     }
 
     // Handle the integer part
@@ -171,7 +179,10 @@ void doubleToStr(double num, PCHAR str, PINT32 index, INT32 precision, INT32 wid
     if (precision > 0) {
         str[(*index)++] = '.';  // Add the decimal point
         // Convert the fractional part and round
-        float f10 = *((float*)&(UINT32) { 0x41200000 });  // 10.0f
+        /* C1 step 3a: bit-pattern -> volatile float; a plain float const
+         * gets pooled into .rdata by the optimizer. */
+        volatile UINT32 b10 = 0x41200000u;  /* 10.0f */
+        float f10 = *(float *)&b10;
         while (precision--) {
             frac_part *= f10;
             INT32 digit = (INT32)frac_part; // Get the integer part of the fractional part
@@ -179,7 +190,8 @@ void doubleToStr(double num, PCHAR str, PINT32 index, INT32 precision, INT32 wid
             frac_part -= digit;  // Remove the integer part of the fractional part
         }
         // Round the last digit
-        float f0_5 = *((float*)&(UINT32) { 0x3F000000 });  // 0.5f
+        volatile UINT32 b05 = 0x3F000000u;  /* 0.5f */
+        float f0_5 = *(float *)&b05;
         if (frac_part >= f0_5) {
             // Increment the last digit
             INT32 last_index = *index - 1; // Get the index of the last digit added
@@ -286,7 +298,7 @@ void uintToStr(UINT64 num, PCHAR str, PINT32 index, INT32 width, INT32 zeroPad, 
 void ptrToHex(PVOID ptr, PCHAR str, PINT32 index) {
 
     UINT64 addr = (SIZE_T)ptr; // Cast pointer to SIZE to get the address as an unsigned integer
-    PCHAR hex_digits = (CHAR[]){'0','1','2','3','4','5','6','7','8','9','a','b','c','d','e','f','\0'}; // Hexadecimal digits for conversion
+    /* C1 step 3a: arithmetic digits, no pooled table */
     CHAR rev[20]; // Temporary storage for reversed digits
     INT32 len = 0; // Length of the number in digits
 
@@ -295,7 +307,8 @@ void ptrToHex(PVOID ptr, PCHAR str, PINT32 index) {
 
     // Convert the address to a reversed hexadecimal string
     do {
-        rev[len++] = hex_digits[addr % 16];
+        UINT64 d = addr % 16;
+        rev[len++] = (CHAR)(d < 10 ? d + '0' : d - 10 + 'a');
         addr /= 16;
     } while (addr);
 
@@ -343,8 +356,10 @@ void wideToStr(PWCHAR wstr, PCHAR str, PINT32 index, INT32 width)
 
 // Helper function: formats an unsigned number in hexadecimal with a given field width
 void formatHex(UINT32 num, INT32 fieldWidth, INT32 uppercase, PCHAR s, INT32* j, INT32 zeroPad, BOOL addPrefix) {
-    const CHAR* hexDigits = uppercase ? (CHAR[]){'0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F','\0'} 
-                                       : (CHAR[]){'0','1','2','3','4','5','6','7','8','9','a','b','c','d','e','f','\0'}; // Hexadecimal digits for conversion
+    /* C1 step 3a: hex digits by ARITHMETIC, not a table. The compound
+     * literals here were pooled into .rdata (16+16 bytes, seen in the
+     * section inventory); a computed digit needs no data section. */
+    INT32 base = uppercase ? 'A' : 'a';
     CHAR buffer[16]; // Temporary storage for hexadecimal digits
     INT32 index = 0; // Index for the buffer
 
@@ -355,7 +370,8 @@ void formatHex(UINT32 num, INT32 fieldWidth, INT32 uppercase, PCHAR s, INT32* j,
     else {
         while (num) { // Convert number to hexadecimal
             // Get the last digit in hexadecimal and convert it to character
-            buffer[index++] = hexDigits[num % 16];
+            INT32 d = (INT32)(num % 16);
+            buffer[index++] = (CHAR)(d < 10 ? d + '0' : d - 10 + base);
             num /= 16; // Remove the last digit from the number
         }
     }

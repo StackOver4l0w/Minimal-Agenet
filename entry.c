@@ -59,11 +59,14 @@ asm(
  * token started, close it with a NUL at the separator; double quotes
  * toggle "inside a token" so a quoted path survives - enough for the
  * agent's "<URL> [-v]" usage.
- * С1 step 2: no statics - the table and the scratch live on entry()'s
- * frame; a stack frame that outlives everything it owns needs no .bss. */
-static INT32 split_command_line(const PWCHAR cmdline, CHAR *argv[], INT32 argv_max)
+ * C1 step 2 + live-fix 2026-08-30: argv[] points INTO the narrow scratch, so
+ * the buffer MUST outlive this function. A local here was a dangling-pointer
+ * bug (agent_main read freed-crate argv in the silent release build; caught
+ * by the user's live run). The scratch lives on entry()'s eternal frame and
+ * arrives as a parameter - same lifetime as the old static, zero .bss. */
+static INT32 split_command_line(const PWCHAR cmdline, CHAR *argv[], INT32 argv_max,
+                                 CHAR narrow[], USIZE narrow_size)
 {
-    CHAR narrow[2048];
     INT32 argc = 0;
     USIZE o = 0;
     BOOL in_quotes = FALSE;
@@ -80,9 +83,9 @@ static INT32 split_command_line(const PWCHAR cmdline, CHAR *argv[], INT32 argv_m
         BOOL separator = (c == L' ' && !in_quotes) || c == L'\0';
 
         if (!separator) {
-            if (token == NULL && o + 1 < sizeof(narrow))
+            if (token == NULL && o + 1 < narrow_size)
                 token = &narrow[o];
-            if (o + 1 < sizeof(narrow))
+            if (o + 1 < narrow_size)
                 narrow[o++] = (CHAR)(c & 0xFF);
         } else if (token != NULL) {
             narrow[o++] = '\0';
@@ -157,8 +160,9 @@ void entry(void)
     PPEB peb = GetCurrentPEB();
     PWCHAR cmdline = peb->ProcessParameters->CommandLine.Buffer;
 
+    CHAR narrow[2048];   /* outlives agent_main - argv points into it */
     CHAR *argv[ENTRY_ARGC_MAX];
-    INT32 argc = split_command_line(cmdline, argv, ENTRY_ARGC_MAX);
+    INT32 argc = split_command_line(cmdline, argv, ENTRY_ARGC_MAX, narrow, sizeof(narrow));
 
     INT32 rc = agent_main(argc, argv);
     entry_k32.ExitProcess((UINT32)rc);

