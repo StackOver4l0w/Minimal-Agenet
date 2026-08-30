@@ -9,7 +9,7 @@
             "type": "cppvsdbg",
             "request": "launch",
             "program": "${workspaceFolder}/windows-x86_64-debug.exe",
-            "args": ["https://relay.example.com/agent", "-v"],
+            "args": ["https://relay.nostdlib.workers.dev/agent", "-v"],
             "cwd": "${workspaceFolder}",
             "console": "integratedTerminal",
             "preLaunchTask": "windows-x86_64-debug"
@@ -19,7 +19,7 @@
             "type": "cppvsdbg",
             "request": "launch",
             "program": "${workspaceFolder}/windows-i386-debug.exe",
-            "args": ["https://relay.example.com/agent", "-v"],
+            "args": ["https://relay.nostdlib.workers.dev/agent", "-v"],
             "cwd": "${workspaceFolder}",
             "console": "integratedTerminal",
             "preLaunchTask": "windows-i386-debug"
