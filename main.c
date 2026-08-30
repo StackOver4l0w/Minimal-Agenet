@@ -34,7 +34,8 @@
  *   New-Item -ItemType Directory -Force obj | Out-Null
  *   Move-Item *.o obj
  *   gcc -O2 -s -fno-asynchronous-unwind-tables -fno-shrink-wrap \`
- *       -fno-ident -nostdlib -e entry -o minimal_agent.exe \`
+ *       -fno-ident -nostdlib -e entry -Wl,-T,link.text-first.ld \`
+ *       -o minimal_agent.exe \`
  *       (Get-ChildItem obj\*.o | ForEach-Object FullName)
  *
  * The two -fno-* flags are a PAIR: dropping the unwind tables frees the

@@ -58,7 +58,7 @@ Move-Item *.o obj                                     # move the fresh objects i
 #   -s          strip symbols from the shipped exe
 #   -nostdlib   no CRT - our entry.c is the startup
 #   -e entry    THE entry point is our entry() (omitting this = instant crash)
-gcc -O2 -s -fno-asynchronous-unwind-tables -fno-shrink-wrap -fno-ident -nostdlib -e entry -o minimal_agent.exe (Get-ChildItem obj\*.o | ForEach-Object FullName)
+gcc -O2 -s -fno-asynchronous-unwind-tables -fno-shrink-wrap -fno-ident -nostdlib -e entry -Wl,-T,link.text-first.ld -o minimal_agent.exe (Get-ChildItem obj\*.o | ForEach-Object FullName)
 ```
 
 ### cmd (classic Command Prompt)
@@ -70,7 +70,7 @@ gcc -O2 -fno-asynchronous-unwind-tables -fno-shrink-wrap -fno-ident -c entry.c m
 if not exist obj mkdir obj     & :: create obj\
 move *.o obj                   & :: park the objects
 
-gcc -O2 -s -fno-asynchronous-unwind-tables -fno-shrink-wrap -fno-ident -nostdlib -e entry -o minimal_agent.exe obj\*.o
+gcc -O2 -s -fno-asynchronous-unwind-tables -fno-shrink-wrap -fno-ident -nostdlib -e entry -Wl,-T,link.text-first.ld -o minimal_agent.exe obj\*.o
 ```
 
 ### bash (MSYS2 shell)
@@ -80,7 +80,7 @@ gcc -O2 -fno-asynchronous-unwind-tables -fno-shrink-wrap -fno-ident -c \
     entry.c main.c transport.c shell.c report.c system_facts.c winhttp_api.c \
     ntdll.c kernel32.c advapi.c string.c memory.c peb.c system.c djb2.c logger.c
 mkdir -p obj && mv *.o obj/                      # objects out of the root
-gcc -O2 -s -fno-asynchronous-unwind-tables -fno-shrink-wrap -fno-ident -nostdlib -e entry -o minimal_agent.exe obj/*.o
+gcc -O2 -s -fno-asynchronous-unwind-tables -fno-shrink-wrap -fno-ident -nostdlib -e entry -Wl,-T,link.text-first.ld -o minimal_agent.exe obj/*.o
 ```
 
 ### Why the two `-fno-*` flags travel as a pair
@@ -117,7 +117,7 @@ of the same objects and compare two addresses:
 
 ```powershell
 # PowerShell: build a check copy, then ask nm where the entry symbol is
-gcc -nostdlib -e entry -o ma_check.exe (Get-ChildItem obj\*.o | ForEach-Object FullName)
+gcc -nostdlib -e entry -Wl,-T,link.text-first.ld -o ma_check.exe (Get-ChildItem obj\*.o | ForEach-Object FullName)
 nm ma_check.exe | findstr /C:" T entry"         # prints e.g. 0000000140004aa0 T entry
 objdump -f ma_check.exe | findstr /C:"start address"   # start address 0x...4aa0
 del ma_check.exe                                # same number twice = pass
@@ -125,7 +125,7 @@ del ma_check.exe                                # same number twice = pass
 
 ```sh
 # bash:
-gcc -nostdlib -e entry -o /tmp/ma_check.exe obj/*.o
+gcc -nostdlib -e entry -Wl,-T,link.text-first.ld -o /tmp/ma_check.exe obj/*.o
 nm /tmp/ma_check.exe | grep " T entry"          # -> ...4aa0 T entry
 objdump -f /tmp/ma_check.exe | grep "start address"   # -> same address = pass
 ```
@@ -145,13 +145,12 @@ The current scoreboard (release build):
 
 | Section   | Size | Meaning |
 |---|---|---|
-| `.text`   | ~15 KB | the code - everything the agent is |
-| `.rdata`  | 32 B | unreferenced linker tail (no code reads it) |
-| `.idata`  | 24 B | empty import-directory skeleton |
-| `.bss`    | gone | nothing static anywhere |
+| `.text`   | ~15 KB | the code - everything the agent is, and ALL there is |
 
-`.pdata`/`.xdata` (exception unwind tables) are gone too. A quick
-eyeball in PowerShell:
+That is the whole table: one section. The linker script
+(`link.text-first.ld`) merges every code piece into a single `.text`
+and puts `entry()` at byte zero - the address a raw-blob loader jumps
+to. A quick eyeball in PowerShell:
 
 ```powershell
 objdump -h minimal_agent.exe | findstr /C:".text" /C:".rdata" /C:".bss" /C:".pdata"
@@ -185,7 +184,7 @@ New-Item -ItemType Directory -Force obj | Out-Null
 Move-Item *.o obj
 
 # 3) link - the flag AGAIN here, and a distinct name
-gcc -O2 -s -fno-asynchronous-unwind-tables -fno-shrink-wrap -fno-ident -DLOGGING_ENABLED -nostdlib -e entry -o minimal_agent_dev.exe (Get-ChildItem obj\*.o | ForEach-Object FullName)
+gcc -O2 -s -fno-asynchronous-unwind-tables -fno-shrink-wrap -fno-ident -DLOGGING_ENABLED -nostdlib -e entry -Wl,-T,link.text-first.ld -o minimal_agent_dev.exe (Get-ChildItem obj\*.o | ForEach-Object FullName)
 
 # 4) run the talkative one
 .\minimal_agent_dev.exe https://relay.example.com/agent
