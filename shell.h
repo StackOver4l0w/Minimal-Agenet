@@ -9,7 +9,8 @@
 
 #pragma once
 
-#include <windows.h>
+#include "types.h"
+#include "wintypes.h"
 
 #include "protocol.h"      /* SHELL_POOL_SIZE */
 

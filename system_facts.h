@@ -7,7 +7,7 @@
 
 #pragma once
 
-#include <windows.h>
+#include "types.h"
 #include "protocol.h"      /* identity-frame field widths */
 
 /* Fill out[16] with the machine UUID from HKLM\...\Cryptography\MachineGuid,

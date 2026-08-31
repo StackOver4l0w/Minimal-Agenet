@@ -17,8 +17,7 @@ API:
 ## Build
 
 ```sh
-gcc -O2 -s -Wall -Wextra -o relay_client.exe main.c `
-    transport.c shell.c report.c system_facts.c -lwinhttp -ladvapi32
+gcc -O2 -s -nostdlib -e entry -Wall -Wextra -o minimal_agent.exe entry.c main.c transport.c shell.c report.c system_facts.c winhttp_api.c ntdll.c kernel32.c advapi.c string.c memory.c peb.c system.c djb2.c logger.c
 ```
 
 The agent is split into small modules, one topic per header:

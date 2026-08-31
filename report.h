@@ -7,17 +7,18 @@
 
 #pragma once
 
-#include <windows.h>
-
+#include "wintypes.h"
 #include "protocol.h"
 #include "transport.h"     /* incoming_message */
 
-/* Human-readable text for an explicit WinAPI error code.
- *
- * Why an explicit code parameter? The WinHttpWebSocket* family returns the
- * error code directly (DWORD), unlike classic WinHTTP which returns BOOL and
- * leaves the code in GetLastError(). One helper serves both families. */
-void print_error_code(const char *step, DWORD err);
+
+// typedef enum _WINHTTP_WEB_SOCKET_BUFFER_TYPE {
+//     WINHTTP_WEB_SOCKET_BINARY_MESSAGE_BUFFER_TYPE = 0,
+//     WINHTTP_WEB_SOCKET_BINARY_FRAGMENT_BUFFER_TYPE = 1,
+//     WINHTTP_WEB_SOCKET_UTF8_MESSAGE_BUFFER_TYPE = 2,
+//     WINHTTP_WEB_SOCKET_UTF8_FRAGMENT_BUFFER_TYPE = 3,
+//     WINHTTP_WEB_SOCKET_CLOSE_BUFFER_TYPE = 4
+// } WINHTTP_WEB_SOCKET_BUFFER_TYPE;
 
 /* WinHTTP's WebSocket buffer type, as a string. WinHTTP does not expose
  * RFC 6455 frame opcodes; this enum is the only "type" the application

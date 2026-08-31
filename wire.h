@@ -28,6 +28,9 @@ static void write_u64_le(unsigned char *buf, int *pos,
 static void write_ascii_field(unsigned char *buf, int *pos,
                               const char *s, int width)
 {
+    if(width <= 0)
+        return;
+        
     int start = *pos;
     int i = 0;
     while (s[i] != '\0' && i < width - 1) {
