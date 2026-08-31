@@ -482,9 +482,9 @@ static int run_session(const WCHAR *url, int *long_lived)
             goto cleanup;               /* spec: terminate immediately  */
         }
 
-        if (opcode == CMD_HELLO && msg.length == 1) {
-            err = handle_hello(socket);
-        } else if (opcode == CMD_OPEN_SHELL) {
+        // if (opcode == CMD_HELLO && msg.length == 1) {
+        //     err = handle_hello(socket);
+         if (opcode == CMD_OPEN_SHELL) {
             err = handle_open_shell(socket);
         } else if (opcode == CMD_WRITE_SHELL && msg.length >= 9) {
             err = handle_write_shell(socket, &msg);
