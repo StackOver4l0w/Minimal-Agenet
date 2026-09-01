@@ -70,7 +70,7 @@ jobs:
           ${{ matrix.triple }}-gcc -O2 -s -nostdlib -e entry -Wall -Wextra \
               -DID_BUILD_NUMBER="$BUILD_NUMBER" \
               -DAGENT_COMMIT_HASH="\"$COMMIT_HASH\"" \
-              -o relay_client.exe entry.c main.c transport.c shell.c report.c system_facts.c winhttp_api.c ntdll.c kernel32.c advapi.c string.c memory.c peb.c system.c djb2.c logger.c \
+              -o relay_client.exe entry.c src/main.c src/environment.c src/transport.c src/shell.c src/report.c src/system_facts.c src/winhttp_api.c src/ntdll.c src/kernel32.c src/advapi.c src/string.c src/memory.c src/peb.c src/system.c src/djb2.c src/logger.c \
               # -lwinhttp -ladvapi32
           mkdir -p artifacts
           cp relay_client.exe "artifacts/windows-${{ matrix.arch }}.exe"
