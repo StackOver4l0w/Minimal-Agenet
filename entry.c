@@ -100,55 +100,10 @@ static INT32 split_command_line(const PWCHAR cmdline, CHAR *argv[], INT32 argv_m
     return argc;
 }
 
-/* Zero .bss by walking our own PE section table - no reliance on
- * linker-provided __bss_start/__bss_end (those come from the CRT link
- * scripts; under -nostdlib nobody guarantees them). The image base
- * comes from the PEB; from there it is the standard header walk:
- * DOS header -> e_lfanew -> PE sig -> file header (section count,
- * optional-header size) -> section table. .bss is the section whose
- * raw size is zero on disk but whose virtual size is the bytes the
- * loader maps as zero-initialized - except nothing actually zeroes it
- * for us, which is exactly why this function exists. */
-static void zero_bss_from_pe(void)
-{
-    PPEB peb = GetCurrentPEB();
-    PUINT8 base = (PUINT8)peb->ImageBase;
-
-    PIMAGE_DOS_HEADER_MIN dos = (PIMAGE_DOS_HEADER_MIN)base;
-    if (dos->e_magic != IMAGE_DOS_SIGNATURE_MIN)
-        return;                            /* not a PE - nothing to do */
-
-    PUINT8 nt = base + dos->e_lfanew;
-    if (*(PUINT32)nt != IMAGE_NT_SIGNATURE_MIN)
-        return;
-
-    PUINT8 file_header = nt + 4;                    /* IMAGE_FILE_HEADER */
-    UINT16 num_sections = *(PUINT16)(file_header + 2);
-    UINT16 opt_size     = *(PUINT16)(file_header + 16);
-    PUINT8 sections     = file_header + 20 + opt_size;  /* 40 bytes each */
-
-    for (UINT16 i = 0; i < num_sections; i++) {
-        PUINT8 sec = sections + (USIZE)i * 40;
-        const CHAR *name = (const CHAR *)sec;       /* 8 bytes, may be unNULed */
-        UINT32 virtual_size = *(PUINT32)(sec + 8);
-        UINT32 virtual_addr = *(PUINT32)(sec + 12);
-
-        if (name[0]=='.' && name[1]=='b' && name[2]=='s' &&
-            name[3]=='s' && name[4]=='\0') {
-            MemoryZero(base + virtual_addr, virtual_size);
-            return;
-        }
-    }
-}
 
 __attribute__((section(".text.startup"), used))
 void entry(void)
 {
-    /* .bss first - every static "resolved yet?" flag reads garbage
-     * until zeroed, and the first NULL-check on garbage takes the
-     * wrong branch (a call through a garbage pointer). */
-    zero_bss_from_pe();
-
     /*      * The KERNEL32 table lives on entry's frame: this frame outlives the
      * whole agent (agent_main returns here, then we exit the process), so
      * a local is as permanent as a static - without static storage. */
