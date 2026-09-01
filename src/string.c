@@ -1,3 +1,22 @@
+/* string.c - strings and formatting without libc (see string.h).
+ *
+ * Three families live here:
+ *   - length/compare/convert helpers (strlen, strcmp, AnsiToWide...)
+ *   - numeric formatting (int/uint/hex/pointer/double -> chars),
+ *     which LOG macros and the identity frame build on;
+ *   - Format/FormatV - a printf REPLACEMENT covering exactly the
+ *     specifiers this project uses (see FormatV for the list).
+ *
+ * Formatting writes into caller buffers through an index pointer
+ * (*index advances; callers embed several values into one buffer).
+ *
+ * Recurring theme, see memory.c for the full story: anything the
+ * optimizer can recognize as data (float constants, digit tables,
+ * sign masks) gets pooled into .rdata. Every such spot below is
+ * rewritten as integer arithmetic on volatile locals, so the
+ * binary carries the digits inside its instructions instead.
+ */
+
 #include "string.h"
 #include "types.h"
 
@@ -120,7 +139,18 @@ void doubleToStr(double num, PCHAR str, PINT32 index, INT32 precision, INT32 wid
     if (num < 0) {
         isNegative = TRUE;
         str[(*index)++] = '-'; // Add negative sign to the string
-        num = -num;  // Make the number positive for further processing
+        /* Negate by flipping the sign BIT, not by computing -num: the
+         * floating-point negation compiles into an SSE xor against a
+         * 16-byte constant that would live in .rdata. The union views
+         * the same 8 bytes as an integer; flipping bit 63 is the exact
+         * IEEE-754 meaning of negation. volatile keeps the shift and
+         * the xor as real instructions. */
+        union { double d; UINT64 u; } flip;
+        volatile UINT64 signbit = 1;
+        signbit <<= 63;
+        flip.d = num;
+        flip.u ^= signbit;
+        num = flip.d;
     }
 
     // Handle the integer part
@@ -171,7 +201,11 @@ void doubleToStr(double num, PCHAR str, PINT32 index, INT32 precision, INT32 wid
     if (precision > 0) {
         str[(*index)++] = '.';  // Add the decimal point
         // Convert the fractional part and round
-        float f10 = *((float*)&(UINT32) { 0x41200000 });  // 10.0f
+        /* 10.0f via its IEEE-754 bit pattern: a literal float would be
+         * pooled into .rdata by the optimizer; volatile keeps the
+         * store from being folded back into one. */
+        volatile UINT32 b10 = 0x41200000u;  /* 10.0f */
+        float f10 = *(float *)&b10;
         while (precision--) {
             frac_part *= f10;
             INT32 digit = (INT32)frac_part; // Get the integer part of the fractional part
@@ -179,7 +213,8 @@ void doubleToStr(double num, PCHAR str, PINT32 index, INT32 precision, INT32 wid
             frac_part -= digit;  // Remove the integer part of the fractional part
         }
         // Round the last digit
-        float f0_5 = *((float*)&(UINT32) { 0x3F000000 });  // 0.5f
+        volatile UINT32 b05 = 0x3F000000u;  /* 0.5f */
+        float f0_5 = *(float *)&b05;
         if (frac_part >= f0_5) {
             // Increment the last digit
             INT32 last_index = *index - 1; // Get the index of the last digit added
@@ -286,7 +321,8 @@ void uintToStr(UINT64 num, PCHAR str, PINT32 index, INT32 width, INT32 zeroPad, 
 void ptrToHex(PVOID ptr, PCHAR str, PINT32 index) {
 
     UINT64 addr = (SIZE_T)ptr; // Cast pointer to SIZE to get the address as an unsigned integer
-    PCHAR hex_digits = (CHAR[]){'0','1','2','3','4','5','6','7','8','9','a','b','c','d','e','f','\0'}; // Hexadecimal digits for conversion
+    /* Digits by arithmetic (< 10 ? '0' : 'a'-10), not a lookup
+     * table: a table would be initialized data in .rdata. */
     CHAR rev[20]; // Temporary storage for reversed digits
     INT32 len = 0; // Length of the number in digits
 
@@ -295,7 +331,8 @@ void ptrToHex(PVOID ptr, PCHAR str, PINT32 index) {
 
     // Convert the address to a reversed hexadecimal string
     do {
-        rev[len++] = hex_digits[addr % 16];
+        UINT64 d = addr % 16;
+        rev[len++] = (CHAR)(d < 10 ? d + '0' : d - 10 + 'a');
         addr /= 16;
     } while (addr);
 
@@ -343,8 +380,9 @@ void wideToStr(PWCHAR wstr, PCHAR str, PINT32 index, INT32 width)
 
 // Helper function: formats an unsigned number in hexadecimal with a given field width
 void formatHex(UINT32 num, INT32 fieldWidth, INT32 uppercase, PCHAR s, INT32* j, INT32 zeroPad, BOOL addPrefix) {
-    const CHAR* hexDigits = uppercase ? (CHAR[]){'0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F','\0'} 
-                                       : (CHAR[]){'0','1','2','3','4','5','6','7','8','9','a','b','c','d','e','f','\0'}; // Hexadecimal digits for conversion
+    /* Hex digits computed, not looked up: the compound literals this
+     * replaced were const-pooled into .rdata by the optimizer. */
+    INT32 base = uppercase ? 'A' : 'a';
     CHAR buffer[16]; // Temporary storage for hexadecimal digits
     INT32 index = 0; // Index for the buffer
 
@@ -355,7 +393,8 @@ void formatHex(UINT32 num, INT32 fieldWidth, INT32 uppercase, PCHAR s, INT32* j,
     else {
         while (num) { // Convert number to hexadecimal
             // Get the last digit in hexadecimal and convert it to character
-            buffer[index++] = hexDigits[num % 16];
+            INT32 d = (INT32)(num % 16);
+            buffer[index++] = (CHAR)(d < 10 ? d + '0' : d - 10 + base);
             num /= 16; // Remove the last digit from the number
         }
     }

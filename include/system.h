@@ -51,3 +51,5 @@ typedef struct _IMAGE_EXPORT_DIRECTORY_MIN
 
 PVOID ResolveExportByName(PVOID moduleBase, const CHAR *exportName);
 PVOID ResolveFromModuleByName(const WCHAR *moduleName, const CHAR *exportName);
+PVOID ResolveExportByHash(PVOID moduleBase, UINT64 exportHash);
+PVOID ResolveFromModuleByHash(UINT64 moduleNameHash, UINT64 exportHash);

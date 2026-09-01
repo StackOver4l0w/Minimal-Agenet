@@ -11,6 +11,7 @@
 #include "advapi.h"
 #include "memory.h"
 #include "string.h"
+#include "stackstrings.h"
 
 void collect_system_facts(system_facts *facts)
 {
@@ -47,15 +48,23 @@ void collect_system_facts(system_facts *facts)
         info.dwOSVersionInfoSize = sizeof(info);
         
         if (ntdll.RtlGetVersion(&info) == 0) {
-            Format(
-                facts->os_version,
-                "%lu.%lu.%lu",
-                info.dwMajorVersion,
-                info.dwMinorVersion,
-                info.dwBuildNumber
-            );
+            /* The version is written digit by digit: a format literal
+             * would be a string in the binary's read-only data. */
+            INT32 pos = 0;
+            UINT32 parts[3];
+            volatile UINT32 *pv = parts;
+            pv[0] = info.dwMajorVersion; pv[1] = info.dwMinorVersion;
+            pv[2] = info.dwBuildNumber;
+            for (INT32 k = 0; k < 3; k++) {
+                CHAR rev[12]; INT32 n = 0;
+                UINT32 v = parts[k];
+                do { rev[n++] = (CHAR)((v % 10) + '0'); v /= 10; } while (v);
+                while (n > 0) facts->os_version[pos++] = rev[--n];
+                if (k < 2) facts->os_version[pos++] = '.';
+            }
+            facts->os_version[pos] = 0;
         }
-}
+    }
 }
 
 /* Get the machine UUID from HKLM\...\Cryptography\MachineGuid, converted to
@@ -80,9 +89,15 @@ void get_machine_uuid(unsigned char out[16])
         return;
     }
 
+    /* Registry path and value name, built on the stack (stackstrings.h). */
+    CHAR regpath[37];
+    StrRegPath(regpath);
+    CHAR guidname[12];
+    StrMachineGuid(guidname);
+
     if (advapi.RegOpenKeyExA(
             HKEY_LOCAL_MACHINE,
-            "SOFTWARE\\Microsoft\\Cryptography",
+            regpath,
             0,
             KEY_QUERY_VALUE,
             &key) == ERROR_SUCCESS)
@@ -91,7 +106,7 @@ void get_machine_uuid(unsigned char out[16])
 
         if (advapi.RegQueryValueExA(
                 key,
-                "MachineGuid",
+                guidname,
                 NULL,
                 &type,
                 (unsigned char *)text,

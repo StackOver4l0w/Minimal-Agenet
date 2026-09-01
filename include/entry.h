@@ -18,6 +18,6 @@
 #include "types.h"
 
 /* Implemented in entry.c; main.c provides the body. */
-INT32 agent_main(INT32 argc, CHAR *argv[]);
+INT32 agent_main(const WCHAR *url);
 
 #endif /* ENTRY_H */

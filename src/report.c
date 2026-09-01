@@ -7,6 +7,13 @@
 #include "djb2.h"
 #include "logger.h"
 
+/* This whole file is terminal diagnostics. In a release build (built
+ * without -DLOGGING_ENABLED) it compiles to nothing and none of its
+ * format strings enter the binary. */
+#ifndef LOGGING_ENABLED
+/* silent build: no diagnostics */
+#else
+
 
 /* ---------------------------------------------------------------------------
  * ws_buffer_type_name - WinHTTP's WebSocket buffer type, as a string.
@@ -240,3 +247,5 @@ void print_identity_frame(const unsigned char frame[IDENTITY_FRAME_SIZE],
     if ((DWORD)frame_len > dump_len)
         LOG_INFO("    ... (%d more bytes not dumped)\n", frame_len - (int)dump_len);
 }
+
+#endif /* LOGGING_ENABLED */

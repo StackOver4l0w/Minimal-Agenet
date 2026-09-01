@@ -4,6 +4,10 @@ typedef long long int INT64;
 typedef void* HANDLE;
 typedef unsigned long long UINT64, *PUINT64, **PPUINT64;
 typedef void* PVOID;
+/* Guarded: windows.h (local CRT tests only) defines VOID as a macro. */
+#ifndef VOID
+typedef void VOID;
+#endif
 typedef unsigned int UINT32, *PUINT32, **PPUINT32;
 typedef unsigned short UINT16, *PUINT16, **PPUINT16;
 typedef unsigned char UINT8, *PUINT8, **PPUINT8;

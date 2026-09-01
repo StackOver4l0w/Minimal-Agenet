@@ -1,3 +1,13 @@
+/* logger.c - the one stdout writer (see logger.h).
+ *
+ * PRINT_FORMATTED_STRING formats into a stack buffer with our own
+ * FormatV (no vsnprintf - there is no libc), then hands the bytes
+ * to WriteFile on the stdout handle: unbuffered, one syscall per
+ * line. The KERNEL32 table is rebuilt per call - this is a dev-only
+ * path, and in a release build this whole file is dead code (the
+ * macros expand to nothing and the linker drops the rest).
+ */
+
 #include "logger.h"
 #include "types.h"
 #include "string.h"
@@ -7,7 +17,8 @@
 
 INT32 PRINT_FORMATTED_STRING(PCHAR format, ...)
 {
-    static CHAR buffer[1024];
+    /* One log line fits in 1 KB; the frame pays for it, nothing static. */
+    CHAR buffer[1024];
     va_list args;
 
     va_start(args, format);
