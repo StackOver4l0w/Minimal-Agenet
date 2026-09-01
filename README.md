@@ -156,6 +156,43 @@ objdump -h minimal_agent.exe | findstr /C:".text" /C:".rdata" /C:".bss" /C:".pda
 
 ---
 
+## Making the raw blob (agent.bin)
+
+The exe built above is the whole agent wrapped in a PE envelope. The
+blob is the same code with the envelope peeled off: the raw bytes of
+`.text`, nothing else. One command after the link:
+
+```sh
+objcopy -O binary --only-section=.text minimal_agent.exe agent.bin
+```
+
+- `-O binary`      - flat output: no headers, no sections, just bytes;
+- `--only-section=.text` - take the one section that exists (and the
+  only one that ever carries content).
+
+Because `entry()` is the first byte of `.text` (the linker script put
+it there), **byte 0 of the blob is the entry point** - a loader drops
+the file anywhere in memory (RW -> copy -> RX) and jumps to offset 0.
+
+Verify the blob:
+
+```sh
+objdump -h minimal_agent.exe          # must list ONLY .text
+strings agent.bin                     # must print NOTHING (no strings in the blob)
+```
+
+The same command on the dev exe (`minimal_agent_dev.exe` -> e.g.
+`agent_dev.bin`) yields the talkative flavor; note it expects a console
+- injecting it into a console-less host currently crashes (the logger
+writes to stdout; the stdout handle check misses
+`INVALID_HANDLE_VALUE`).
+
+To run the blob locally there is `.local-tests/blob_loader.exe` (see
+`.local-tests/build.sh` header): it takes the blob path and the entry
+offset (which is `0` now - the build script prints it after linking).
+
+---
+
 ## Run
 
 ```
@@ -281,5 +318,3 @@ aarch64) and bakes the identity metadata (`-DID_BUILD_NUMBER`,
 - The connection pattern (periodic dial to one host, a non-browser
   user agent) is trivially visible to network monitoring - deliberate
   scope: this project studies form, not evasion.
-- The `.rdata`/`.idata` tails still exist as unreferenced sections;
-  the remaining step toward the single-`.text` blob is linker work.
