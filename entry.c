@@ -47,20 +47,6 @@ asm(
     "   popq  %rcx\n"
     "   ret\n"
 );
-#elif defined(ENVIRONMENT_I386) || defined(__i386__) || defined(_M_IX86)
-__attribute__((naked))
-void __alloca(void)
-{
-    __asm__ volatile(
-        "movl 0(%esp), %ecx\n"
-        "addl $15, %eax\n"
-        "andl $-16, %eax\n"
-        "subl %eax, %esp\n"
-        "movl %esp, %eax\n"
-        "jmp *%ecx\n"
-    );
-}
-#endif
 
 #define ENTRY_ARGC_MAX 8
 
