@@ -52,16 +52,20 @@ asm(
     "   ret\n"
 );
 #elif defined(ENVIRONMENT_I386) || defined(__i386__) || defined(_M_IX86)
+/* CRT-free x86 builds still need a stack allocator helper for compiler-
+ * generated alloca calls. The Windows ABI passes the requested byte count
+ * in the stack argument slot, then the helper returns the new stack pointer
+ * in EAX after subtracting the aligned block from ESP. */
 __attribute__((naked))
-void __alloca(void)
+void *__cdecl __alloca(size_t n)
 {
     __asm__ volatile(
-        "movl 0(%esp), %ecx\n"
+        "movl 4(%esp), %eax\n"
         "addl $15, %eax\n"
         "andl $-16, %eax\n"
         "subl %eax, %esp\n"
         "movl %esp, %eax\n"
-        "jmp *%ecx\n"
+        "ret\n"
     );
 }
 #endif
