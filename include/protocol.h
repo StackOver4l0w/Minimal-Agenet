@@ -11,18 +11,18 @@
 /* ==========================================================================
  * Command opcodes (the full table; incoming requests are decoded with it)
  * ======================================================================== */
+#define CMD_OPEN_SHELL          0x01
+#define CMD_WRITE_SHELL         0x02
+#define CMD_READ_SHELL          0x03
+#define CMD_CLOSE_SHELL         0x04
 
-#define CMD_HELLO               0x00
-#define CMD_LIST_DIRECTORY      0x01
-#define CMD_READ_FILE           0x02
-#define CMD_HASH_FILE           0x03
-#define CMD_WRITE_SHELL         0x04
-#define CMD_READ_SHELL          0x05
-#define CMD_GET_DISPLAYS        0x06
-#define CMD_GET_SCREENSHOT      0x07
-#define CMD_CLOSE_SHELL         0x08
-#define CMD_EXIT                0x09
-#define CMD_OPEN_SHELL          0x0A
+#define CMD_LIST_DIRECTORY      0x05
+#define CMD_READ_FILE           0x06
+#define CMD_HASH_FILE           0x07
+
+#define CMD_GET_DISPLAYS        0x08
+#define CMD_GET_SCREENSHOT      0x09
+#define CMD_EXIT                0x0A
 
 /* ==========================================================================
  * Reply status codes

