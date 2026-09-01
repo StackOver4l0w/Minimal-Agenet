@@ -17,7 +17,7 @@ BOOL CompareEnvName(const WCHAR *wide, const CHAR *narrow)
 
 		if (w != (WCHAR)n)
 		{
-			return false;
+			return FALSE;
 		}
 		wide++;
 		narrow++;
