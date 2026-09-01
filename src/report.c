@@ -194,8 +194,8 @@ void print_command(int index, const incoming_message *msg)
     }
     LOG_INFO("\"\n");
 
-    if (opcode == CMD_HELLO)
-        LOG_INFO("[+] panel asks: who are you? (Hello)\n");
+    // if (opcode == CMD_HELLO)
+    //     LOG_INFO("[+] panel asks: who are you? (Hello)\n");
 }
 
 /* Print the outgoing identity frame field by field (the mirror of

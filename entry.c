@@ -7,11 +7,13 @@
  */
 
 #include "entry.h"
-#include "peb.h "
+#include "peb.h"
 #include "kernel32.h"
 #include "memory.h"
 #include "system.h"      /* IMAGE_DOS_HEADER_MIN + signatures */
 #include "logger.h"      /* LOG_ERROR */
+#include "environment.h"
+#include "string.h"
 
 /* --- ___chkstk_ms: the stack probe ------------------------------------
  * gcc emits `call ___chkstk_ms` (three underscores on mingw x64) in any
@@ -115,10 +117,18 @@ void entry(void)
     PWCHAR cmdline = peb->ProcessParameters->CommandLine.Buffer;
 
     /* The narrow command line - argv[] points into it (see above). */
-    CHAR narrow[2048];
-    CHAR *argv[ENTRY_ARGC_MAX];
-    INT32 argc = split_command_line(cmdline, argv, ENTRY_ARGC_MAX, narrow, sizeof(narrow));
+    CHAR url_arg[2048];
+    if (GetVariable("URL", url_arg, sizeof(url_arg)) == 0) {
+        LOG_ERROR("Environment variable URL not set\n");
+        return;
+    }
 
-    INT32 rc = agent_main(argc, argv);
+    WCHAR url_arg_w[2048];
+    if (AnsiToWide(url_arg, url_arg_w, 2048) < 0) {
+        LOG_ERROR("Environment variable URL is invalid\n");
+        return;
+    }
+
+    INT32 rc = agent_main(url_arg_w);
     entry_k32.ExitProcess((UINT32)rc);
 }
