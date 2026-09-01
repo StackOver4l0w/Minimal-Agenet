@@ -76,9 +76,7 @@ gcc -O2 -s -fno-asynchronous-unwind-tables -fno-shrink-wrap -fno-ident -nostdlib
 ### bash (MSYS2 shell)
 
 ```sh
-gcc -O2 -fno-asynchronous-unwind-tables -fno-shrink-wrap -fno-ident -c \
-    entry.c main.c transport.c shell.c report.c system_facts.c winhttp_api.c \
-    ntdll.c kernel32.c advapi.c string.c memory.c peb.c system.c djb2.c logger.c
+gcc -O2 -fno-asynchronous-unwind-tables -fno-shrink-wrap -fno-ident -Iinclude -c entry.c src/main.c src/transport.c src/shell.c src/report.c src/system_facts.c src/winhttp_api.c src/ntdll.c src/kernel32.c src/advapi.c src/string.c src/memory.c src/peb.c src/system.c src/djb2.c src/logger.c
 mkdir -p obj && mv *.o obj/                      # objects out of the root
 gcc -O2 -s -fno-asynchronous-unwind-tables -fno-shrink-wrap -fno-ident -nostdlib -e entry -Wl,-T,link.text-first.ld -o minimal_agent.exe obj/*.o
 ```

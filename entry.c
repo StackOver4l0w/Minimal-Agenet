@@ -7,7 +7,7 @@
  */
 
 #include "entry.h"
-#include "peb.h"
+#include "peb.h "
 #include "kernel32.h"
 #include "memory.h"
 #include "system.h"      /* IMAGE_DOS_HEADER_MIN + signatures */
