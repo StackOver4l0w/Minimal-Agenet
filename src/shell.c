@@ -144,8 +144,7 @@ int shell_write(shell_slot *slot, const void *data, DWORD len)
  * shell_read - drain up to cap bytes of buffered output, never blocking
  * (see shell.h).
  * ------------------------------------------------------------------------- */
-int shell_read(shell_slot *slot, unsigned char *out, DWORD cap,
-               DWORD *out_len)
+int shell_read(shell_slot *slot, unsigned char *out, DWORD cap, DWORD *out_len)
 {
     KERNEL32 kernel;
     if (!KERNEL32_Ctor(&kernel))

