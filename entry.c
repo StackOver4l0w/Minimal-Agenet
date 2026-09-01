@@ -23,7 +23,7 @@
  * Contract: size arrives in RAX, RCX walks the stack downward touching page
  * boundaries so the OS commits the guard page legally, and the caller's
  * prologue still performs the actual frame allocation. */
-#if defined(ENVIRONMENT_x86_64) || defined(__x86_64__) || defined(_M_X64)
+
 asm(
     ".globl __chkstk\n"
     ".globl ___chkstk_ms\n"
