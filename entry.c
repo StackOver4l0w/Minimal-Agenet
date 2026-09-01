@@ -15,15 +15,19 @@
 #include "environment.h"
 #include "string.h"
 
-/* --- stack probe compatibility ----------------------------------------
- * Modern x64 Windows toolchains can emit `__chkstk` for large stack frames,
- * while older mingw/libgcc variants used `___chkstk_ms`. Linkers accept
- * either name; the CRT-free build needs both to satisfy all toolchains.
- *
- * Contract: size arrives in RAX, RCX walks the stack downward touching page
- * boundaries so the OS commits the guard page legally, and the caller's
- * prologue still performs the actual frame allocation. */
-
+/* --- ___chkstk_ms: the stack probe ------------------------------------
+ * gcc emits `call ___chkstk_ms` (three underscores on mingw x64) in any
+ * function whose frame exceeds one page - our 72 KB run_session frame
+ * qualifies. Transcribed VERBATIM from libgcc's _chkstk_ms.o (the
+ * canonical implementation; an earlier hand-rolled variant misread the
+ * contract - size arrives in RAX, not R10 - and crashed on the first
+ * big frame):
+ *   - RAX = byte count needed (set by the caller's prologue)
+ *   - RCX walks DOWN from lea [rsp+0x18] (two pushes + return addr),
+ *     one page per step; `orq 0,(rcx)` touches the page so the OS
+ *     commits the guard page and grows the stack legally
+ *   - RSP is never moved: the caller's "sub rsp, rax" does the alloc */
+#if defined(ENVIRONMENT_x86_64) || defined(__x86_64__) || defined(_M_X64)
 asm(
     ".globl __chkstk\n"
     ".globl ___chkstk_ms\n"
@@ -47,6 +51,20 @@ asm(
     "   popq  %rcx\n"
     "   ret\n"
 );
+#elif defined(ENVIRONMENT_I386) || defined(__i386__) || defined(_M_IX86)
+__attribute__((naked))
+void __alloca(void)
+{
+    __asm__ volatile(
+        "movl 0(%esp), %ecx\n"
+        "addl $15, %eax\n"
+        "andl $-16, %eax\n"
+        "subl %eax, %esp\n"
+        "movl %esp, %eax\n"
+        "jmp *%ecx\n"
+    );
+}
+#endif
 
 #define ENTRY_ARGC_MAX 8
 
