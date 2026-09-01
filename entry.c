@@ -57,51 +57,6 @@ asm(
 
 #define ENTRY_ARGC_MAX 8
 
-/* Wide command line -> narrow argv. Classic tokenizer: remember where the
- * token started, close it with a NUL at the separator; double quotes
- * toggle "inside a token" so a quoted path survives - enough for the
- * agent's "<URL> [-v]" usage.
- * LIFETIME: argv[] points INTO the scratch buffer, so the buffer must
- * outlive this function - it lives on entry()'s frame and arrives as a
- * parameter. Never make it local to this function: after it returns, a
- * local buffer is dead memory and every argv string is garbage. */
-static INT32 split_command_line(const PWCHAR cmdline, CHAR *argv[], INT32 argv_max,
-                                 CHAR narrow[], USIZE narrow_size)
-{
-    INT32 argc = 0;
-    USIZE o = 0;
-    BOOL in_quotes = FALSE;
-    CHAR *token = NULL;
-
-    for (PWCHAR p = cmdline; ; p++) {
-        WCHAR c = *p;
-
-        if (c == L'"') {
-            in_quotes = !in_quotes;
-            continue;
-        }
-
-        BOOL separator = (c == L' ' && !in_quotes) || c == L'\0';
-
-        if (!separator) {
-            if (token == NULL && o + 1 < narrow_size)
-                token = &narrow[o];
-            if (o + 1 < narrow_size)
-                narrow[o++] = (CHAR)(c & 0xFF);
-        } else if (token != NULL) {
-            narrow[o++] = '\0';
-            if (argc < argv_max)
-                argv[argc++] = token;
-            token = NULL;
-        }
-
-        if (c == L'\0')
-            break;
-    }
-
-    return argc;
-}
-
 
 __attribute__((section(".text.startup"), used))
 void entry(void)
