@@ -18,39 +18,45 @@
 
 BOOL KERNEL32_Ctor(KERNEL32 *kernel)
 {
+    PVOID module;
+
     if (kernel == NULL)
         return FALSE;
 
+    module = GetModuleHandleFromPEB(HASH_MOD_KERNEL32);
+    if (module == NULL)
+        return FALSE;
+
     kernel->GetProcAddress = (PVOID (WINAPI *)(PVOID, const CHAR *))
-        ResolveFromModuleByHash(HASH_MOD_KERNEL32, HASH_GETPROCADDRESS);
+        ResolveExportByHash(module, HASH_GETPROCADDRESS);
     kernel->LoadLibraryA = (PVOID (WINAPI *)(const CHAR *))
-        ResolveFromModuleByHash(HASH_MOD_KERNEL32, HASH_LOADLIBRARYA);
+        ResolveExportByHash(module, HASH_LOADLIBRARYA);
     kernel->GetComputerNameA = (BOOL (WINAPI *)(PCHAR, DWORD *))
-        ResolveFromModuleByHash(HASH_MOD_KERNEL32, HASH_GETCOMPUTERNAMEA);
+        ResolveExportByHash(module, HASH_GETCOMPUTERNAMEA);
     kernel->SetHandleInformation = (BOOL (WINAPI *)(HANDLE, DWORD, DWORD))
-        ResolveFromModuleByHash(HASH_MOD_KERNEL32, HASH_SETHANDLEINFORMATION);
+        ResolveExportByHash(module, HASH_SETHANDLEINFORMATION);
     kernel->CreateProcessW = (BOOL (WINAPI *)(const PWCHAR, const PWCHAR, LPSECURITY_ATTRIBUTES, LPSECURITY_ATTRIBUTES, BOOL, DWORD, PVOID, const PWCHAR, LPSTARTUPINFOW, LPPROCESS_INFORMATION))
-        ResolveFromModuleByHash(HASH_MOD_KERNEL32, HASH_CREATEPROCESSW);
+        ResolveExportByHash(module, HASH_CREATEPROCESSW);
     kernel->CloseHandle = (BOOL (WINAPI *)(HANDLE))
-        ResolveFromModuleByHash(HASH_MOD_KERNEL32, HASH_CLOSEHANDLE);
+        ResolveExportByHash(module, HASH_CLOSEHANDLE);
     kernel->TerminateProcess = (BOOL (WINAPI *)(HANDLE, UINT32))
-        ResolveFromModuleByHash(HASH_MOD_KERNEL32, HASH_TERMINATEPROCESS);
+        ResolveExportByHash(module, HASH_TERMINATEPROCESS);
     kernel->WriteFile = (BOOL (WINAPI *)(HANDLE, const void *, DWORD, DWORD *, PVOID))
-        ResolveFromModuleByHash(HASH_MOD_KERNEL32, HASH_WRITEFILE);
+        ResolveExportByHash(module, HASH_WRITEFILE);
     kernel->ReadFile = (BOOL (WINAPI *)(HANDLE, void *, DWORD, DWORD *, PVOID))
-        ResolveFromModuleByHash(HASH_MOD_KERNEL32, HASH_READFILE);
+        ResolveExportByHash(module, HASH_READFILE);
     kernel->PeekNamedPipe = (BOOL (WINAPI *)(HANDLE, void *, DWORD, DWORD *, DWORD *, DWORD *))
-        ResolveFromModuleByHash(HASH_MOD_KERNEL32, HASH_PEEKNAMEDPIPE);
+        ResolveExportByHash(module, HASH_PEEKNAMEDPIPE);
     kernel->CreatePipe = (BOOL (WINAPI *)(HANDLE *, HANDLE *, LPSECURITY_ATTRIBUTES, DWORD))
-        ResolveFromModuleByHash(HASH_MOD_KERNEL32, HASH_CREATEPIPE);
+        ResolveExportByHash(module, HASH_CREATEPIPE);
     kernel->GetStdHandle = (HANDLE (WINAPI *)(DWORD))
-        ResolveFromModuleByHash(HASH_MOD_KERNEL32, HASH_GETSTDHANDLE);
+        ResolveExportByHash(module, HASH_GETSTDHANDLE);
     kernel->GetLastError = (DWORD (WINAPI *)(void))
-        ResolveFromModuleByHash(HASH_MOD_KERNEL32, HASH_GETLASTERROR);
+        ResolveExportByHash(module, HASH_GETLASTERROR);
     kernel->Sleep = (void (WINAPI *)(DWORD))
-        ResolveFromModuleByHash(HASH_MOD_KERNEL32, HASH_SLEEP);
+        ResolveExportByHash(module, HASH_SLEEP);
     kernel->ExitProcess = (void (WINAPI *)(UINT32))
-        ResolveFromModuleByHash(HASH_MOD_KERNEL32, HASH_EXITPROCESS);
+        ResolveExportByHash(module, HASH_EXITPROCESS);
 
     return (kernel->GetProcAddress != NULL &&
             kernel->LoadLibraryA != NULL &&
