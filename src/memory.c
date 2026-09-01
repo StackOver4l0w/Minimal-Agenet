@@ -19,7 +19,7 @@
 
 #include "memory.h"
 
-void *memset(void *dest, int value, SIZE_T count)
+void *memset(void *dest, int value, __SIZE_TYPE__ count)
 {
     volatile unsigned char *p = (volatile unsigned char *)dest;
 

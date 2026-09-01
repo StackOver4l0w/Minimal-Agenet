@@ -22,7 +22,7 @@
 
 #define TO_LOWER_CASE(c) ((c) >= 'A' && (c) <= 'Z' ? (c) + ('a' - 'A') : (c))
 
-SIZE_T strlen(const CHAR *s) {
+__SIZE_TYPE__ strlen(const CHAR *s) {
     SIZE_T len = 0;
     while (s[len] != '\0') {
         len++;
@@ -30,7 +30,7 @@ SIZE_T strlen(const CHAR *s) {
     return len;
 }
 
-SIZE_T wcslen(const WCHAR *s) {
+__SIZE_TYPE__ wcslen(const WCHAR *s) {
     SIZE_T len = 0;
     while (s[len] != L'\0') {
         len++;
@@ -38,7 +38,7 @@ SIZE_T wcslen(const WCHAR *s) {
     return len;
 }
 
-SIZE_T strlen_w(const WCHAR *s) {
+__SIZE_TYPE__ strlen_w(const WCHAR *s) {
     return wcslen(s);
 }
 

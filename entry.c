@@ -52,18 +52,48 @@ asm(
     "   ret\n"
 );
 #elif defined(ENVIRONMENT_I386) || defined(__i386__) || defined(_M_IX86)
-__attribute__((naked))
-void __alloca(void)
-{
-    __asm__ volatile(
-        "movl 0(%esp), %ecx\n"
-        "addl $15, %eax\n"
-        "andl $-16, %eax\n"
-        "subl %eax, %esp\n"
-        "movl %esp, %eax\n"
-        "jmp *%ecx\n"
-    );
-}
+/* i386 clang emits `call __alloca` for frames over one page - the 32-bit
+ * chkstk twin. Contract (same family as the x64 probe above): EAX = byte
+ * count on entry, walk DOWN one page at a time touching each (the OS
+ * commits the guard page), SP is never moved - the caller's "sub esp"
+ * after the call does the allocation. Top-level asm, not naked+asm:
+ * llvm-mingw warns on naked C functions. */
+asm(
+    ".globl __alloca\n"
+    "__alloca:\n"
+    "   pushl %ecx\n"
+    "   pushl %eax\n"
+    "   leal 0x0c(%esp), %ecx\n"
+    "   cmpl $0x1000, %eax\n"
+    "   jb 2f\n"
+    "1:\n"
+    "   subl $0x1000, %ecx\n"
+    "   orl $0, (%ecx)\n"
+    "   subl $0x1000, %eax\n"
+    "   cmpl $0x1000, %eax\n"
+    "   ja 1b\n"
+    "2:\n"
+    "   subl %eax, %ecx\n"
+    "   orl $0, (%ecx)\n"
+    "   popl %eax\n"
+    "   popl %ecx\n"
+    "   ret\n"
+);
+#elif defined(ENVIRONMENT_ARM64) || defined(__aarch64__) || defined(_M_ARM64)
+/* aarch64 clang emits `bl __chkstk` for big frames. Windows ARM64 ABI
+ * contract: X15 = byte count on entry; probe DOWN page by page with a
+ * store (commits each guard page); SP untouched - the caller subtracts. */
+asm(
+    ".globl __chkstk\n"
+    "__chkstk:\n"
+    "   mov  x16, sp\n"
+    "   bfc  x16, #0, #12\n"
+    "1:  sub  x16, x16, #0x1000\n"
+    "   str  xzr, [x16]\n"
+    "   subs x15, x15, #0x1000\n"
+    "   b.hi 1b\n"
+    "   ret\n"
+);
 #endif
 
 #define ENTRY_ARGC_MAX 8
