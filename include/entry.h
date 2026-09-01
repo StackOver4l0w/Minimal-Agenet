@@ -6,8 +6,8 @@
  *   entry()          - the real PE entry point: zeroes .bss, builds
  *                      argv from PEB->ProcessParameters->CommandLine,
  *                      calls agent_main, exits via ExitProcess
- *   __chkstk_ms()    - the stack probe gcc emits for frames > 4 KB
- *                      (our 64 KB WebSocket buffers qualify)
+ *   __chkstk / ___chkstk_ms() - the stack-probe symbols x64 Windows emits
+ *                      for frames > 4 KB (our 64 KB WebSocket buffers qualify)
  *
  * main.c renames its main() to agent_main() - the CRT-free contract.
  */

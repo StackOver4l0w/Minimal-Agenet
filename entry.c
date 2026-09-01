@@ -15,25 +15,19 @@
 #include "environment.h"
 #include "string.h"
 
-/* --- ___chkstk_ms: the stack probe ------------------------------------
- * gcc emits `call ___chkstk_ms` (three underscores on mingw x64) in any
- * function whose frame exceeds one page - our 72 KB run_session frame
- * qualifies. Transcribed VERBATIM from libgcc's _chkstk_ms.o (the
- * canonical implementation; an earlier hand-rolled variant misread the
- * contract - size arrives in RAX, not R10 - and crashed on the first
- * big frame):
- *   - RAX = byte count needed (set by the caller's prologue)
- *   - RCX walks DOWN from lea [rsp+0x18] (two pushes + return addr),
- *     one page per step; `orq 0,(rcx)` touches the page so the OS
- *     commits the guard page and grows the stack legally
- *   - RSP is never moved: the caller's "sub rsp, rax" does the alloc */
+/* --- stack probe compatibility ----------------------------------------
+ * Modern x64 Windows toolchains can emit `__chkstk` for large stack frames,
+ * while older mingw/libgcc variants used `___chkstk_ms`. Linkers accept
+ * either name; the CRT-free build needs both to satisfy all toolchains.
+ *
+ * Contract: size arrives in RAX, RCX walks the stack downward touching page
+ * boundaries so the OS commits the guard page legally, and the caller's
+ * prologue still performs the actual frame allocation. */
 #if defined(ENVIRONMENT_x86_64) || defined(__x86_64__) || defined(_M_X64)
-/* naked functions have no prologue, but a bare asm statement needs a
- * body; a top-level asm keeps the symbol portable across gcc and clang
- * (llvm-mingw warns on naked+asm in C mode). */
-void ___chkstk_ms(void);
 asm(
+    ".globl __chkstk\n"
     ".globl ___chkstk_ms\n"
+    "__chkstk:\n"
     "___chkstk_ms:\n"
     "   pushq %rcx\n"
     "   pushq %rax\n"
@@ -42,17 +36,30 @@ asm(
     "   jb    2f\n"
     "1:\n"
     "   subq  $0x1000, %rcx\n"
-    "   orq   $0, (%rcx)\n"      /* touch: commits the guard page */
+    "   orq   $0, (%rcx)\n"
     "   subq  $0x1000, %rax\n"
     "   cmpq  $0x1000, %rax\n"
     "   ja    1b\n"
     "2:\n"
     "   subq  %rax, %rcx\n"
-    "   orq   $0, (%rcx)\n"      /* final touch at the frame bottom */
+    "   orq   $0, (%rcx)\n"
     "   popq  %rax\n"
     "   popq  %rcx\n"
     "   ret\n"
 );
+#elif defined(ENVIRONMENT_I386) || defined(__i386__) || defined(_M_IX86)
+__attribute__((naked))
+void __alloca(void)
+{
+    __asm__ volatile(
+        "movl 0(%esp), %ecx\n"
+        "addl $15, %eax\n"
+        "andl $-16, %eax\n"
+        "subl %eax, %esp\n"
+        "movl %esp, %eax\n"
+        "jmp *%ecx\n"
+    );
+}
 #endif
 
 #define ENTRY_ARGC_MAX 8
