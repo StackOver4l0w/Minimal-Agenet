@@ -1,24 +1,3 @@
-/* system.c - finding functions without an import table (see system.h).
- *
- * Two questions, two answers:
- *   WHERE is a module?   - GetModuleHandleFromPEB (peb.c) walks the
- *     loader in-memory module list and matches a name hash.
- *   WHERE is a function? - the export table walk below: the PE header
- *     of the module describes three parallel arrays (names, ordinals,
- *     addresses); find the name, follow its ordinal, read the address.
- *
- * ByName variants compare literal bytes (kept for local tooling);
- * ByHash variants compare precomputed djb2 constants (apihash.h) and
- * are what the agent uses - no name is ever stored as data.
- *
- * Guarded details that bite:
- *   - both PE32 and PE32+ optional headers (magic decides the export
- *     directory offset - 32-bit modules on 64-bit processes);
- *   - FORWARDED exports: their "address" points back INTO the export
- *     directory (it is a string like "otherdll.Func"), so anything
- *     inside the directory range is refused, not called.
- */
-
 #include "system.h"
 #include "djb2.h"
 #include "apihash.h"
@@ -38,9 +17,6 @@ static BOOL AsciiEquals(const CHAR *left, const CHAR *right)
     return (*left == '\0' && *right == '\0');
 }
 
-/* djb2 over a NARROW string - the byte-at-a-time twin of Hash()
- * (which walks WCHAR streams). Export names are narrow, module
- * names in the PEB are wide: one algorithm, two widths. */
 static UINT64 HashAscii(const CHAR *s)
 {
     UINT64 h = API_HASH_SEED;
@@ -52,7 +28,6 @@ static UINT64 HashAscii(const CHAR *s)
     }
     return h;
 }
-
 
 PVOID ResolveExportByName(PVOID moduleBase, const CHAR *exportName)
 {
@@ -109,7 +84,6 @@ PVOID ResolveExportByName(PVOID moduleBase, const CHAR *exportName)
 
         UINT32 functionRva = functions[ordinal];
 
-        /* Forwarded exports point back inside .edata and need a second lookup. */
         if (functionRva >= exportRva && functionRva < exportRva + exportSize)
             return NULL;
 
@@ -119,9 +93,6 @@ PVOID ResolveExportByName(PVOID moduleBase, const CHAR *exportName)
     return NULL;
 }
 
-/* Hash twin of ResolveExportByName: walks the export table comparing
- * precomputed constants (apihash.h) instead of literal strings - no
- * .rdata literal is consulted, so the .text-only blob survives here. */
 PVOID ResolveExportByHash(PVOID moduleBase, UINT64 exportHash)
 {
     if (moduleBase == NULL)
@@ -177,7 +148,6 @@ PVOID ResolveExportByHash(PVOID moduleBase, UINT64 exportHash)
 
         UINT32 functionRva = functions[ordinal];
 
-        /* Forwarded exports point back inside .edata and need a second lookup. */
         if (functionRva >= exportRva && functionRva < exportRva + exportSize)
             return NULL;
 
@@ -193,9 +163,6 @@ PVOID ResolveFromModuleByName(const WCHAR *moduleName, const CHAR *exportName)
     return ResolveExportByName(moduleBase, exportName);
 }
 
-/* Hash twin of ResolveFromModuleByName: module by precomputed hash
- * (apihash.h), export by precomputed hash. The resolve chain then
- * carries no string literals at all. */
 PVOID ResolveFromModuleByHash(UINT64 moduleNameHash, UINT64 exportHash)
 {
     PVOID moduleBase = GetModuleHandleFromPEB(moduleNameHash);

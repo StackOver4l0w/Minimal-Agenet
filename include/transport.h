@@ -1,40 +1,19 @@
-/* transport.h - the WebSocket pipe: send one reply, receive one command.
- *
- * WinHTTP specifics live here: the asymmetric error contract (classic
- * WinHTTP calls return BOOL + GetLastError; the WinHttpWebSocket* family
- * returns the error code directly) and the fragment/message distinction
- * (one Receive call yields one fragment; a message may span several).
- */
-
 #pragma once
 
 #include "types.h"
-#include "wintypes.h"      /* WINHTTP_WEB_SOCKET_BUFFER_TYPE (local copy) */
-#include "protocol.h"      /* MAX_MESSAGE_SIZE */
-#include "winhttp_api.h"   /* WINHTTP_API - the table this pipe calls through */
+#include "wintypes.h"
+#include "protocol.h"
+#include "winhttp_api.h"
 
-/* Returned by ws_send/ws_receive when the WinHTTP table could not be
- * resolved: nonzero per the family's direct-error-code contract, so a
- * caller that only checks "0 = success" behaves correctly. Value from
- * SDK winerror.h. */
 #define ERROR_MOD_NOT_FOUND 126
 
-/* Send one binary reply. Returns the WinHTTP error code (0 = success).
- * The WinHTTP table arrives as a parameter; run_session() owns it on
- * its frame for the whole session. */
 DWORD ws_send(const WINHTTP_API *api, HINTERNET socket, const void *data, DWORD length);
 
-/* One assembled incoming message. */
 typedef struct {
     unsigned char data[MAX_MESSAGE_SIZE];
     DWORD length;
-    BOOL truncated;               /* message exceeded MAX_MESSAGE_SIZE */
+    BOOL truncated;
     WINHTTP_WEB_SOCKET_BUFFER_TYPE type;
 } incoming_message;
 
-/* Receive and assemble one complete WebSocket message. One
- * WinHttpWebSocketReceive call yields one fragment; a message may span
- * several, and the last fragment carries the *_MESSAGE type. Returns the
- * WinHTTP error code (0 = success). If the server sent a close frame, the
- * return is 0 and *closed is set; the caller decides what to do. */
 DWORD ws_receive(const WINHTTP_API *api, HINTERNET socket, incoming_message *msg, BOOL *closed);

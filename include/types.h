@@ -4,7 +4,7 @@ typedef long long int INT64;
 typedef void* HANDLE;
 typedef unsigned long long UINT64, *PUINT64, **PPUINT64;
 typedef void* PVOID;
-/* Guarded: windows.h (local CRT tests only) defines VOID as a macro. */
+
 #ifndef VOID
 typedef void VOID;
 #endif
@@ -15,37 +15,32 @@ typedef signed short INT16, *PINT16;
 typedef signed int INT32, *PINT32;
 typedef unsigned short WCHAR, *PWCHAR, **PPWCHAR;
 
-
 #define TRUE 1
 #define FALSE 0
 
-#define NO_ERROR 0L  
+#define NO_ERROR 0L
 #define ERROR_SUCCESS 0
 
 #ifndef NULL
 #define NULL ((void *)0)
 #endif
 
-
-
 #if defined(_MSC_VER) && !defined(__clang__) && !defined(__GNUC__)
 #define COMPILER_MSVC
-#elif defined(__GNUC__) 
+#elif defined(__GNUC__)
 #define COMPILER_GCC
 #elif defined(__clang__)
 #define COMPILER_CLANG
 #endif
 
-
-// Check windows
 #if defined(COMPILER_MSVC)
 	#if defined(_WIN64)
 		#define ENVIRONMENT_x86_64
 	#else
 		#define ENVIRONMENT_I386
 	#endif
-// Check GCC
-#elif defined(COMPILER_GCC) 
+
+#elif defined(COMPILER_GCC)
 	#if defined(__aarch64__) || defined(_M_ARM64)
 		#define ENVIRONMENT_ARM64
 	#elif defined(__arm__) || defined(_M_ARM)
@@ -70,8 +65,7 @@ typedef unsigned short WCHAR, *PWCHAR, **PPWCHAR;
 	#else
 		#error Unsupported architecture
 	#endif
- #endif	
-
+ #endif
 
 #if defined(x86) || defined(_M_IX86)
 typedef unsigned int USIZE, *PUSIZE, **PPUSIZE;
@@ -91,9 +85,9 @@ DECLARE_HANDLE(HKEY);
 typedef DWORD REGSAM;
 
 #if defined(ENVIRONMENT_I386)
-typedef unsigned long ULONG_PTR;   // 32-bit
+typedef unsigned long ULONG_PTR;
 #else
-typedef unsigned long long ULONG_PTR;  // 64-bit
+typedef unsigned long long ULONG_PTR;
 #endif
 
 typedef ULONG_PTR SIZE_T, *PSIZE_T, **PPSIZE_T;
@@ -110,10 +104,10 @@ typedef long LONG;
 
 		#define WINAPI
 		#define WINAPIV
-		
+
 	#endif
 
-#elif defined(COMPILER_GCC) 
+#elif defined(COMPILER_GCC)
 
 	#if defined(ENVIRONMENT_I386)
 
@@ -122,8 +116,8 @@ typedef long LONG;
 
 	#else
 
-		#define WINAPI 
-		#define WINAPIV 
+		#define WINAPI
+		#define WINAPIV
 
 	#endif
 
@@ -138,7 +132,7 @@ typedef long LONG;
 
 		#define WINAPI
 		#define WINAPIV
-		
+
 	#endif
 
 #endif

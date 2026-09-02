@@ -1,10 +1,3 @@
-/* string.h - strings without libc.
- *
- * strlen/wcslen/strcmp reuse the C-standard names the compiler may
- * emit on its own; their signatures use __SIZE_TYPE__ so they match
- * the builtins exactly on every arch (clang warns otherwise).
- */
-
 #include "types.h"
 
 INT32 AnsiToWide(const CHAR *ansi, PWCHAR wide, INT32 wideSize);

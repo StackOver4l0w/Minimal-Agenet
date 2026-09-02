@@ -9,7 +9,6 @@ BOOL CompareEnvName(const WCHAR *wide, const CHAR *narrow)
 		WCHAR w = *wide;
 		CHAR n = *narrow;
 
-		// Convert to uppercase for comparison
 		if (w >= L'a' && w <= L'z')
 			w -= 32;
 		if (n >= 'a' && n <= 'z')
@@ -23,10 +22,8 @@ BOOL CompareEnvName(const WCHAR *wide, const CHAR *narrow)
 		narrow++;
 	}
 
-	// After name, should be '='
 	return *wide == L'=';
 }
-
 
 USIZE GetVariable(const CHAR *name, CHAR *buffer, USIZE bufferSize){
 	if(name == NULL || buffer == NULL || bufferSize == 0)
@@ -50,10 +47,10 @@ USIZE GetVariable(const CHAR *name, CHAR *buffer, USIZE bufferSize){
 
     while (*envBlock != L'\0')
 	{
-		// Check if this is the variable we're looking for
+
 		if (CompareEnvName(envBlock, name))
 		{
-			// Find the '=' and skip past it
+
 			const WCHAR *value = envBlock;
 			while (*value != L'=' && *value != L'\0')
 			{
@@ -62,13 +59,12 @@ USIZE GetVariable(const CHAR *name, CHAR *buffer, USIZE bufferSize){
 			if (*value == L'=')
 			{
 				LOG_INFO("Found variable '%s' with value starting at: %p", name, value + 1);
-				value++; // Skip the '='
+				value++;
 
-				// Copy value to buffer (convert wide to narrow)
 				USIZE len = 0;
 				while (*value != L'\0' && len < bufferSize - 1)
 				{
-					// Simple wide to narrow conversion (ASCII only)
+
 					buffer[len++] = (CHAR)*value++;
 				}
 				buffer[len] = '\0';
@@ -77,16 +73,13 @@ USIZE GetVariable(const CHAR *name, CHAR *buffer, USIZE bufferSize){
 			LOG_INFO("Variable '%s' not found in this entry", name);
 		}
 
-		// Skip to next variable
 		while (*envBlock != L'\0')
 		{
 			envBlock++;
 		}
-		envBlock++; // Skip the null terminator
+		envBlock++;
 	}
 	LOG_INFO("Variable '%s' not found in the environment block", name);
 
-	// Variable not found
 	return 0;
 }
-

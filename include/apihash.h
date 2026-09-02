@@ -1,30 +1,10 @@
-/* apihash.h — precomputed djb2 constants for module and export names.
- *
- * Same hash as djb2.c Hash(): seed API_HASH_SEED (5381, canonical djb2),
- * ASCII case-folded, one WCHAR at a time. Values below were computed
- * OFFLINE from that exact algorithm - they are plain integers in code,
- * which is the point: no string literal, no .rdata, nothing for the
- * .text-only blob to fault on.
- *
- * If a name changes, regenerate the constant with the same algorithm
- * (python one-liner in notes/STRINGS.md §3); a mismatch compiles fine
- * and fails silently at resolve time (the table lookup just misses),
- * so the values must be regenerated together with any seed change.
- *
- * Collision-checked: every name maps to a unique value. Regenerate the
- * check together with the values whenever a name is added or the seed
- * changes - a collision resolves the wrong function, silently.
- */
-
 #pragma once
 
-/* --- module names (wide, hashed as WCHAR stream) --- */
 #define HASH_MOD_KERNEL32   0xD537E9367040EE75ULL
 #define HASH_MOD_NTDLL      0x0377D2B522D3B5EDULL
 #define HASH_MOD_ADVAPI32   0xCE2F731B67208A49ULL
 #define HASH_MOD_WINHTTP    0xC0E68987920E337DULL
 
-/* --- kernel32.dll exports --- */
 #define HASH_GETPROCADDRESS     0x14F0C33182172F7FULL
 #define HASH_LOADLIBRARYA       0xD61F08830666395BULL
 #define HASH_GETCOMPUTERNAMEA   0xE523127D1F2CBC36ULL
@@ -41,17 +21,14 @@
 #define HASH_SLEEP              0x00000031105CF61EULL
 #define HASH_EXITPROCESS        0xC0870B6D024773DEULL
 
-/* --- ntdll.dll exports --- */
 #define HASH_LDRLOADDLL         0x7271C10123A21F83ULL
 #define HASH_RTLGETVERSION      0x289F6C90491E967DULL
 
-/* --- advapi32.dll exports --- */
 #define HASH_REGOPENKEYEXA      0x1E002A3EBF2387FCULL
 #define HASH_REGQUERYVALUEEXA   0xA6F7EDEE6656E1B4ULL
 #define HASH_REGCLOSEKEY        0xC0CAA2B6A73D0362ULL
 #define HASH_GETUSERNAMEA       0xD26A08034C0087C6ULL
 
-/* --- winhttp.dll exports --- */
 #define HASH_WINHTTPCRACKURL    0x7C984A139207210AULL
 #define HASH_WINHTTPWEBSOCKETSEND     0xACD5A8EC8FA70B84ULL
 #define HASH_WINHTTPWEBSOCKETRECEIVE  0x555660317AD89D5DULL

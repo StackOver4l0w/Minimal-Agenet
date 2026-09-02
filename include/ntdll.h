@@ -2,7 +2,6 @@
 #include "types.h"
 #include "wintypes.h"
 
-
 typedef struct NTDLL
 {
     NTSTATUS (WINAPI *LdrLoadDll)(
@@ -17,4 +16,3 @@ typedef struct NTDLL
 } NTDLL;
 
 BOOL NTDLL_Ctor(NTDLL* ntdll);
-

