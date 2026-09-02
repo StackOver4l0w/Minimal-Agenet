@@ -14,6 +14,14 @@ static void write_u32_le(unsigned char *buf, int *pos, unsigned value)
         buf[(*pos)++] = (unsigned char)(value >> (8 * i));
 }
 
+/* Write a 32-bit little-endian value at a FIXED offset (no cursor) - used
+ * for the v3 correlation-id echo at reply offset 4. */
+static void write_u32_le_at(unsigned char *buf, int off, unsigned value)
+{
+    for (int i = 0; i < 4; i++)
+        buf[off + i] = (unsigned char)(value >> (8 * i));
+}
+
 /* Append a 64-bit value in little-endian byte order. */
 static void write_u64_le(unsigned char *buf, int *pos,
                          unsigned long long value)

