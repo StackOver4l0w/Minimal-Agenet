@@ -19,10 +19,6 @@ __SIZE_TYPE__ wcslen(const WCHAR *s) {
     return len;
 }
 
-__SIZE_TYPE__ strlen_w(const WCHAR *s) {
-    return wcslen(s);
-}
-
 INT32 AnsiToWide(const CHAR *ansi, PWCHAR wide, INT32 wideSize) {
     if (ansi == NULL || wide == NULL || wideSize <= 0) {
         return -1;
