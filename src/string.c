@@ -100,119 +100,6 @@ void intToStr(INT32 num, PCHAR str, PINT32 index,
     }
 }
 
-void doubleToStr(double num, PCHAR str, PINT32 index, INT32 precision, INT32 width, INT32 zeroPad) {
-    BOOL isNegative = FALSE;
-
-    if (num < 0) {
-        isNegative = TRUE;
-        str[(*index)++] = '-';
-
-        union { double d; UINT64 u; } flip;
-        volatile UINT64 signbit = 1;
-        signbit <<= 63;
-        flip.d = num;
-        flip.u ^= signbit;
-        num = flip.d;
-    }
-
-    INT64 int_part = (INT64)num;
-
-    double frac_part = num - int_part;
-
-    INT32 intDigits = 0;
-    INT64 tempInt = int_part;
-
-    if (tempInt==0) {
-        intDigits = 1;
-    } else {
-        while (tempInt > 0) {
-            tempInt /= 10;
-            intDigits++;
-        }
-    }
-
-    CHAR intStr[20];
-    INT32 intIndex = 0;
-
-    if (int_part==0) {
-        intStr[intIndex++] = '0';
-    } else {
-        while (int_part > 0) {
-            intStr[intIndex++] = (CHAR)(int_part % 10 + '0');
-            int_part /= 10;
-        }
-    }
-
-    for (INT32 i = 0; i < intIndex / 2; ++i) {
-        char tmp = intStr[i];
-        intStr[i] = intStr[intIndex - 1 - i];
-        intStr[intIndex - 1 - i] = tmp;
-    }
-
-    for (INT32 i = 0; i < intIndex; ++i) {
-        str[(*index)++] = intStr[i];
-    }
-
-    if (precision > 0) {
-        str[(*index)++] = '.';
-
-        volatile UINT32 b10 = 0x41200000u;
-        float f10 = *(float *)&b10;
-        while (precision--) {
-            frac_part *= f10;
-            INT32 digit = (INT32)frac_part;
-            str[(*index)++] = (CHAR)(digit + '0');
-            frac_part -= digit;
-        }
-
-        volatile UINT32 b05 = 0x3F000000u;
-        float f0_5 = *(float *)&b05;
-        if (frac_part >= f0_5) {
-
-            INT32 last_index = *index - 1;
-            while (last_index >= 0 && str[last_index]=='9') {
-                str[last_index] = '0';
-                last_index--;
-            }
-            if (last_index >= 0) {
-                str[last_index]++;
-            }
-            else {
-
-                INT32 carry_index = *index - 1;
-                while (carry_index >= 0 && str[carry_index]=='9') {
-                    str[carry_index] = '0';
-                    carry_index--;
-                }
-
-                if (carry_index >= 0) {
-                    str[carry_index]++;
-                }
-                else {
-
-                    str[0] = '1';
-                    str[1] = '0';
-                }
-            }
-        }
-    }
-
-    INT32 totalLength = *index - (*index - 1) + precision + (isNegative ? 1 : 0);
-    INT32 padding = width - totalLength;
-
-    if (zeroPad) {
-        for (INT32 i = 0; i < padding; i++) {
-            str[(*index)++] = '0';
-        }
-    } else {
-        for (INT32 i = 0; i < padding; i++) {
-            str[(*index)++] = ' ';
-        }
-    }
-
-    str[(*index)] = '\0';
-}
-
 void uintToStr(UINT64 num, PCHAR str, PINT32 index, INT32 width, INT32 zeroPad, INT32 leftAlign) {
     CHAR rev[20];
     INT32 len = 0;
@@ -512,12 +399,6 @@ INT32 FormatV(PCHAR s, PCHAR format, va_list args) {
                     continue;
                 }
 
-                else if (TO_LOWER_CASE(format[i+1])=='f') {
-                    i += 2;
-                    long double num = va_arg(args, long double);
-                    doubleToStr(num, s, &j, precision, fieldWidth, zeroPad);
-                    continue;
-                }
                 else if (TO_LOWER_CASE(format[i+1])=='d') {
                     i += 2;
                     INT32 num = va_arg(args, INT32);
@@ -546,12 +427,6 @@ INT32 FormatV(PCHAR s, PCHAR format, va_list args) {
                     s[j++] = format[i++];
                     continue;
                 }
-            }
-            else if (TO_LOWER_CASE(format[i])=='f') {
-                i++;
-                double num = va_arg(args, double);
-                doubleToStr(num, s, &j, precision, fieldWidth, zeroPad);
-                continue;
             }
             else if (TO_LOWER_CASE(format[i])=='%') {
                 s[j++] = '%';
