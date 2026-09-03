@@ -375,8 +375,11 @@ INT32 FormatV(PCHAR s, PCHAR format, va_list args) {
                     i += 2;
                     PWCHAR wstr = va_arg(args, PWCHAR);
 
+                    WCHAR nullstr[7];
+                    nullstr[0]=L'('; nullstr[1]=L'n'; nullstr[2]=L'u';
+                    nullstr[3]=L'l'; nullstr[4]=L'l'; nullstr[5]=L')'; nullstr[6]=0;
                     if(wstr==NULL) {
-                        wstr = ((WCHAR[]){L'(',L'n',L'u',L'l',L'l',L')',L'\0'});
+                        wstr = nullstr;
                     }
                     wideToStr(wstr, s, &j, fieldWidth);
                     continue;
@@ -392,8 +395,11 @@ INT32 FormatV(PCHAR s, PCHAR format, va_list args) {
                     i += 2;
                     PWCHAR wstr = va_arg(args, PWCHAR);
 
+                    WCHAR nullstr[7];
+                    nullstr[0]=L'('; nullstr[1]=L'n'; nullstr[2]=L'u';
+                    nullstr[3]=L'l'; nullstr[4]=L'l'; nullstr[5]=L')'; nullstr[6]=0;
                     if(wstr==NULL) {
-                        wstr = ((WCHAR[]){L'(',L'n',L'u',L'l',L'l',L')',L'\0'});
+                        wstr = nullstr;
                     }
                     wideToStr(wstr, s, &j, fieldWidth);
                     continue;

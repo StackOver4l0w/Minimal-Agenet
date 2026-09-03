@@ -234,8 +234,15 @@ static int run_session(const agent_ctx *ctx, const WCHAR *url, int *long_lived)
     }
     BOOL https = (uc.nScheme == INTERNET_SCHEME_HTTPS);
 
+    WCHAR scheme[6];
+    if (https) {
+        scheme[0]=L'h'; scheme[1]=L't'; scheme[2]=L't'; scheme[3]=L'p';
+        scheme[4]=L's'; scheme[5]=0;
+    } else {
+        scheme[0]=L'h'; scheme[1]=L't'; scheme[2]=L't'; scheme[3]=L'p'; scheme[4]=0;
+    }
     LOG_INFO("Connecting to %ls://%ls%ls ... ",
-           https ? L"https" : L"http", uc.lpszHostName, uc.lpszUrlPath);
+           scheme, uc.lpszHostName, uc.lpszUrlPath);
 
     WCHAR ua_buf[18];
     StrUserAgent(ua_buf);
