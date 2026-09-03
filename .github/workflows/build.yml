@@ -150,7 +150,7 @@ jobs:
           # Diagnostic: dump sections and .rdata bytes when gate 4 is about to fail
           ${{ matrix.triple }}-objdump -h minimal_agent.exe | sed -n '1,12p'
           ${{ matrix.triple }}-objdump -s -j .rdata minimal_agent.exe || true
-          ${{ matrix.triple }}-objdump -d minimal_agent.exe | grep -E 'rip.*# (0x[0-9a-f]+)' | grep -vE "# 0x1(4|0)000[0-9a-f]{4}" | head -20
+          ${{ matrix.triple }}-objdump -d minimal_agent.exe | grep 'rip' | grep -E '# 0x14000[89ab]' | head -20
           if [ -n "$bad_refs" ]; then
             echo "FAIL: rip-relative references leave .text (blob would fault):"
             echo "$bad_refs"
