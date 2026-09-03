@@ -82,7 +82,7 @@ jobs:
               src/environment.c src/winhttp_api.c src/ntdll.c src/kernel32.c \
               src/advapi.c src/string.c src/memory.c src/peb.c src/system.c \
               src/djb2.c src/logger.c
-          ${{ matrix.triple }}-objcopy -O binary --only-section=.text minimal_agent.exe minimal_agent.bin
+          ${{ matrix.triple }}-objcopy --dump-section .text=minimal_agent.bin minimal_agent.exe
 
           imp=$(${{ matrix.triple }}-objdump -p minimal_agent.exe | grep -c 'DLL Name' || true)
           echo "imports: $imp (want 0)"
