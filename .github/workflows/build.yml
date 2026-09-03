@@ -94,7 +94,7 @@ jobs:
           # file (lld in mingw mode rejects MSVC-style /order), and it works
           # identically under GNU ld and lld.
           ${{ matrix.triple }}-gcc -O2 -s -nostdlib -Iinclude \
-              -fno-asynchronous-unwind-tables -fno-ident -fno-stack-protector -fno-jump-tables \
+              -fno-asynchronous-unwind-tables -fno-ident -fno-stack-protector -fno-jump-tables -fno-vectorize -fno-slp-vectorize \
               -e entry \
               -DID_BUILD_NUMBER="$BUILD_NUMBER" \
               -DAGENT_COMMIT_HASH="\"$COMMIT_HASH\"" \
