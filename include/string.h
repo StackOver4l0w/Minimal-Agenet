@@ -13,4 +13,3 @@ INT32 FormatV(PCHAR s, PCHAR format, va_list args);
 INT32 Format(PCHAR s, PCHAR format, ...);
 __SIZE_TYPE__ strlen(const CHAR *s);
 __SIZE_TYPE__ wcslen(const WCHAR *s);
-__SIZE_TYPE__ strlen_w(const WCHAR *s);
