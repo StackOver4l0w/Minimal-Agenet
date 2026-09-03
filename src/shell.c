@@ -6,7 +6,10 @@
 
 int shell_spawn(shell_slot *slot)
 {
-    SECURITY_ATTRIBUTES inheritable = { sizeof(inheritable), NULL, TRUE };
+    SECURITY_ATTRIBUTES inheritable;
+    inheritable.nLength = sizeof(SECURITY_ATTRIBUTES);
+    inheritable.lpSecurityDescriptor = NULL;
+    inheritable.bInheritHandle = TRUE;
     KERNEL32 kernel;
     if (!KERNEL32_Ctor(&kernel))
         return 1;
