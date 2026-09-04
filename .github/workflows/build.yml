@@ -86,13 +86,12 @@ jobs:
         run: |
           BUILD_NUMBER=$(git rev-list --count HEAD)
           COMMIT_HASH=$(git rev-parse --short=8 HEAD)
-            ENTRY_SYMBOL=entry
-            if [ "${{ matrix.arch }}" = "i386" ]; then ENTRY_SYMBOL=_entry; fi
-            printf '%s\n' "$ENTRY_SYMBOL" > link.order
+          printf 'entry\n' > link.order
           echo "=== building windows-${{ matrix.arch }} (${{ matrix.triple }}-gcc) ==="
           ${{ matrix.triple }}-gcc -O2 -s -nostdlib -Iinclude \
-              -fno-asynchronous-unwind-tables -fno-ident \
-              -Wl,/entry:$ENTRY_SYMBOL -Wl,/order:link.order \
+              -fno-asynchronous-unwind-tables -fno-ident -fno-stack-protector \
+              -Xlinker /entry:entry -Xlinker '/order:@link.order' \
+              -Xlinker '/merge:.text.startup=.text' \
               -DID_BUILD_NUMBER="$BUILD_NUMBER" \
               -DAGENT_COMMIT_HASH="\"$COMMIT_HASH\"" \
               -o relay_client.exe \
@@ -111,9 +110,13 @@ jobs:
           # Gate 2: entry() at byte 0 of .text - the blob contract.
           # (objdump -f prints "0x140001000", objdump -h prints "0000000140001000"
           # without the 0x prefix - normalize both, then compare in hex.)
-          start=$(${{ matrix.triple }}-objdump -f relay_client.exe | awk '/start address/{print $3}' | sed 's/^0x//')
-          text_vma=$(${{ matrix.triple }}-objdump -h relay_client.exe | awk '/\.text/{print $4; exit}')
-          entry_off=$(( 0x$start - 0x$text_vma ))
+          start=$(${{ matrix.triple }}-objdump -f relay_client.exe | sed -n 's/.*start address[[:space:]]*//p' | sed 's/^0x//')
+          text_vma=$(${{ matrix.triple }}-objdump -h relay_client.exe | awk '$2 == ".text" {print $4; exit}' | sed 's/^0x//')
+          test -n "$start" || { echo "FAIL: could not read PE entry address"; exit 1; }
+          test -n "$text_vma" || { echo "FAIL: could not read .text VMA"; exit 1; }
+          entry_rva=$(( 0x$start ))
+          text_rva=$(( 0x$text_vma ))
+          entry_off=$(( entry_rva - text_rva ))
           echo "entry offset in .text: $entry_off (want 0)"
           [ "$entry_off" = "0" ] || { echo "FAIL: entry() is not at .text byte 0"; exit 1; }
 
