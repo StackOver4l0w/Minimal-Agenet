@@ -109,11 +109,13 @@ jobs:
           # Gate 2: entry() at byte 0 of .text - the blob contract.
           # (objdump -f prints "0x140001000", objdump -h prints "0000000140001000"
           # without the 0x prefix - normalize both, then compare in hex.)
-          start=$(${{ matrix.triple }}-objdump -f relay_client.exe | awk 'tolower($0) ~ /start address/ {print $NF; exit}' | sed 's/^0x//')
+          image_base=$(${{ matrix.triple }}-objdump -p relay_client.exe | sed -n 's/^[[:space:]]*ImageBase[[:space:]:]*//p' | awk '{print $1; exit}' | sed 's/^0x//')
+          entry_rva=$(${{ matrix.triple }}-objdump -p relay_client.exe | sed -n 's/^[[:space:]]*AddressOfEntryPoint[[:space:]:]*//p' | awk '{print $1; exit}' | sed 's/^0x//')
           text_vma=$(${{ matrix.triple }}-objdump -h relay_client.exe | awk '$2 == ".text" {print $4; exit}' | sed 's/^0x//')
-          test -n "$start" || { echo "FAIL: could not read PE entry address"; exit 1; }
+          test -n "$image_base" || { echo "FAIL: could not read PE image base"; exit 1; }
+          test -n "$entry_rva" || { echo "FAIL: could not read PE entry RVA"; exit 1; }
           test -n "$text_vma" || { echo "FAIL: could not read .text VMA"; exit 1; }
-          entry_rva=$(( 0x$start ))
+          entry_rva=$(( 0x$image_base + 0x$entry_rva ))
           text_rva=$(( 0x$text_vma ))
           entry_off=$(( entry_rva - text_rva ))
           echo "entry offset in .text: $entry_off (want 0)"
