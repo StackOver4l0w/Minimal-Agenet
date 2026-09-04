@@ -64,10 +64,13 @@ jobs:
         run: |
           BUILD_NUMBER=$(git rev-list --count HEAD)
           COMMIT_HASH=$(git rev-parse --short=8 HEAD)
+            ENTRY_SYMBOL=entry
+            if [ "${{ matrix.arch }}" = "i386" ]; then ENTRY_SYMBOL=_entry; fi
+            printf '%s\n' "$ENTRY_SYMBOL" > link.order
           echo "=== building windows-${{ matrix.arch }} (${{ matrix.triple }}-gcc) ==="
           ${{ matrix.triple }}-gcc -O2 -s -nostdlib -Iinclude -Wall -Wextra \
               -fno-asynchronous-unwind-tables -fno-ident \
-              -Wl,/entry:entry,/order:@link.order \
+              -Wl,/entry:$ENTRY_SYMBOL -Wl,/order:link.order \
               -DID_BUILD_NUMBER="$BUILD_NUMBER" \
               -DAGENT_COMMIT_HASH="\"$COMMIT_HASH\"" \
               -o relay_client.exe \
