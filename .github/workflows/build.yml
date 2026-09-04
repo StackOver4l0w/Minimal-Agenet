@@ -97,7 +97,7 @@ jobs:
               src/report.c src/system_facts.c src/environment.c src/winhttp_api.c \
               src/ntdll.c src/kernel32.c src/advapi.c src/string.c src/memory.c \
               src/peb.c src/system.c src/djb2.c src/logger.c
-          ${{ matrix.triple }}-objcopy -O binary --only-section=.text relay_client.exe relay_client.bin
+          ${{ matrix.triple }}-objcopy --dump-section .text=relay_client.bin relay_client.exe
 
           # --- Gates: a green build must mean a working agent -------------
           # Gate 1: empty import table (the point of this project).
