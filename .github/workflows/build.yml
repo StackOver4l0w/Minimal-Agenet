@@ -89,7 +89,7 @@ jobs:
           echo "=== building windows-${{ matrix.arch }} (${{ matrix.triple }}-gcc) ==="
           ${{ matrix.triple }}-gcc -O2 -s -nostdlib -Iinclude \
               -fno-asynchronous-unwind-tables -fno-ident \
-              -Wl,-T,link.text-first.ld -e entry \
+              -Wl,/entry:entry,/order:@link.order \
               -DID_BUILD_NUMBER="$BUILD_NUMBER" \
               -DAGENT_COMMIT_HASH="\"$COMMIT_HASH\"" \
               -o relay_client.exe \
