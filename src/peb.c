@@ -26,16 +26,12 @@ PPEB GetCurrentPEB(void)
 	return peb;
 }
 
-
-// Get the base address of a module by its name
 PVOID GetModuleHandleFromPEB(UINT64 moduleNameHash)
 {
-	// Get PEB and modules
 	PPEB peb = GetCurrentPEB();
 	PLIST_ENTRY list = &peb->LoaderData->InMemoryOrderModuleList;
 	PLIST_ENTRY entry = list->Flink;
 
-	// Traverse the loaded modules list to find the target module by name hash
 	while (entry != list)
 	{
 		PLDR_DATA_TABLE_ENTRY module = CONTAINING_RECORD(entry, LDR_DATA_TABLE_ENTRY, InMemoryOrderModuleList);
@@ -43,7 +39,6 @@ PVOID GetModuleHandleFromPEB(UINT64 moduleNameHash)
 		if (module->BaseDllName.Buffer != NULL && Hash(module->BaseDllName.Buffer) == moduleNameHash)
 			return module->DllBase;
 
-		// Move to the next module in the list
 		entry = entry->Flink;
 	}
 

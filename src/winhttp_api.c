@@ -1,45 +1,26 @@
-/* winhttp_api.c - the constructor behind winhttp_api.h.
- *
- * Bootstrap: with every WinHTTP call resolved at runtime, the exe no
- * longer imports winhttp.dll - so the loader never maps it and there
- * is nothing in the PEB list to walk. The Ctor asks the loader itself:
- * ntdll.dll is mapped in every process (it IS the loader), its
- * LdrLoadDll export maps winhttp.dll for us, and only then does the
- * table resolve. One ResolveFromModuleByName per member afterwards -
- * exactly the kernel32.c / ntdll.c pattern of this codebase.
- */
-
 #include "winhttp_api.h"
 #include "system.h"
-#include "peb.h"
 #include "ntdll.h"
-#include "djb2.h"
 #include "apihash.h"
 #include "stackstrings.h"
 
-/* Make sure winhttp.dll is mapped; return its base (NULL on failure). */
 static PVOID map_winhttp(void)
 {
-    /* Already loaded? (Some other component may have pulled it in.) */
+
     PVOID base = GetModuleHandleFromPEB(HASH_MOD_WINHTTP);
     if (base != NULL)
         return base;
 
-    /* Resolve LdrLoadDll from ntdll - the module itself must come from
-     * the PEB walk; its name cannot be hashed before it is found. */
     NTDLL ntdll;
     if (!NTDLL_Ctor(&ntdll) || ntdll.LdrLoadDll == NULL)
         return NULL;
 
-    /* The loader needs REAL bytes for the name (a hash cannot be passed
-     * to LdrLoadDll), so this one string is built on the stack -
-     * single-pass XOR writes, no .rdata literal (stackstrings.h). */
     WCHAR nameBuf[12];
     StrWinhttp(nameBuf);
 
     UNICODE_STRING name;
-    name.Length        = STRLEN_BYTES_WINHTTP;      /* 11 chars * 2 */
-    name.MaximumLength = STRLEN_BYTES_WINHTTP + 2;  /* + NUL         */
+    name.Length        = STRLEN_BYTES_WINHTTP;
+    name.MaximumLength = STRLEN_BYTES_WINHTTP + 2;
     name.Buffer        = nameBuf;
 
     PVOID loaded = NULL;

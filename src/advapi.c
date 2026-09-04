@@ -1,10 +1,3 @@
-/* advapi.c - the advapi32 function table (see advapi.h).
- *
- * Registry reads for the machine UUID and the logged-on user name.
- * NOTE: advapi32 is NOT mapped in a bare console process - the table
- * only resolves after someone loaded it (the identity path does).
- */
-
 #include "advapi.h"
 #include "system.h"
 #include "apihash.h"

