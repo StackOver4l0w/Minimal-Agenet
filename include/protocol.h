@@ -30,12 +30,6 @@
 #define ID_BUILD_NUMBER         1
 #endif
 
-#define CAPABILITY_MASK         1
-
-#define AGENT_API_VERSION       1
-
-#define AGENT_NAME_ID           4
-
 #define SHELL_POOL_SIZE         256
 #define SHELL_READ_CHUNK        65536
 

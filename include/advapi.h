@@ -1,8 +1,8 @@
 #include "types.h"
 
-#define HKEY_LOCAL_MACHINE                  ((HKEY)(ULONG_PTR)0x80000002u)
-#define KEY_QUERY_VALUE 0x0001
-#define REG_SZ 1
+#define HKEY_LOCAL_MACHINE   ((HKEY)(ULONG_PTR)0x80000002u)
+#define KEY_QUERY_VALUE      0x0001
+#define REG_SZ                1
 
 typedef struct ADVAPI{
     LSTATUS (WINAPI *RegOpenKeyExA)(HKEY hKey, const PCHAR lpSubKey, DWORD ulOptions, REGSAM samDesired, HKEY* phkResult);

@@ -1,6 +1,5 @@
 #include "environment.h"
 #include "peb.h"
-#include "logger.h"
 
 BOOL CompareEnvName(const WCHAR *wide, const CHAR *narrow)
 {
@@ -32,7 +31,6 @@ USIZE GetVariable(const CHAR *name, CHAR *buffer, USIZE bufferSize){
 	buffer[0] = '\0';
 
     PPEB peb = GetCurrentPEB();
-	LOG_INFO("PEb is here: %p", peb);
     if(peb == NULL || peb->ProcessParameters == NULL)
         return 0;
 
@@ -40,17 +38,12 @@ USIZE GetVariable(const CHAR *name, CHAR *buffer, USIZE bufferSize){
 	PWCHAR envBlock = params->Environment;
 
 	if (envBlock == NULL)
-	{
-		LOG_INFO("Environment block is NULL");
 		return 0;
-	}
 
     while (*envBlock != L'\0')
 	{
-
 		if (CompareEnvName(envBlock, name))
 		{
-
 			const WCHAR *value = envBlock;
 			while (*value != L'=' && *value != L'\0')
 			{
@@ -58,19 +51,16 @@ USIZE GetVariable(const CHAR *name, CHAR *buffer, USIZE bufferSize){
 			}
 			if (*value == L'=')
 			{
-				LOG_INFO("Found variable '%s' with value starting at: %p", name, value + 1);
-				value++;
+			    value++;
 
 				USIZE len = 0;
 				while (*value != L'\0' && len < bufferSize - 1)
 				{
-
 					buffer[len++] = (CHAR)*value++;
 				}
 				buffer[len] = '\0';
 				return len;
 			}
-			LOG_INFO("Variable '%s' not found in this entry", name);
 		}
 
 		while (*envBlock != L'\0')
@@ -79,7 +69,5 @@ USIZE GetVariable(const CHAR *name, CHAR *buffer, USIZE bufferSize){
 		}
 		envBlock++;
 	}
-	LOG_INFO("Variable '%s' not found in the environment block", name);
-
 	return 0;
 }

@@ -22,11 +22,6 @@ typedef struct _LDR_DATA_TABLE_ENTRY
 	UINT32 SizeOfImage;
 	UNICODE_STRING FullDllName;
 	UNICODE_STRING BaseDllName;
-	UINT32 Flags;
-	INT16 LoadCount;
-	INT16 TlsIndex;
-	LIST_ENTRY HashTableEntry;
-	UINT32 TimeDateStamp;
 } LDR_DATA_TABLE_ENTRY, *PLDR_DATA_TABLE_ENTRY;
 
 typedef struct _RTL_USER_PROCESS_PARAMETERS
@@ -55,7 +50,6 @@ typedef struct _PEB_LDR_DATA
 	PVOID SsHandle;
 	LIST_ENTRY InLoadOrderModuleList;
 	LIST_ENTRY InMemoryOrderModuleList;
-	LIST_ENTRY InInitializationOrderModuleList;
 } PEB_LDR_DATA, *PPEB_LDR_DATA;
 
 typedef struct _PEB
@@ -68,8 +62,6 @@ typedef struct _PEB
 	PVOID ImageBase;
 	PPEB_LDR_DATA LoaderData;
 	PRTL_USER_PROCESS_PARAMETERS ProcessParameters;
-	PVOID SubSystemData;
-	PVOID ProcessHeap;
 } PEB, *PPEB;
 
 typedef struct _RTL_USER_PROCESS_PARAMETERS_EX

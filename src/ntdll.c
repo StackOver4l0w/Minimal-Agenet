@@ -1,5 +1,4 @@
 #include "ntdll.h"
-#include "djb2.h"
 #include "peb.h"
 #include "system.h"
 #include "apihash.h"

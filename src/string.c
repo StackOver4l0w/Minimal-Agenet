@@ -571,10 +571,10 @@ INT32 FormatV(PCHAR s, PCHAR format, va_list args) {
     return j;
 }
 
-INT32 Format(PCHAR s, PCHAR format, ...) {
-    va_list args;
-    va_start(args, format);
-    INT32 len = FormatV(s, format, args);
-    va_end(args);
-    return len;
-}
+// INT32 Format(PCHAR s, PCHAR format, ...) {
+//     va_list args;
+//     va_start(args, format);
+//     INT32 len = FormatV(s, format, args);
+//     va_end(args);
+//     return len;
+// }

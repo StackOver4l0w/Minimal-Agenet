@@ -5,7 +5,7 @@
 #include "system.h"
 #include "wintypes.h"
 
-#define CREATE_NO_WINDOW 0x08000000
+#define CREATE_NO_WINDOW       0x08000000
 #define HANDLE_FLAG_INHERIT    0x00000001
 #define STARTF_USESTDHANDLES   0x00000100
 

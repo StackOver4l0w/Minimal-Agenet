@@ -1,8 +1,5 @@
 #include "entry.h"
-#include "peb.h"
 #include "kernel32.h"
-#include "memory.h"
-#include "system.h"
 #include "logger.h"
 #include "environment.h"
 #include "string.h"
@@ -69,8 +66,6 @@ asm(
     "   ret\n"
 );
 #endif
-
-#define ENTRY_ARGC_MAX 8
 
 __attribute__((section(".text.startup"), used))
 void entry(void)

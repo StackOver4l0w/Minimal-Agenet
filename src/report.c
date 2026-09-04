@@ -1,12 +1,7 @@
 #include "report.h"
 #include "types.h"
-#include "peb.h"
-#include "djb2.h"
 #include "logger.h"
 
-#ifndef LOGGING_ENABLED
-
-#else
 
 const char *ws_buffer_type_name(WINHTTP_WEB_SOCKET_BUFFER_TYPE type)
 {
@@ -178,51 +173,3 @@ void print_command(int index, const incoming_message *msg)
 
 }
 
-void print_identity_frame(const unsigned char frame[IDENTITY_FRAME_SIZE],
-                          int frame_len)
-{
-
-    unsigned status = frame[0]  | (frame[1]  << 8) |
-                      (frame[2] << 16) | ((unsigned)frame[3]  << 24);
-    unsigned api    = frame[4]  | (frame[5]  << 8) |
-                      (frame[6] << 16) | ((unsigned)frame[7]  << 24);
-    unsigned breed  = frame[8]  | (frame[9]  << 8) |
-                      (frame[10]<< 16) | ((unsigned)frame[11] << 24);
-    unsigned build  = frame[21]| (frame[22] << 8) |
-                      (frame[23]<< 16) | ((unsigned)frame[24] << 24);
-    unsigned is64   = frame[25];
-
-    LOG_INFO("[<] Identity frame (%d bytes):\n", frame_len);
-    LOG_INFO("    api     = %u, breed = %u (0=PIA, 1=this agent)\n", api, breed);
-    LOG_INFO("    status  = %u\n", status);
-    LOG_INFO("    uuid    = ");
-    for (int i = 0; i < 16; i++) {
-        LOG_INFO("%02x", frame[4 + i]);
-        if (i == 3 || i == 5 || i == 7 || i == 9) LOG_INFO("-");
-    }
-    LOG_INFO("  (machine, .NET Guid order)\n");
-    LOG_INFO("    host    = \"%s\"\n", (const char *)(frame + 20));
-    LOG_INFO("    user    = \"%s\"\n", (const char *)(frame + 276));
-    LOG_INFO("    arch    = \"%s\"\n", (const char *)(frame + 532));
-    LOG_INFO("    platform= \"%s\"\n", (const char *)(frame + 564));
-    LOG_INFO("    os      = \"%s\"\n", (const char *)(frame + 596));
-    LOG_INFO("    build   = %u, commit = \"%s\", api = %u, 64-bit = %u\n",
-           build, (const char *)(frame + 728), api, is64);
-    LOG_INFO("    mask    = ");
-    for (int i = 0; i < 8; i++)
-        LOG_INFO("%02x ", frame[742 + i]);
-    LOG_INFO("(categories: %s%s%s)\n",
-           (frame[742] & 1) ? "FileSystem " : "",
-           (frame[742] & 2) ? "Shell " : "",
-           (frame[742] & 4) ? "Display" : "");
-    if ((frame[742] & 7) == 0)
-        LOG_INFO("            (information-only agent)\n");
-
-    DWORD dump_len = (frame_len < HEXDUMP_LIMIT) ? (DWORD)frame_len
-                                                 : HEXDUMP_LIMIT;
-    hex_dump(frame, dump_len);
-    if ((DWORD)frame_len > dump_len)
-        LOG_INFO("    ... (%d more bytes not dumped)\n", frame_len - (int)dump_len);
-}
-
-#endif

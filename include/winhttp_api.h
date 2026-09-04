@@ -4,17 +4,12 @@
 #include "wintypes.h"
 
 #define WINHTTP_ACCESS_TYPE_DEFAULT_PROXY 0
-#define WINHTTP_FLAG_BYPASS_PROXY_CACHE   0x0100
-#define WINHTTP_FLAG_REFRESH              WINHTTP_FLAG_BYPASS_PROXY_CACHE
+#define WINHTTP_FLAG_REFRESH              0x0100
 #define WINHTTP_FLAG_SECURE               0x00800000
 #define WINHTTP_OPTION_UPGRADE_TO_WEB_SOCKET 114
 
-#define WINHTTP_NO_PROXY_NAME             NULL
-#define WINHTTP_NO_PROXY_BYPASS           NULL
-#define WINHTTP_NO_REFERER                NULL
-#define WINHTTP_DEFAULT_ACCEPT_TYPES      NULL
-#define WINHTTP_NO_ADDITIONAL_HEADERS     NULL
-#define WINHTTP_NO_REQUEST_DATA           NULL
+#define INTERNET_SCHEME_HTTP               1
+#define INTERNET_SCHEME_HTTPS              2
 
 typedef struct _URL_COMPONENTS
 {
@@ -35,8 +30,6 @@ typedef struct _URL_COMPONENTS
     DWORD           dwExtraInfoLength;
 } URL_COMPONENTS;
 
-#define INTERNET_SCHEME_HTTP               1
-#define INTERNET_SCHEME_HTTPS              2
 
 typedef struct WINHTTP_API
 {

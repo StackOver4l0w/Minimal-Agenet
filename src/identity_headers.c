@@ -1,13 +1,6 @@
 #include "identity_headers.h"
 #include "stackstrings.h"
-#include "string.h"
-#include "memory.h"
-#include "peb.h"
-#include "ntdll.h"
-#include "kernel32.h"
 #include "advapi.h"
-#include "wintypes.h"
-#include "system.h"
 
 typedef struct {
     CHAR *cur;
@@ -54,15 +47,13 @@ static int read_machine_guid_text(CHAR guid_text[40])
     StrMachineGuid(guidname);
 
     DWORD size = 39;
-    if (advapi.RegOpenKeyExA(HKEY_LOCAL_MACHINE, regpath, 0,
-                             KEY_QUERY_VALUE, &key) != ERROR_SUCCESS)
+    if (advapi.RegOpenKeyExA(HKEY_LOCAL_MACHINE, regpath, 0,KEY_QUERY_VALUE, &key) != ERROR_SUCCESS)
         return 0;
 
     DWORD type = 0;
     BOOL ok = advapi.RegQueryValueExA(key, guidname, NULL, &type,
                                       (unsigned char *)guid_text,
-                                      &size) == ERROR_SUCCESS
-              && type == REG_SZ;
+                                      &size) == ERROR_SUCCESS && type == REG_SZ;
     advapi.RegCloseKey(key);
     return ok && guid_text[0] != '\0' ? 1 : 0;
 }

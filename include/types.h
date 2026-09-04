@@ -2,18 +2,17 @@
 typedef  long unsigned int DWORD;
 typedef long long int INT64;
 typedef void* HANDLE;
-typedef unsigned long long UINT64, *PUINT64, **PPUINT64;
+typedef unsigned long long UINT64, *PUINT64;
 typedef void* PVOID;
 
 #ifndef VOID
 typedef void VOID;
 #endif
-typedef unsigned int UINT32, *PUINT32, **PPUINT32;
-typedef unsigned short UINT16, *PUINT16, **PPUINT16;
-typedef unsigned char UINT8, *PUINT8, **PPUINT8;
-typedef signed short INT16, *PINT16;
+typedef unsigned int UINT32, *PUINT32;
+typedef unsigned short UINT16, *PUINT16;
+typedef unsigned char UINT8, *PUINT8;
 typedef signed int INT32, *PINT32;
-typedef unsigned short WCHAR, *PWCHAR, **PPWCHAR;
+typedef unsigned short WCHAR, *PWCHAR;
 
 #define TRUE 1
 #define FALSE 0
@@ -68,11 +67,11 @@ typedef unsigned short WCHAR, *PWCHAR, **PPWCHAR;
  #endif
 
 #if defined(x86) || defined(_M_IX86)
-typedef unsigned int USIZE, *PUSIZE, **PPUSIZE;
+typedef unsigned int USIZE, *PUSIZE;
 #else
-typedef unsigned long long USIZE, *PUSIZE, **PPUSIZE;
+typedef unsigned long long USIZE, *PUSIZE;
 #endif
-typedef char CHAR, *PCHAR, **PPCHAR;
+typedef char CHAR, *PCHAR;
 typedef PVOID HINTERNET;
 typedef int BOOL;
 typedef long NTSTATUS;
@@ -90,8 +89,7 @@ typedef unsigned long ULONG_PTR;
 typedef unsigned long long ULONG_PTR;
 #endif
 
-typedef ULONG_PTR SIZE_T, *PSIZE_T, **PPSIZE_T;
-typedef long LONG;
+typedef ULONG_PTR SIZE_T;
 
 #if defined(COMPILER_MSVC)
 
@@ -103,7 +101,6 @@ typedef long LONG;
 	#else
 
 		#define WINAPI
-		#define WINAPIV
 
 	#endif
 
@@ -112,7 +109,6 @@ typedef long LONG;
 	#if defined(ENVIRONMENT_I386)
 
 		#define WINAPI  __stdcall
-		#define WINAPIV __cdecl
 
 	#else
 
@@ -126,7 +122,6 @@ typedef long LONG;
 	#if defined(ENVIRONMENT_I386)
 
 	#define WINAPI  __attribute__((stdcall))
-	#define WINAPIV  __attribute__((cdecl))
 
 	#else
 

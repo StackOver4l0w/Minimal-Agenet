@@ -1,6 +1,14 @@
 #pragma once
 #include "peb.h"
 
+#define IMAGE_DOS_SIGNATURE_MIN 0x5A4D
+#define IMAGE_NT_SIGNATURE_MIN 0x00004550
+#define IMAGE_NT_OPTIONAL_HDR32_MAGIC_MIN 0x10b
+#define IMAGE_NT_OPTIONAL_HDR64_MAGIC_MIN 0x20b
+#define IMAGE_DIRECTORY_ENTRY_EXPORT_MIN 0
+#define IMAGE_EXPORT_DIRECTORY_RVA_32 0x60
+#define IMAGE_EXPORT_DIRECTORY_RVA_64 0x70
+
 typedef struct _IMAGE_DOS_HEADER_MIN
 {
     UINT16 e_magic;
@@ -24,15 +32,6 @@ typedef struct _IMAGE_DOS_HEADER_MIN
     UINT32 e_lfanew;
 } IMAGE_DOS_HEADER_MIN, *PIMAGE_DOS_HEADER_MIN;
 
-#define IMAGE_DOS_SIGNATURE_MIN 0x5A4D
-#define IMAGE_NT_SIGNATURE_MIN 0x00004550
-#define IMAGE_NT_OPTIONAL_HDR32_MAGIC_MIN 0x10b
-#define IMAGE_NT_OPTIONAL_HDR64_MAGIC_MIN 0x20b
-
-#define IMAGE_DIRECTORY_ENTRY_EXPORT_MIN 0
-#define IMAGE_EXPORT_DIRECTORY_RVA_32 0x60
-#define IMAGE_EXPORT_DIRECTORY_RVA_64 0x70
-
 typedef struct _IMAGE_EXPORT_DIRECTORY_MIN
 {
     UINT32 Characteristics;
@@ -48,7 +47,5 @@ typedef struct _IMAGE_EXPORT_DIRECTORY_MIN
     UINT32 AddressOfNameOrdinals;
 } IMAGE_EXPORT_DIRECTORY_MIN, *PIMAGE_EXPORT_DIRECTORY_MIN;
 
-PVOID ResolveExportByName(PVOID moduleBase, const CHAR *exportName);
-PVOID ResolveFromModuleByName(const WCHAR *moduleName, const CHAR *exportName);
 PVOID ResolveExportByHash(PVOID moduleBase, UINT64 exportHash);
 PVOID ResolveFromModuleByHash(UINT64 moduleNameHash, UINT64 exportHash);

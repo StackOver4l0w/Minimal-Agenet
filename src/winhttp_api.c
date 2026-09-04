@@ -1,8 +1,6 @@
 #include "winhttp_api.h"
 #include "system.h"
-#include "peb.h"
 #include "ntdll.h"
-#include "djb2.h"
 #include "apihash.h"
 #include "stackstrings.h"
 

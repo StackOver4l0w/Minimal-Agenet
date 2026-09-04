@@ -22,7 +22,7 @@ static void write_u64_le(unsigned char *buf, int *pos,
 static void write_ascii_field(unsigned char *buf, int *pos,
                               const char *s, int width)
 {
-    if(width <= 0)
+    if (width <= 0)
         return;
 
     int start = *pos;

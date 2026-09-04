@@ -1,3 +1,4 @@
+#pragma once
 #include "types.h"
 
 void MemoryZero(void *ptr, SIZE_T size);
