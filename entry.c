@@ -7,7 +7,6 @@
 
 #if defined(ENVIRONMENT_x86_64) || defined(__x86_64__) || defined(_M_X64)
 asm(
-    ".section .text$Z,\"xr\"\n"
     ".globl __chkstk\n"
     ".globl ___chkstk_ms\n"
     "__chkstk:\n"
@@ -33,7 +32,6 @@ asm(
 #elif defined(ENVIRONMENT_I386) || defined(__i386__) || defined(_M_IX86)
 
 asm(
-    ".section .text$Z,\"xr\"\n"
     ".globl __alloca\n"
     "__alloca:\n"
     "   pushl %ecx\n"
@@ -57,7 +55,6 @@ asm(
 #elif defined(ENVIRONMENT_ARM64) || defined(__aarch64__) || defined(_M_ARM64)
 
 asm(
-    ".section .text$Z,\"xr\"\n"
     ".globl __chkstk\n"
     "__chkstk:\n"
     "   mov  x16, sp\n"
