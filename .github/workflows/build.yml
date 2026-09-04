@@ -80,8 +80,8 @@ jobs:
       #   2. The .bin is cut with --only-section=.text: plain -O binary
       #      copies the whole PE image, so the blob starts with the "MZ"
       #      header and entry is NOT at offset 0 - any loader jumps to
-      #      garbage. entry.c puts entry() directly in .text and is the first
-      #      linker input; verify below.
+      #      garbage. entry.c puts entry() in the lexically first .text$A
+      #      subsection; verify below.
       - name: Build
         run: |
           BUILD_NUMBER=$(git rev-list --count HEAD)
