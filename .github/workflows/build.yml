@@ -80,17 +80,16 @@ jobs:
       #   2. The .bin is cut with --only-section=.text: plain -O binary
       #      copies the whole PE image, so the blob starts with the "MZ"
       #      header and entry is NOT at offset 0 - any loader jumps to
-      #      garbage. The linker script puts entry() at byte 0 of .text;
-      #      verify below.
+      #      garbage. The link merges .text.startup into .text with entry.c
+      #      first; verify below.
       - name: Build
         run: |
           BUILD_NUMBER=$(git rev-list --count HEAD)
           COMMIT_HASH=$(git rev-parse --short=8 HEAD)
-          printf 'entry\n' > link.order
           echo "=== building windows-${{ matrix.arch }} (${{ matrix.triple }}-gcc) ==="
           ${{ matrix.triple }}-gcc -O2 -s -nostdlib -Iinclude \
               -fno-asynchronous-unwind-tables -fno-ident -fno-stack-protector \
-              -Xlinker /entry:entry -Xlinker '/order:@link.order' \
+              -Xlinker /entry:entry \
               -Xlinker '/merge:.text.startup=.text' \
               -DID_BUILD_NUMBER="$BUILD_NUMBER" \
               -DAGENT_COMMIT_HASH="\"$COMMIT_HASH\"" \
@@ -110,7 +109,7 @@ jobs:
           # Gate 2: entry() at byte 0 of .text - the blob contract.
           # (objdump -f prints "0x140001000", objdump -h prints "0000000140001000"
           # without the 0x prefix - normalize both, then compare in hex.)
-          start=$(${{ matrix.triple }}-objdump -f relay_client.exe | sed -n 's/.*start address[[:space:]]*//p' | sed 's/^0x//')
+          start=$(${{ matrix.triple }}-objdump -f relay_client.exe | awk 'tolower($0) ~ /start address/ {print $NF; exit}' | sed 's/^0x//')
           text_vma=$(${{ matrix.triple }}-objdump -h relay_client.exe | awk '$2 == ".text" {print $4; exit}' | sed 's/^0x//')
           test -n "$start" || { echo "FAIL: could not read PE entry address"; exit 1; }
           test -n "$text_vma" || { echo "FAIL: could not read .text VMA"; exit 1; }
