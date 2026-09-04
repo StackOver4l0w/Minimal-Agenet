@@ -66,7 +66,7 @@ jobs:
           COMMIT_HASH=$(git rev-parse --short=8 HEAD)
           echo "=== building windows-${{ matrix.arch }} (${{ matrix.triple }}-gcc) ==="
           ${{ matrix.triple }}-gcc -O2 -s -nostdlib -Iinclude -Wall -Wextra \
-              -fno-asynchronous-unwind-tables -fno-shrink-wrap -fno-ident \
+              -fno-asynchronous-unwind-tables -fno-ident \
               -Wl,-T,link.text-first.ld -e entry \
               -DID_BUILD_NUMBER="$BUILD_NUMBER" \
               -DAGENT_COMMIT_HASH="\"$COMMIT_HASH\"" \
