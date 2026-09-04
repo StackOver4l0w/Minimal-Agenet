@@ -67,7 +67,7 @@ asm(
 );
 #endif
 
-__attribute__((section(".text.startup"), used))
+__attribute__((section(".text"), used))
 void entry(void)
 {
     KERNEL32 entry_k32;

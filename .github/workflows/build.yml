@@ -80,8 +80,8 @@ jobs:
       #   2. The .bin is cut with --only-section=.text: plain -O binary
       #      copies the whole PE image, so the blob starts with the "MZ"
       #      header and entry is NOT at offset 0 - any loader jumps to
-      #      garbage. The link merges .text.startup into .text with entry.c
-      #      first; verify below.
+      #      garbage. entry.c puts entry() directly in .text and is the first
+      #      linker input; verify below.
       - name: Build
         run: |
           BUILD_NUMBER=$(git rev-list --count HEAD)
@@ -90,7 +90,6 @@ jobs:
           ${{ matrix.triple }}-gcc -O2 -s -nostdlib -Iinclude \
               -fno-asynchronous-unwind-tables -fno-ident -fno-stack-protector \
               -Xlinker /entry:entry \
-              -Xlinker '/merge:.text.startup=.text' \
               -DID_BUILD_NUMBER="$BUILD_NUMBER" \
               -DAGENT_COMMIT_HASH="\"$COMMIT_HASH\"" \
               -o relay_client.exe \

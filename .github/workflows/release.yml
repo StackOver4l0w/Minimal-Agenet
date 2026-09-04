@@ -68,7 +68,6 @@ jobs:
           ${{ matrix.triple }}-gcc -O2 -s -nostdlib -Iinclude -Wall -Wextra \
               -fno-asynchronous-unwind-tables -fno-ident -fno-stack-protector \
               -Xlinker /entry:entry \
-              -Xlinker '/merge:.text.startup=.text' \
               -DID_BUILD_NUMBER="$BUILD_NUMBER" \
               -DAGENT_COMMIT_HASH="\"$COMMIT_HASH\"" \
               -o relay_client.exe \
