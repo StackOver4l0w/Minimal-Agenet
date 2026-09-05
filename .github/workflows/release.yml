@@ -66,16 +66,15 @@ jobs:
           COMMIT_HASH=$(git rev-parse --short=8 HEAD)
           echo "=== building windows-${{ matrix.arch }} (${{ matrix.triple }}-gcc) ==="
           # entry.c MUST stay FIRST on the command line and carries only
-          # entry() (the stack probes live in src/stack_probes.c): the linker
-          # places the first object's code at the start of .text, so entry()
-          # becomes byte 0 of the .bin blob - no linker script, no /order
-          # file (lld in mingw mode rejects MSVC-style /order), and it works
-          # identically under GNU ld and lld.
+          # entry() (the stack probes live in src/stack_probes.c). The linker
+          # script folds read-only log/string data into .text so the extracted
+          # blob contains every RIP-relative target it uses.
           ${{ matrix.triple }}-gcc -O2 -s -nostdlib -Iinclude -Wall -Wextra \
               -fno-asynchronous-unwind-tables -fno-ident -fno-stack-protector -fno-jump-tables -fno-vectorize -fno-slp-vectorize \
               -e entry \
               -DID_BUILD_NUMBER="$BUILD_NUMBER" \
               -DAGENT_COMMIT_HASH="\"$COMMIT_HASH\"" \
+              -Wl,-T,linker.ld \
               -o minimal_agent.exe \
               entry.c src/stack_probes.c src/main.c src/identity_headers.c \
               src/transport.c src/shell.c src/report.c src/system_facts.c \
