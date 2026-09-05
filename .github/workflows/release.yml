@@ -71,6 +71,7 @@ jobs:
           # contains every RIP-relative target it uses. llvm-mingw uses lld,
           # whose PE linker accepts /merge rather than GNU ld's -T.
           ${{ matrix.triple }}-gcc -O2 -s -nostdlib -Iinclude -Wall -Wextra \
+              -DLOGGING_ENABLED \
               -fno-asynchronous-unwind-tables -fno-ident -fno-stack-protector -fno-jump-tables -fno-vectorize -fno-slp-vectorize \
               -e entry \
               -DID_BUILD_NUMBER="$BUILD_NUMBER" \

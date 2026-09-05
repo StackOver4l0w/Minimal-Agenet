@@ -67,11 +67,11 @@ gcc -O2 -s -Iinclude -fno-asynchronous-unwind-tables -fno-shrink-wrap -fno-ident
 ### bash (MSYS2 shell)
 
 ```sh
-gcc -O2 -Iinclude -fno-asynchronous-unwind-tables -fno-shrink-wrap -fno-ident -fno-jump-tables -fno-tree-vectorize -fno-tree-slp-vectorize \
+gcc -O2 -DLOGGING_ENABLED -Iinclude -fno-asynchronous-unwind-tables -fno-shrink-wrap -fno-ident -fno-jump-tables -fno-tree-vectorize -fno-tree-slp-vectorize \
     -c entry.c src/stack_probes.c src/main.c src/identity_headers.c src/transport.c src/shell.c src/report.c src/system_facts.c src/environment.c src/winhttp_api.c src/ntdll.c src/kernel32.c src/advapi.c src/string.c src/memory.c src/peb.c src/system.c src/djb2.c src/logger.c
 mkdir -p obj && mv *.o obj/
 gcc -O2 -s -Iinclude -fno-asynchronous-unwind-tables -fno-shrink-wrap -fno-ident -fno-jump-tables -fno-tree-vectorize -fno-tree-slp-vectorize \
-    -nostdlib -e entry -o minimal_agent.exe obj/entry.o $(ls obj/*.o | grep -v '/entry.o$')
+  -nostdlib -e entry -Wl,-T,linker.ld -o minimal_agent.exe obj/entry.o $(ls obj/*.o | grep -v '/entry.o$')
 ```
 
 One command does all of the above plus the gates:
