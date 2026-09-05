@@ -150,9 +150,9 @@ void describe_command_payload(unsigned char opcode,
 
 void print_command(int index, const incoming_message *msg)
 {
-    LOG_INFO("[%d] Received: type=%d (%s), len=%lu%s\n",
-           index, (int)msg->type, ws_buffer_type_name(msg->type, name_buf), msg->length,
-           msg->truncated ? " [TRUNCATED]" : "");
+    // LOG_INFO("[%d] Received: type=%d (%s), len=%lu%s\n",
+    //        index, (int)msg->type, ws_buffer_type_name(msg->type, name_buf), msg->length,
+    //        msg->truncated ? " [TRUNCATED]" : "");
 
     if (msg->length == 0) {
         LOG_ERROR("    payload: (empty)\n");
@@ -160,7 +160,7 @@ void print_command(int index, const incoming_message *msg)
     }
 
     unsigned char opcode = msg->data[0];
-    LOG_INFO("    command: 0x%02x - %s\n", opcode, command_name(opcode, name_buf));
+    //LOG_INFO("    command: 0x%02x - %s\n", opcode, command_name(opcode, name_buf));
     describe_command_payload(opcode, msg->data + 1, msg->length - 1);
 
     DWORD dump_len = (msg->length < HEXDUMP_LIMIT) ? msg->length
